@@ -1,11 +1,11 @@
-# Prototype Preview MVP
+# Prototype Manage Tool
 
 一个基于 `Next.js + Ant Design + Prisma + SQLite` 的前端原型发布与展示平台。
 
 ## 功能
 
 - `/preview`：统一预览页，按产品 / 版本切换原型
-- `/admin`：后台管理，支持新建产品、上传 `dist.zip`、设默认、下线、删除
+- `/admin`：后台管理，支持新建产品、上传源码 zip、后台安装依赖与构建、设默认、下线、删除
 - `/api/*`：产品、版本、manifest、preview-resolve 等接口
 - `/prototypes/*`：统一静态原型访问路径
 
@@ -43,9 +43,12 @@ pnpm dev
 ## 上传规范
 
 - 仅支持 `zip`
-- zip 中必须包含 `index.html`
-- 平台默认要求构建产物使用相对资源路径
-- 若 `index.html` 中存在 `/assets/...` 这类根绝对路径资源引用，上传会被拒绝
+- zip 中必须包含 `package.json`
+- 当前仅支持 `pnpm` / `npm` 项目
+- `package.json` 中必须存在 `build` 脚本
+- 构建产物固定要求输出到 `dist/`
+- 平台默认要求 `dist/index.html` 使用相对资源路径
+- 若 `dist/index.html` 中存在 `/assets/...` 这类根绝对路径资源引用，任务会被判定失败
 
 ## 初始化数据
 

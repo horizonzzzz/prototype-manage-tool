@@ -36,9 +36,43 @@ export type UploadRecordItem = {
   fileName: string;
   fileSize: number;
   status: string;
+  currentStep: string | null;
+  progressPercent: number;
+  logSummary: string | null;
   errorMessage: string | null;
   createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  steps: BuildJobStepItem[];
 };
+
+export type BuildJobStepItem = {
+  key: string;
+  label: string;
+  status: string;
+  message: string | null;
+  startedAt: string | null;
+  completedAt: string | null;
+};
+
+export type BuildJobItem = {
+  id: number;
+  productKey: string;
+  version: string;
+  fileName: string;
+  fileSize: number;
+  status: string;
+  currentStep: string | null;
+  progressPercent: number;
+  logSummary: string | null;
+  errorMessage: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  steps: BuildJobStepItem[];
+};
+
+export type BuildJobListItem = BuildJobItem;
 
 export type ProductVersionManifest = {
   version: string;
@@ -57,4 +91,3 @@ export type ManifestProduct = {
   versions: ProductVersionManifest[];
   createdAt: string;
 };
-

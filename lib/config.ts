@@ -16,6 +16,7 @@ export const appConfig = {
   dataDir,
   prototypesDir: path.join(dataDir, 'prototypes'),
   uploadsTempDir: path.join(dataDir, 'uploads-temp'),
+  buildJobsDir: path.join(dataDir, 'build-jobs'),
   sqliteDir: path.join(dataDir, 'sqlite'),
   uploadMaxBytes: Number(process.env.UPLOAD_MAX_MB ?? '200') * 1024 * 1024,
   databaseUrl,

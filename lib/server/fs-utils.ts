@@ -13,6 +13,7 @@ export async function ensureAppDirectories() {
     fse.ensureDir(appConfig.dataDir),
     fse.ensureDir(appConfig.prototypesDir),
     fse.ensureDir(appConfig.uploadsTempDir),
+    fse.ensureDir(appConfig.buildJobsDir),
     fse.ensureDir(appConfig.sqliteDir),
   ]);
 }
@@ -81,15 +82,19 @@ export async function extractZipToTemp(zipPath: string, tempDir: string) {
 }
 
 export async function findIndexRoot(startDir: string): Promise<string | null> {
+  return findFileRoot(startDir, 'index.html');
+}
+
+export async function findFileRoot(startDir: string, fileName: string): Promise<string | null> {
   const entries = await fs.readdir(startDir, { withFileTypes: true });
 
-  if (entries.some((entry) => entry.isFile() && entry.name === 'index.html')) {
+  if (entries.some((entry) => entry.isFile() && entry.name === fileName)) {
     return startDir;
   }
 
   for (const entry of entries) {
     if (entry.isDirectory()) {
-      const found = await findIndexRoot(path.join(startDir, entry.name));
+      const found = await findFileRoot(path.join(startDir, entry.name), fileName);
       if (found) {
         return found;
       }

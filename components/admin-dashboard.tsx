@@ -17,6 +17,7 @@ import {
   Row,
   Select,
   Space,
+  Steps,
   Table,
   Tag,
   Typography,
@@ -25,7 +26,7 @@ import {
 import { DeleteOutlined, InboxOutlined, PlusOutlined, PoweroffOutlined, StarOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 
-import type { ApiResponse, ProductDetail, ProductListItem, ProductVersionItem, UploadRecordItem } from '@/lib/types';
+import type { ApiResponse, BuildJobItem, ProductDetail, ProductListItem, ProductVersionItem } from '@/lib/types';
 import { getErrorMessage } from '@/lib/domain/error-message';
 import { pageHeaderStyle, pageHeaderSubtitleStyle, pageHeaderTitleStyle } from '@/lib/ui/page-header';
 
@@ -33,7 +34,6 @@ const { Header, Content, Sider } = Layout;
 const { Title, Text, Paragraph } = Typography;
 
 type UploadFormValues = {
-  productKey: string;
   version: string;
   title?: string;
   remark?: string;
@@ -50,12 +50,47 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return payload.data as T;
 }
 
+function getStatusTagColor(status: string) {
+  switch (status) {
+    case 'published':
+    case 'success':
+      return 'green';
+    case 'building':
+    case 'queued':
+    case 'running':
+      return 'blue';
+    case 'failed':
+      return 'error';
+    case 'offline':
+      return 'default';
+    default:
+      return 'default';
+  }
+}
+
+function renderStatusTag(status: string, text = status) {
+  return <Tag color={getStatusTagColor(status)}>{text}</Tag>;
+}
+
+function getStepStatus(stepStatus: string): 'wait' | 'process' | 'finish' | 'error' {
+  switch (stepStatus) {
+    case 'success':
+      return 'finish';
+    case 'running':
+      return 'process';
+    case 'failed':
+      return 'error';
+    default:
+      return 'wait';
+  }
+}
+
 function StatusTags({ version }: { version: ProductVersionItem }) {
   return (
     <Space wrap>
-      <Tag color={version.status === 'published' ? 'blue' : 'default'}>{version.status}</Tag>
+      {renderStatusTag(version.status)}
       {version.isDefault ? <Tag color="gold">默认版本</Tag> : null}
-      {version.isLatest ? <Tag color="green">最新版本</Tag> : null}
+      {version.isLatest ? <Tag color="green">最新记录</Tag> : null}
     </Space>
   );
 }
@@ -65,7 +100,9 @@ export function AdminDashboard() {
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [selectedProductKey, setSelectedProductKey] = useState<string>();
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
-  const [records, setRecords] = useState<UploadRecordItem[]>([]);
+  const [jobs, setJobs] = useState<BuildJobItem[]>([]);
+  const [activeJobId, setActiveJobId] = useState<number>();
+  const [activeJob, setActiveJob] = useState<BuildJobItem | null>(null);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -76,6 +113,18 @@ export function AdminDashboard() {
   const [productForm] = Form.useForm();
   const [uploadForm] = Form.useForm();
 
+  const syncJobs = (nextJobs: BuildJobItem[]) => {
+    setJobs(nextJobs);
+    const runningJob = nextJobs.find((item) => ['queued', 'running'].includes(item.status));
+    if (runningJob) {
+      setActiveJobId(runningJob.id);
+      setActiveJob(runningJob);
+    } else if (activeJobId && !nextJobs.some((item) => item.id === activeJobId)) {
+      setActiveJobId(undefined);
+      setActiveJob(null);
+    }
+  };
+
   const loadProducts = async () => {
     const list = await fetchJson<ProductListItem[]>('/api/products');
     setProducts(list);
@@ -85,12 +134,12 @@ export function AdminDashboard() {
   const loadProductDetail = async (productKey: string) => {
     setLoading(true);
     try {
-      const [detail, uploadRecords] = await Promise.all([
+      const [detail, buildJobs] = await Promise.all([
         fetchJson<ProductDetail>(`/api/products/${productKey}`),
-        fetchJson<UploadRecordItem[]>(`/api/products/${productKey}/versions?includeRecords=true`),
+        fetchJson<BuildJobItem[]>(`/api/products/${productKey}/build-jobs`),
       ]);
       setProductDetail(detail);
-      setRecords(uploadRecords);
+      syncJobs(buildJobs);
     } finally {
       setLoading(false);
     }
@@ -105,6 +154,39 @@ export function AdminDashboard() {
       void loadProductDetail(selectedProductKey);
     }
   }, [selectedProductKey]);
+
+  useEffect(() => {
+    if (!activeJobId) {
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setInterval(async () => {
+      try {
+        const job = await fetchJson<BuildJobItem>(`/api/build-jobs/${activeJobId}`);
+        if (cancelled) {
+          return;
+        }
+
+        setActiveJob(job);
+        setJobs((current) => current.map((item) => (item.id === job.id ? job : item)));
+
+        if (!['queued', 'running'].includes(job.status)) {
+          window.clearInterval(timer);
+          if (selectedProductKey === job.productKey) {
+            await loadProductDetail(job.productKey);
+          }
+        }
+      } catch {
+        window.clearInterval(timer);
+      }
+    }, 1500);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [activeJobId, selectedProductKey]);
 
   const filteredVersions = useMemo(() => {
     const keyword = search.trim().toLowerCase();
@@ -135,13 +217,18 @@ export function AdminDashboard() {
     try {
       setUploadError(undefined);
       const values = (await uploadForm.validateFields()) as UploadFormValues;
-      const selectedFile = selectedUploadFiles[0]?.originFileObj;
-      if (!selectedFile) {
-        setUploadError('请上传 zip 文件');
+      if (!selectedProductKey) {
+        setUploadError('请先选择产品');
         return;
       }
+      const selectedFile = selectedUploadFiles[0]?.originFileObj;
+      if (!selectedFile) {
+        setUploadError('请上传源码压缩包');
+        return;
+      }
+
       const formData = new FormData();
-      formData.set('productKey', values.productKey);
+      formData.set('productKey', selectedProductKey);
       formData.set('version', values.version);
       formData.set('title', values.title ?? '');
       formData.set('remark', values.remark ?? '');
@@ -157,17 +244,20 @@ export function AdminDashboard() {
           }
         };
         xhr.onload = async () => {
-          const payload = JSON.parse(xhr.responseText) as ApiResponse<{ previewUrl: string }>;
-          if (xhr.status >= 400 || !payload.success) {
+          const payload = JSON.parse(xhr.responseText) as ApiResponse<BuildJobItem>;
+          if (xhr.status >= 400 || !payload.success || !payload.data) {
             reject(new Error(payload.message || '上传失败'));
             return;
           }
 
-          message.success('上传成功');
+          const buildJob = payload.data;
+          message.success('源码包上传成功，后台任务已开始');
           uploadForm.resetFields();
           setSelectedUploadFiles([]);
+          setActiveJobId(buildJob.id);
+          setActiveJob(buildJob);
           await loadProducts();
-          await loadProductDetail(values.productKey);
+          await loadProductDetail(selectedProductKey);
           resolve();
         };
         xhr.onerror = () => reject(new Error('上传失败'));
@@ -213,7 +303,12 @@ export function AdminDashboard() {
             dataSource={products}
             renderItem={(item) => (
               <List.Item
-                style={{ cursor: 'pointer', background: item.key === selectedProductKey ? '#eef4ff' : undefined, borderRadius: 8, marginBottom: 8 }}
+                style={{
+                  cursor: 'pointer',
+                  background: item.key === selectedProductKey ? '#eef4ff' : undefined,
+                  borderRadius: 8,
+                  marginBottom: 8,
+                }}
                 onClick={() => setSelectedProductKey(item.key)}
               >
                 <List.Item.Meta
@@ -237,7 +332,7 @@ export function AdminDashboard() {
               原型发布管理台
             </Title>
             <Text type="secondary" style={pageHeaderSubtitleStyle}>
-              上传 dist.zip、设默认版本、下线与删除
+              上传源码压缩包，系统自动安装依赖、执行构建并发布 dist
             </Text>
           </div>
         </Header>
@@ -248,8 +343,12 @@ export function AdminDashboard() {
                 <Form form={uploadForm} layout="vertical">
                   <Row gutter={16}>
                     <Col xs={24} md={8}>
-                      <Form.Item name="productKey" label="产品" rules={[{ required: true, message: '请选择产品' }]}>
-                        <Select options={products.map((item) => ({ label: `${item.name} (${item.key})`, value: item.key }))} />
+                      <Form.Item label="产品" required>
+                        <Select
+                          value={selectedProductKey}
+                          onChange={(value) => setSelectedProductKey(value)}
+                          options={products.map((item) => ({ label: `${item.name} (${item.key})`, value: item.key }))}
+                        />
                       </Form.Item>
                     </Col>
                     <Col xs={24} md={8}>
@@ -266,9 +365,7 @@ export function AdminDashboard() {
                   <Form.Item name="remark" label="更新说明">
                     <Input.TextArea rows={3} placeholder="可选" />
                   </Form.Item>
-                  <Form.Item
-                    label="dist.zip"
-                  >
+                  <Form.Item label="源码压缩包">
                     <Upload.Dragger
                       beforeUpload={() => false}
                       accept=".zip"
@@ -287,24 +384,50 @@ export function AdminDashboard() {
                       <p className="ant-upload-drag-icon">
                         <InboxOutlined />
                       </p>
-                      <p>拖拽或点击上传 dist.zip</p>
-                      <p className="ant-upload-hint">平台要求构建产物使用相对资源路径</p>
+                      <p>拖拽或点击上传源码 zip</p>
+                      <p className="ant-upload-hint">压缩包内需包含 package.json 和 build 脚本，构建产物固定输出到 dist/</p>
                     </Upload.Dragger>
                   </Form.Item>
                 </Form>
-                {uploading ? <Progress percent={uploadProgress} status="active" /> : null}
+                {uploading ? <Progress percent={uploadProgress} status="active" style={{ marginBottom: 16 }} /> : null}
                 {uploadError ? (
-                  <Alert
-                    type="error"
-                    showIcon
-                    style={{ marginBottom: 16 }}
-                    message="上传失败"
-                    description={uploadError}
-                  />
+                  <Alert type="error" showIcon style={{ marginBottom: 16 }} message="上传失败" description={uploadError} />
                 ) : null}
                 <Button type="primary" onClick={() => void uploadVersion()} loading={uploading}>
-                  上传并发布
+                  上传并创建任务
                 </Button>
+                {activeJob ? (
+                  <>
+                    <Divider />
+                    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+                      <Space wrap>
+                        <Text strong>
+                          当前任务：{activeJob.version} / {activeJob.fileName}
+                        </Text>
+                        {renderStatusTag(activeJob.status, activeJob.status)}
+                      </Space>
+                      <Progress
+                        percent={activeJob.progressPercent}
+                        status={activeJob.status === 'failed' ? 'exception' : activeJob.status === 'success' ? 'success' : 'active'}
+                      />
+                      <Alert
+                        type={activeJob.status === 'failed' ? 'error' : activeJob.status === 'success' ? 'success' : 'info'}
+                        showIcon
+                        message={activeJob.logSummary || '任务执行中'}
+                        description={activeJob.errorMessage || `当前步骤：${activeJob.currentStep ?? 'waiting'}`}
+                      />
+                      <Steps
+                        direction="vertical"
+                        size="small"
+                        items={activeJob.steps.map((step) => ({
+                          title: step.label,
+                          status: getStepStatus(step.status),
+                          description: step.message || '等待执行',
+                        }))}
+                      />
+                    </Space>
+                  </>
+                ) : null}
               </Card>
             </Col>
             <Col xs={24} xl={15}>
@@ -337,10 +460,20 @@ export function AdminDashboard() {
                       width: 240,
                       render: (_, item) => (
                         <Space wrap>
-                          <Button size="small" icon={<StarOutlined />} disabled={item.isDefault} onClick={() => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}>
+                          <Button
+                            size="small"
+                            icon={<StarOutlined />}
+                            disabled={item.isDefault || item.status !== 'published'}
+                            onClick={() => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
+                          >
                             设默认
                           </Button>
-                          <Button size="small" icon={<PoweroffOutlined />} disabled={item.status === 'offline'} onClick={() => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}>
+                          <Button
+                            size="small"
+                            icon={<PoweroffOutlined />}
+                            disabled={item.status !== 'published'}
+                            onClick={() => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
+                          >
                             下线
                           </Button>
                           <Button
@@ -350,7 +483,7 @@ export function AdminDashboard() {
                             onClick={() =>
                               modal.confirm({
                                 title: `删除版本 ${item.version}`,
-                                content: '删除后会同步移除静态目录，请确认。',
+                                content: '删除后会同步移除已发布目录，请确认。',
                                 okText: '删除',
                                 okButtonProps: { danger: true },
                                 onOk: async () => requestAction(`/api/versions/${item.id}`, '版本已删除'),
@@ -367,23 +500,30 @@ export function AdminDashboard() {
               </Card>
             </Col>
             <Col xs={24} xl={9}>
-              <Card title="失败记录" loading={loading}>
+              <Card title="最近任务" loading={loading}>
                 <List
-                  locale={{ emptyText: '暂无失败记录' }}
-                  dataSource={records.filter((item) => item.status === 'failed')}
+                  locale={{ emptyText: '暂无任务记录' }}
+                  dataSource={jobs}
                   renderItem={(item) => (
-                    <List.Item>
+                    <List.Item
+                      style={{ cursor: 'pointer' }}
+                      onClick={() => {
+                        setActiveJobId(item.id);
+                        setActiveJob(item);
+                      }}
+                    >
                       <List.Item.Meta
                         title={
-                          <Space>
+                          <Space wrap>
                             <span>{item.version}</span>
-                            <Tag color="error">failed</Tag>
+                            {renderStatusTag(item.status)}
+                            <Text type="secondary">{item.progressPercent}%</Text>
                           </Space>
                         }
                         description={
                           <div>
                             <div>{item.fileName}</div>
-                            <Text type="secondary">{item.errorMessage || '未知错误'}</Text>
+                            <Text type="secondary">{item.errorMessage || item.logSummary || '等待执行'}</Text>
                           </div>
                         }
                       />

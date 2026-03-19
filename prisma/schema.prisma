@@ -39,7 +39,14 @@ model UploadRecord {
   fileName     String
   fileSize     Int
   status       String
+  currentStep  String?
+  stepsJson    String?
+  logSummary   String?
   errorMessage String?
+  sourceArchivePath String?
+  workspacePath String?
+  publishedPath String?
+  startedAt    DateTime?
+  completedAt  DateTime?
   createdAt    DateTime @default(now())
 }
-

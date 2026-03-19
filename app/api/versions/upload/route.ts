@@ -26,9 +26,8 @@ export async function POST(request: Request) {
       buffer: Buffer.from(await file.arrayBuffer()),
     });
 
-    return ok(result, '上传成功');
+    return ok(result, '上传任务已创建');
   } catch (error) {
     return fail(error instanceof Error ? error.message : '上传失败', 400);
   }
 }
-

@@ -1,5 +1,6 @@
 import type { Product, ProductVersion, UploadRecord } from '@prisma/client';
 
+import { getCurrentJobStep, getJobProgressPercent, parseJobSteps } from '@/lib/domain/build-job';
 import type { ManifestProduct, ProductDetail, ProductListItem, ProductVersionItem, UploadRecordItem } from '@/lib/types';
 
 export function serializeVersion(version: ProductVersion, latestVersionValue?: string): ProductVersionItem {
@@ -41,6 +42,9 @@ export function serializeProductDetail(product: Product & { versions: ProductVer
 }
 
 export function serializeUploadRecord(record: UploadRecord): UploadRecordItem {
+  const steps = parseJobSteps(record.stepsJson);
+  const currentStep = getCurrentJobStep(steps);
+
   return {
     id: record.id,
     productKey: record.productKey,
@@ -48,8 +52,14 @@ export function serializeUploadRecord(record: UploadRecord): UploadRecordItem {
     fileName: record.fileName,
     fileSize: record.fileSize,
     status: record.status,
+    currentStep: record.currentStep ?? currentStep?.key ?? null,
+    progressPercent: getJobProgressPercent(steps),
+    logSummary: record.logSummary,
     errorMessage: record.errorMessage,
     createdAt: record.createdAt.toISOString(),
+    startedAt: record.startedAt?.toISOString() ?? null,
+    completedAt: record.completedAt?.toISOString() ?? null,
+    steps,
   };
 }
 
@@ -75,4 +85,3 @@ export function serializeManifestProduct(product: Product & { versions: ProductV
     })),
   };
 }
-
