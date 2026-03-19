@@ -1,0 +1,49 @@
+services:
+  app:
+    build:
+      context: .
+      target: runner
+    container_name: prototype-preview-app
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      HOSTNAME: 0.0.0.0
+      DATA_DIR: /app/data
+      DATABASE_URL: file:/app/data/sqlite/app.db
+      APP_URL: ${APP_URL:-http://localhost}
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
+    ports:
+      - "${APP_PORT:-3000}:3000"
+    volumes:
+      - ./docker-data:/app/data
+    restart: unless-stopped
+
+  db-init:
+    build:
+      context: .
+      target: tools
+    profiles: ["init"]
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /app/data
+      DATABASE_URL: file:/app/data/sqlite/app.db
+      APP_URL: ${APP_URL:-http://localhost}
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
+    volumes:
+      - ./docker-data:/app/data
+    command: sh -c "pnpm prisma:generate && pnpm db:push"
+
+  seed-demo:
+    build:
+      context: .
+      target: tools
+    profiles: ["seed"]
+    environment:
+      NODE_ENV: production
+      DATA_DIR: /app/data
+      DATABASE_URL: file:/app/data/sqlite/app.db
+      APP_URL: ${APP_URL:-http://localhost}
+      UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
+    volumes:
+      - ./docker-data:/app/data
+    command: sh -c "pnpm prisma:generate && pnpm db:seed"

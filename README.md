@@ -58,3 +58,52 @@ pnpm test
 pnpm typecheck
 pnpm build
 ```
+
+## Docker 部署
+
+### 1. 准备环境变量与持久化目录
+
+复制 `.env.docker.example` 为 `.env.docker`，并按实际域名修改 `APP_URL`。
+
+宿主机持久化目录默认使用项目下的 `./docker-data`，容器内映射为 `/app/data`，包含：
+
+- SQLite：`/app/data/sqlite/app.db`
+- 原型文件：`/app/data/prototypes`
+- 上传临时目录：`/app/data/uploads-temp`
+
+### 2. 初始化数据库
+
+首次部署先执行：
+
+```bash
+docker compose --profile init run --rm db-init
+```
+
+如果你希望导入演示数据，再额外执行：
+
+```bash
+docker compose --profile seed run --rm seed-demo
+```
+
+### 3. 启动服务
+
+```bash
+docker compose up -d --build
+```
+
+默认通过应用容器直接暴露 `${APP_PORT:-3000}` 端口：
+
+- `http://<server>:3000/preview`
+- `http://<server>:3000/admin`
+
+### 4. 升级
+
+```bash
+docker compose up -d --build
+```
+
+升级不会覆盖 `docker-data/` 中的数据库和原型文件。
+
+### 5. 备份与恢复
+
+备份 `docker-data/` 目录即可；恢复时停掉容器、回滚该目录，然后重新启动。
