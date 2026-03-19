@@ -1,0 +1,44 @@
+export const runtime = 'nodejs';
+
+import fs from 'node:fs/promises';
+import path from 'node:path';
+
+import mime from 'mime-types';
+import { NextResponse } from 'next/server';
+
+import { appConfig } from '@/lib/config';
+import { ensureChildPath } from '@/lib/domain/path-safety';
+
+type Context = {
+  params: Promise<{ slug: string[] }>;
+};
+
+export async function GET(_: Request, context: Context) {
+  try {
+    const { slug } = await context.params;
+
+    if (!slug?.length) {
+      return new NextResponse('Not found', { status: 404 });
+    }
+
+    const filePath = ensureChildPath(appConfig.prototypesDir, ...slug);
+    const stat = await fs.stat(filePath);
+
+    if (!stat.isFile()) {
+      return new NextResponse('Not found', { status: 404 });
+    }
+
+    const content = await fs.readFile(filePath);
+    const contentType = mime.lookup(path.basename(filePath)) || 'application/octet-stream';
+
+    return new NextResponse(content, {
+      headers: {
+        'Content-Type': contentType.toString(),
+        'Cache-Control': 'no-store',
+      },
+    });
+  } catch {
+    return new NextResponse('Not found', { status: 404 });
+  }
+}
+
