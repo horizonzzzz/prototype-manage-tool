@@ -1,8 +1,6 @@
 services:
   app:
-    build:
-      context: .
-      target: runner
+    image: horizon2333/prototype-manage-tool:${IMAGE_TAG:-latest}
     container_name: prototype-preview-app
     environment:
       NODE_ENV: production
@@ -19,9 +17,7 @@ services:
     restart: unless-stopped
 
   db-init:
-    build:
-      context: .
-      target: tools
+    image: horizon2333/prototype-manage-tool:${IMAGE_TAG:-latest}
     profiles: ["init"]
     environment:
       NODE_ENV: production
@@ -34,9 +30,7 @@ services:
     command: sh -c "pnpm prisma:generate && pnpm db:push"
 
   seed-demo:
-    build:
-      context: .
-      target: tools
+    image: horizon2333/prototype-manage-tool:${IMAGE_TAG:-latest}
     profiles: ["seed"]
     environment:
       NODE_ENV: production
@@ -46,4 +40,4 @@ services:
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
     volumes:
       - ./docker-data:/app/data
-    command: sh -c "pnpm prisma:generate && pnpm db:seed"
+    command: sh -c "pnpm prisma:generate && pnpm db:push && pnpm db:seed"

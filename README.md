@@ -64,34 +64,46 @@ pnpm build
 
 ## Docker 部署
 
-### 1. 准备环境变量与持久化目录
+### 1. 准备部署目录
 
-复制 `.env.docker.example` 为 `.env.docker`，并按实际域名修改 `APP_URL`。
+服务器只需要以下内容：
+
+- `compose.yml`
+- `.env.docker`
+- `docker-data/`
+
+复制 `.env.docker.example` 为 `.env.docker`，并按实际域名修改：
+
+- `APP_URL`
+- `APP_PORT`
+- `IMAGE_TAG`（默认 `latest`，正式环境建议使用明确版本号）
 
 宿主机持久化目录默认使用项目下的 `./docker-data`，容器内映射为 `/app/data`，包含：
 
 - SQLite：`/app/data/sqlite/app.db`
 - 原型文件：`/app/data/prototypes`
 - 上传临时目录：`/app/data/uploads-temp`
+- 构建任务目录：`/app/data/build-jobs`
 
 ### 2. 初始化数据库
 
 首次部署先执行：
 
 ```bash
-docker compose --profile init run --rm db-init
+docker compose --env-file .env.docker --profile init run --rm db-init
 ```
 
 如果你希望导入演示数据，再额外执行：
 
 ```bash
-docker compose --profile seed run --rm seed-demo
+docker compose --env-file .env.docker --profile seed run --rm seed-demo
 ```
 
 ### 3. 启动服务
 
 ```bash
-docker compose up -d --build
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
 ```
 
 默认通过应用容器直接暴露 `${APP_PORT:-3000}` 端口：
@@ -102,11 +114,45 @@ docker compose up -d --build
 ### 4. 升级
 
 ```bash
-docker compose up -d --build
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
 ```
 
+升级时只需要修改 `.env.docker` 中的 `IMAGE_TAG`，然后重新执行上面的两条命令。
 升级不会覆盖 `docker-data/` 中的数据库和原型文件。
 
-### 5. 备份与恢复
+### 5. 回滚
+
+将 `.env.docker` 中的 `IMAGE_TAG` 改回旧版本，例如 `v0.1.0`，然后执行：
+
+```bash
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
+```
+
+### 6. 备份与恢复
 
 备份 `docker-data/` 目录即可；恢复时停掉容器、回滚该目录，然后重新启动。
+
+## Docker Hub 发布
+
+镜像仓库：`horizon2333/prototype-manage-tool`
+
+- `latest`：`main` 分支最新可部署镜像
+- `vX.Y.Z`：正式版本镜像
+- `sha-<commit>`：提交级别镜像，便于排查
+
+### GitHub Actions 自动发布
+
+为仓库配置以下 Secrets：
+
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+
+当 `main` 分支有新提交，或推送 `v*` 标签时，GitHub Actions 会自动构建并推送镜像。
+
+### 本地手动兜底发布
+
+```bash
+docker buildx build --target runner --platform linux/amd64 -t horizon2333/prototype-manage-tool:latest -t horizon2333/prototype-manage-tool:v0.1.0 --push .
+```
