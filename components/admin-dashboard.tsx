@@ -23,11 +23,13 @@ import {
   Typography,
   Upload,
 } from 'antd';
-import { DeleteOutlined, InboxOutlined, PlusOutlined, PoweroffOutlined, StarOutlined } from '@ant-design/icons';
+import { DeleteOutlined, EyeOutlined, InboxOutlined, PlusOutlined, PoweroffOutlined, StarOutlined } from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import type { ApiResponse, BuildJobItem, ProductDetail, ProductListItem, ProductVersionItem } from '@/lib/types';
 import { getErrorMessage } from '@/lib/domain/error-message';
+import { buildPreviewHref, resolveAdminProductKey } from '@/lib/ui/navigation';
 import { pageHeaderStyle, pageHeaderSubtitleStyle, pageHeaderTitleStyle } from '@/lib/ui/page-header';
 
 const { Header, Content, Sider } = Layout;
@@ -97,6 +99,9 @@ function StatusTags({ version }: { version: ProductVersionItem }) {
 
 export function AdminDashboard() {
   const { message, modal } = App.useApp();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [products, setProducts] = useState<ProductListItem[]>([]);
   const [selectedProductKey, setSelectedProductKey] = useState<string>();
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
@@ -128,7 +133,29 @@ export function AdminDashboard() {
   const loadProducts = async () => {
     const list = await fetchJson<ProductListItem[]>('/api/products');
     setProducts(list);
-    setSelectedProductKey((current) => current ?? list[0]?.key);
+  };
+
+  const replaceProductQuery = (productKey?: string) => {
+    const next = new URLSearchParams(searchParams.toString());
+    if (productKey) {
+      next.set('product', productKey);
+    } else {
+      next.delete('product');
+    }
+
+    const currentQuery = searchParams.toString();
+    const nextQuery = next.toString();
+    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
+    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
+
+    if (currentUrl !== nextUrl) {
+      router.replace(nextUrl);
+    }
+  };
+
+  const handleProductChange = (productKey: string) => {
+    setSelectedProductKey(productKey);
+    replaceProductQuery(productKey);
   };
 
   const loadProductDetail = async (productKey: string) => {
@@ -148,6 +175,19 @@ export function AdminDashboard() {
   useEffect(() => {
     void loadProducts();
   }, []);
+
+  useEffect(() => {
+    const resolvedProductKey = resolveAdminProductKey(
+      products.map((item) => item.key),
+      searchParams.get('product'),
+    );
+
+    setSelectedProductKey((current) => (current === resolvedProductKey ? current : resolvedProductKey));
+
+    if (resolvedProductKey !== searchParams.get('product')) {
+      replaceProductQuery(resolvedProductKey);
+    }
+  }, [products, searchParams]);
 
   useEffect(() => {
     if (selectedProductKey) {
@@ -309,7 +349,7 @@ export function AdminDashboard() {
                   borderRadius: 8,
                   marginBottom: 8,
                 }}
-                onClick={() => setSelectedProductKey(item.key)}
+                onClick={() => handleProductChange(item.key)}
               >
                 <List.Item.Meta
                   title={
@@ -326,7 +366,7 @@ export function AdminDashboard() {
         </Space>
       </Sider>
       <Layout>
-        <Header style={pageHeaderStyle}>
+        <Header style={{ ...pageHeaderStyle, justifyContent: 'space-between' }}>
           <div>
             <Title level={3} style={pageHeaderTitleStyle}>
               原型发布管理台
@@ -335,6 +375,18 @@ export function AdminDashboard() {
               上传源码压缩包，系统自动安装依赖、执行构建并发布 dist
             </Text>
           </div>
+          <Button
+            type="primary"
+            icon={<EyeOutlined />}
+            disabled={!selectedProductKey}
+            onClick={() => {
+              if (selectedProductKey) {
+                router.push(buildPreviewHref(selectedProductKey));
+              }
+            }}
+          >
+            前往预览台
+          </Button>
         </Header>
         <Content style={{ padding: 24 }}>
           <Row gutter={[16, 16]}>
@@ -346,7 +398,7 @@ export function AdminDashboard() {
                       <Form.Item label="产品" required>
                         <Select
                           value={selectedProductKey}
-                          onChange={(value) => setSelectedProductKey(value)}
+                          onChange={handleProductChange}
                           options={products.map((item) => ({ label: `${item.name} (${item.key})`, value: item.key }))}
                         />
                       </Form.Item>
@@ -457,9 +509,21 @@ export function AdminDashboard() {
                     {
                       title: '操作',
                       key: 'actions',
-                      width: 240,
+                      width: 320,
                       render: (_, item) => (
                         <Space wrap>
+                          <Button
+                            size="small"
+                            icon={<EyeOutlined />}
+                            disabled={!item.entryUrl || item.status !== 'published'}
+                            onClick={() => {
+                              if (productDetail) {
+                                router.push(buildPreviewHref(productDetail.key, item.version));
+                              }
+                            }}
+                          >
+                            预览
+                          </Button>
                           <Button
                             size="small"
                             icon={<StarOutlined />}

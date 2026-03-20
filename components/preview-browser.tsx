@@ -3,9 +3,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { App, Button, Card, Empty, Input, Layout, List, Space, Tag, Typography } from 'antd';
 import { CopyOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 
 import type { ApiResponse, ManifestProduct, ProductVersionManifest } from '@/lib/types';
+import { buildAdminHref, buildPreviewHref } from '@/lib/ui/navigation';
 import { pageHeaderStyle, pageHeaderSubtitleStyle, pageHeaderTitleStyle } from '@/lib/ui/page-header';
 
 const { Header, Sider, Content } = Layout;
@@ -33,7 +34,6 @@ async function fetchManifest(query: string) {
 export function PreviewBrowser() {
   const { message } = App.useApp();
   const router = useRouter();
-  const pathname = usePathname();
   const searchParams = useSearchParams();
   const [products, setProducts] = useState<ManifestProduct[]>([]);
   const [selectedProductKey, setSelectedProductKey] = useState<string>();
@@ -69,19 +69,16 @@ export function PreviewBrowser() {
     versions[0];
 
   const syncUrl = (productKey: string, version: string) => {
-    const next = new URLSearchParams(searchParams.toString());
-    next.set('product', productKey);
-    next.set('version', version);
     setSelectedProductKey(productKey);
     setSelectedVersion(version);
-    router.replace(`${pathname}?${next.toString()}`);
+    router.replace(buildPreviewHref(productKey, version));
   };
 
   const copyLink = async () => {
     if (!currentProduct || !currentVersion) {
       return;
     }
-    const target = `${window.location.origin}/preview?product=${currentProduct.key}&version=${currentVersion.version}`;
+    const target = `${window.location.origin}${buildPreviewHref(currentProduct.key, currentVersion.version)}`;
     await navigator.clipboard.writeText(target);
     message.success('预览链接已复制');
   };
@@ -142,6 +139,9 @@ export function PreviewBrowser() {
             </Text>
           </div>
           <Space>
+            <Button onClick={() => router.push(buildAdminHref(currentProduct?.key))} disabled={!currentProduct}>
+              前往管理台
+            </Button>
             <Button icon={<CopyOutlined />} onClick={() => void copyLink()} disabled={!currentVersion}>
               复制预览链接
             </Button>
