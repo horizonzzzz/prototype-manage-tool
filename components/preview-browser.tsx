@@ -10,6 +10,7 @@ import { groupVersionsForPreview } from '@/lib/domain/preview';
 import type { ApiResponse, ManifestProduct, ProductVersionManifest } from '@/lib/types';
 import { buildAdminHref, buildPreviewHref } from '@/lib/ui/navigation';
 import { pageHeaderStyle, pageHeaderSubtitleStyle, pageHeaderTitleStyle } from '@/lib/ui/page-header';
+import { copyText, resolvePreviewEntryUrl } from '@/lib/ui/preview-link';
 
 const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
@@ -90,18 +91,37 @@ export function PreviewBrowser() {
     router.replace(buildPreviewHref(productKey, version));
   };
 
+  const resolveCurrentPreviewLink = () => {
+    if (!currentVersion?.entryUrl || typeof window === 'undefined') {
+      return undefined;
+    }
+
+    return resolvePreviewEntryUrl(currentVersion.entryUrl, window.location.origin);
+  };
+
   const copyLink = async () => {
     if (!currentProduct || !currentVersion) {
       return;
     }
-    const target = `${window.location.origin}${buildPreviewHref(currentProduct.key, currentVersion.version)}`;
-    await navigator.clipboard.writeText(target);
-    message.success('预览链接已复制');
+
+    const target = resolveCurrentPreviewLink();
+    if (!target) {
+      return;
+    }
+
+    const copied = await copyText(target);
+    if (copied) {
+      message.success('预览页链接已复制');
+      return;
+    }
+
+    message.error('当前环境不支持自动复制，请手动复制预览地址');
   };
 
   const openNewWindow = () => {
-    if (currentVersion?.entryUrl) {
-      window.open(currentVersion.entryUrl, '_blank', 'noopener,noreferrer');
+    const target = resolveCurrentPreviewLink();
+    if (target) {
+      window.open(target, '_blank', 'noopener,noreferrer');
     }
   };
 
