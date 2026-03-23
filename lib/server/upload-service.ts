@@ -1,7 +1,7 @@
 import fse from 'fs-extra';
 
 import { appConfig } from '@/lib/config';
-import { ensureVersionPathInsideRoot } from '@/lib/domain/path-safety';
+import { ensureChildPath, ensureVersionPathInsideRoot } from '@/lib/domain/path-safety';
 import { prisma } from '@/lib/prisma';
 import { createBuildJob } from '@/lib/server/build-job-service';
 
@@ -94,6 +94,30 @@ export async function deleteVersion(versionId: number) {
   });
 
   const targetDir = ensureVersionPathInsideRoot(appConfig.prototypesDir, version.product.key, version.version);
+  await fse.remove(targetDir);
+}
+
+export async function deleteProduct(productKey: string) {
+  const product = await prisma.product.findUnique({
+    where: { key: productKey },
+    include: { versions: true },
+  });
+
+  if (!product) {
+    throw new Error('Product not found');
+  }
+
+  await prisma.$transaction(async (transaction) => {
+    await transaction.uploadRecord.deleteMany({
+      where: { productKey },
+    });
+
+    await transaction.product.delete({
+      where: { key: productKey },
+    });
+  });
+
+  const targetDir = ensureChildPath(appConfig.prototypesDir, productKey);
   await fse.remove(targetDir);
 }
 

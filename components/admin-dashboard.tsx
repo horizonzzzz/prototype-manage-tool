@@ -118,6 +118,13 @@ export function AdminDashboard() {
   const [productForm] = Form.useForm();
   const [uploadForm] = Form.useForm();
 
+  const clearProductContext = () => {
+    setProductDetail(null);
+    setJobs([]);
+    setActiveJobId(undefined);
+    setActiveJob(null);
+  };
+
   const syncJobs = (nextJobs: BuildJobItem[]) => {
     setJobs(nextJobs);
     const runningJob = nextJobs.find((item) => ['queued', 'running'].includes(item.status));
@@ -192,7 +199,10 @@ export function AdminDashboard() {
   useEffect(() => {
     if (selectedProductKey) {
       void loadProductDetail(selectedProductKey);
+      return;
     }
+
+    clearProductContext();
   }, [selectedProductKey]);
 
   useEffect(() => {
@@ -326,6 +336,18 @@ export function AdminDashboard() {
     await refreshCurrent();
   };
 
+  const handleDeleteProduct = async (productKey: string) => {
+    await fetchJson(`/api/products/${productKey}`, { method: 'DELETE' });
+    message.success('产品已删除');
+
+    if (selectedProductKey === productKey) {
+      setSelectedProductKey(undefined);
+      clearProductContext();
+    }
+
+    await loadProducts();
+  };
+
   return (
     <Layout className="page-shell">
       <Sider width={280} theme="light" style={{ borderRight: '1px solid #f0f0f0', padding: 16 }}>
@@ -340,9 +362,30 @@ export function AdminDashboard() {
           </Space>
           <List
             bordered
+            locale={{ emptyText: '暂无产品' }}
             dataSource={products}
             renderItem={(item) => (
               <List.Item
+                actions={[
+                  <Button
+                    key="delete"
+                    type="text"
+                    danger
+                    icon={<DeleteOutlined />}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      modal.confirm({
+                        title: `删除产品 ${item.name}`,
+                        content: '删除后会移除该产品下的所有版本、任务记录和已发布文件，请确认。',
+                        okText: '删除',
+                        okButtonProps: { danger: true },
+                        onOk: async () => handleDeleteProduct(item.key),
+                      });
+                    }}
+                  >
+                    删除
+                  </Button>,
+                ]}
                 style={{
                   cursor: 'pointer',
                   background: item.key === selectedProductKey ? '#eef4ff' : undefined,
@@ -378,12 +421,7 @@ export function AdminDashboard() {
           <Button
             type="primary"
             icon={<EyeOutlined />}
-            disabled={!selectedProductKey}
-            onClick={() => {
-              if (selectedProductKey) {
-                router.push(buildPreviewHref(selectedProductKey));
-              }
-            }}
+            onClick={() => router.push(buildPreviewHref(selectedProductKey))}
           >
             前往预览台
           </Button>
@@ -565,35 +603,37 @@ export function AdminDashboard() {
             </Col>
             <Col xs={24} xl={9}>
               <Card title="最近任务" loading={loading}>
-                <List
-                  locale={{ emptyText: '暂无任务记录' }}
-                  dataSource={jobs}
-                  renderItem={(item) => (
-                    <List.Item
-                      style={{ cursor: 'pointer' }}
-                      onClick={() => {
-                        setActiveJobId(item.id);
-                        setActiveJob(item);
-                      }}
-                    >
-                      <List.Item.Meta
-                        title={
-                          <Space wrap>
-                            <span>{item.version}</span>
-                            {renderStatusTag(item.status)}
-                            <Text type="secondary">{item.progressPercent}%</Text>
-                          </Space>
-                        }
-                        description={
-                          <div>
-                            <div>{item.fileName}</div>
-                            <Text type="secondary">{item.errorMessage || item.logSummary || '等待执行'}</Text>
-                          </div>
-                        }
-                      />
-                    </List.Item>
-                  )}
-                />
+                <div style={{ maxHeight: 420, overflowY: 'auto', paddingRight: 8 }}>
+                  <List
+                    locale={{ emptyText: '暂无任务记录' }}
+                    dataSource={jobs}
+                    renderItem={(item) => (
+                      <List.Item
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => {
+                          setActiveJobId(item.id);
+                          setActiveJob(item);
+                        }}
+                      >
+                        <List.Item.Meta
+                          title={
+                            <Space wrap>
+                              <span>{item.version}</span>
+                              {renderStatusTag(item.status)}
+                              <Text type="secondary">{item.progressPercent}%</Text>
+                            </Space>
+                          }
+                          description={
+                            <div>
+                              <div>{item.fileName}</div>
+                              <Text type="secondary">{item.errorMessage || item.logSummary || '等待执行'}</Text>
+                            </div>
+                          }
+                        />
+                      </List.Item>
+                    )}
+                  />
+                </div>
               </Card>
               <Divider />
               <Card title="当前产品信息" loading={loading}>

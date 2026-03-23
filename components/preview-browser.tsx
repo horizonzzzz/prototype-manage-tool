@@ -139,7 +139,7 @@ export function PreviewBrowser() {
             </Text>
           </div>
           <Space>
-            <Button onClick={() => router.push(buildAdminHref(currentProduct?.key))} disabled={!currentProduct}>
+            <Button onClick={() => router.push(buildAdminHref(currentProduct?.key))}>
               前往管理台
             </Button>
             <Button icon={<CopyOutlined />} onClick={() => void copyLink()} disabled={!currentVersion}>
