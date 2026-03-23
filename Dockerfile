@@ -23,6 +23,9 @@ ENV HOSTNAME=0.0.0.0
 ENV DATA_DIR=/app/data
 ENV DATABASE_URL=file:/app/data/sqlite/app.db
 
+# 安装编译原生模块所需的工具 (better-sqlite3 等)
+RUN apk add --no-cache python3 make g++
+
 RUN corepack enable && mkdir -p /app/data
 
 COPY --from=builder /app/package.json ./package.json

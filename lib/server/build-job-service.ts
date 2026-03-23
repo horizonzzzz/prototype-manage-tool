@@ -8,9 +8,12 @@ import { appConfig } from '@/lib/config';
 import {
   buildInitialJobSteps,
   detectPackageManager,
+  getOpenFileLimitRequirementMessage,
+  getInstallCommand,
   getCurrentJobStep,
   normalizeBuildOutputPaths,
   parseJobSteps,
+  parseLinuxOpenFileLimit,
   stringifyJobSteps,
   type BuildJobStep,
   type BuildJobStepKey,
@@ -80,7 +83,16 @@ async function readProjectPackageJson(projectDir: string) {
   return JSON.parse(content) as ProjectPackageJson;
 }
 
-function summarizeOutput(output: string, fallback: string) {
+async function getOpenFileLimitErrorMessage() {
+  try {
+    const limitsText = await fs.readFile('/proc/self/limits', 'utf8');
+    return getOpenFileLimitRequirementMessage(parseLinuxOpenFileLimit(limitsText));
+  } catch {
+    return null;
+  }
+}
+
+function summarizeOutput(output: string, fallback: string, maxLines = 50) {
   const lines = output
     .split(/\r?\n/)
     .map((line) => line.trim())
@@ -90,16 +102,8 @@ function summarizeOutput(output: string, fallback: string) {
     return fallback;
   }
 
-  const summary = lines.slice(-8).join('\n');
-  return summary.length > 1200 ? `${summary.slice(summary.length - 1200)}` : summary;
-}
-
-function getInstallCommand(projectDir: string, packageManager: 'pnpm' | 'npm') {
-  if (packageManager === 'pnpm') {
-    return fse.pathExistsSync(path.join(projectDir, 'pnpm-lock.yaml')) ? 'pnpm install --frozen-lockfile' : 'pnpm install';
-  }
-
-  return fse.pathExistsSync(path.join(projectDir, 'package-lock.json')) ? 'npm ci' : 'npm install';
+  const summary = lines.slice(-maxLines).join('\n');
+  return summary.length > 4000 ? `${summary.slice(summary.length - 4000)}` : summary;
 }
 
 async function runShellCommand(command: string, cwd: string) {
@@ -263,7 +267,7 @@ async function runBuildJob(jobId: number) {
     return;
   }
 
-  const { archivePath, extractPath } = getJobPaths(job.id, job.fileName);
+  const { archivePath, extractPath, jobDir } = getJobPaths(job.id, job.fileName);
   let steps = parseJobSteps(job.stepsJson);
   let publishedPath: string | null = null;
 
@@ -287,15 +291,41 @@ async function runBuildJob(jobId: number) {
       `已识别项目 ${packageJson.name || '未命名项目'}，使用 ${packageManager}`,
     );
 
+    // 删除已有的 node_modules，确保全新安装（避免跨平台或不完整的依赖）
+    const nodeModulesPath = path.join(projectRoot, 'node_modules');
+    await fse.remove(nodeModulesPath).catch(() => {});
+    const packageManagerCacheDir = path.join(jobDir, packageManager === 'pnpm' ? 'pnpm-store' : 'npm-cache');
+
     steps = await markStep(jobId, steps, 'install', 'running', `正在使用 ${packageManager} 安装依赖`);
-    const installResult = await runShellCommand(getInstallCommand(projectRoot, packageManager), projectRoot);
+    const installResult = await runShellCommand(
+      await getInstallCommand(projectRoot, packageManager, {
+        cacheDir: packageManagerCacheDir,
+        registry: process.env.BUILD_JOB_NPM_REGISTRY,
+      }),
+      projectRoot,
+    );
+
+    // 保存完整安装日志到文件
+    const installLogPath = path.join(projectRoot, '..', 'install.log');
+    await fs.writeFile(installLogPath, installResult.output, 'utf8').catch(() => {});
+
     if (installResult.code !== 0) {
       throw new Error(`依赖安装失败\n${summarizeOutput(installResult.output, '依赖安装失败')}`);
     }
     steps = await markStep(jobId, steps, 'install', 'success', summarizeOutput(installResult.output, '依赖安装完成'));
 
+    const openFileLimitError = await getOpenFileLimitErrorMessage();
+    if (openFileLimitError) {
+      throw new Error(openFileLimitError);
+    }
+
     steps = await markStep(jobId, steps, 'build', 'running', '正在执行构建脚本');
     const buildResult = await runShellCommand(`${packageManager} run build`, projectRoot);
+
+    // 保存完整构建日志到文件
+    const buildLogPath = path.join(projectRoot, '..', 'build.log');
+    await fs.writeFile(buildLogPath, buildResult.output, 'utf8').catch(() => {});
+
     if (buildResult.code !== 0) {
       throw new Error(`项目构建失败\n${summarizeOutput(buildResult.output, '项目构建失败')}`);
     }

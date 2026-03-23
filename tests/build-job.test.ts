@@ -7,10 +7,13 @@ import { afterEach, describe, expect, test } from 'vitest';
 import {
   buildInitialJobSteps,
   detectPackageManager,
+  getOpenFileLimitRequirementMessage,
+  getInstallCommand,
   getCurrentJobStep,
   getJobProgressPercent,
   normalizeBuildOutputPaths,
   parseJobSteps,
+  parseLinuxOpenFileLimit,
   stringifyJobSteps,
   updateJobSteps,
   validateBuildOutput,
@@ -72,6 +75,88 @@ describe('build job domain helpers', () => {
     });
 
     await expect(detectPackageManager(projectDir)).rejects.toThrow('Only pnpm and npm projects are supported');
+  });
+
+  test('installs devDependencies explicitly for npm and pnpm builds', async () => {
+    const npmProjectDir = await createTempProject({
+      'package.json': JSON.stringify({
+        name: 'demo-npm',
+        scripts: { build: 'vite build' },
+      }),
+      'package-lock.json': '{}',
+    });
+    const pnpmProjectDir = await createTempProject({
+      'package.json': JSON.stringify({
+        name: 'demo-pnpm',
+        scripts: { build: 'vite build' },
+      }),
+      'pnpm-lock.yaml': 'lockfileVersion: 9.0',
+    });
+
+    await expect(getInstallCommand(npmProjectDir, 'npm')).resolves.toBe('npm ci --include=dev');
+    await expect(getInstallCommand(pnpmProjectDir, 'pnpm')).resolves.toBe('pnpm install --frozen-lockfile --prod=false');
+  });
+
+  test('does not hardcode a registry and supports an explicit registry override', async () => {
+    const npmProjectDir = await createTempProject({
+      'package.json': JSON.stringify({
+        name: 'demo-npm',
+        scripts: { build: 'vite build' },
+      }),
+      'package-lock.json': '{}',
+    });
+
+    await expect(getInstallCommand(npmProjectDir, 'npm')).resolves.not.toContain('registry.npmmirror.com');
+    await expect(
+      getInstallCommand(npmProjectDir, 'npm', {
+        registry: 'https://registry.npmjs.org',
+      }),
+    ).resolves.toBe('npm ci --include=dev --registry=https://registry.npmjs.org');
+  });
+
+  test('supports isolated cache directories for npm and pnpm installs', async () => {
+    const npmProjectDir = await createTempProject({
+      'package.json': JSON.stringify({
+        name: 'demo-npm',
+        scripts: { build: 'vite build' },
+      }),
+      'package-lock.json': '{}',
+    });
+    const pnpmProjectDir = await createTempProject({
+      'package.json': JSON.stringify({
+        name: 'demo-pnpm',
+        scripts: { build: 'vite build' },
+      }),
+      'pnpm-lock.yaml': 'lockfileVersion: 9.0',
+    });
+
+    await expect(
+      getInstallCommand(npmProjectDir, 'npm', {
+        cacheDir: '/tmp/build-job-npm-cache',
+      }),
+    ).resolves.toBe('npm ci --include=dev --cache=/tmp/build-job-npm-cache');
+    await expect(
+      getInstallCommand(pnpmProjectDir, 'pnpm', {
+        cacheDir: '/tmp/build-job-pnpm-store',
+      }),
+    ).resolves.toBe('pnpm install --frozen-lockfile --prod=false --store-dir=/tmp/build-job-pnpm-store');
+  });
+
+  test('parses Linux open file limits from /proc/self/limits content', () => {
+    const parsed = parseLinuxOpenFileLimit(`
+Limit                     Soft Limit           Hard Limit           Units
+Max cpu time              unlimited            unlimited            seconds
+Max open files            1024                 1024                 files
+`);
+
+    expect(parsed).toEqual({ soft: 1024, hard: 1024 });
+  });
+
+  test('creates an actionable message when open file limit is too low', () => {
+    expect(getOpenFileLimitRequirementMessage({ soft: 1024, hard: 1024 })).toContain(
+      'docker run --ulimit nofile=65535:65535',
+    );
+    expect(getOpenFileLimitRequirementMessage({ soft: 8192, hard: 8192 })).toBeNull();
   });
 
   test('builds initial pending steps and zero progress', () => {

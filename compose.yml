@@ -2,6 +2,10 @@ services:
   app:
     image: horizon2333/prototype-manage-tool:${IMAGE_TAG:-latest}
     container_name: prototype-preview-app
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -19,6 +23,10 @@ services:
   db-init:
     image: horizon2333/prototype-manage-tool:${IMAGE_TAG:-latest}
     profiles: ["init"]
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     environment:
       NODE_ENV: production
       DATA_DIR: /app/data
@@ -32,6 +40,10 @@ services:
   seed-demo:
     image: horizon2333/prototype-manage-tool:${IMAGE_TAG:-latest}
     profiles: ["seed"]
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
     environment:
       NODE_ENV: production
       DATA_DIR: /app/data

@@ -1,60 +1,223 @@
 # Prototype Manage Tool
 
-一个基于 `Next.js + Ant Design + Prisma + SQLite` 的前端原型发布与展示平台。
+An open-source, self-hosted platform for publishing and previewing frontend prototypes. It provides a unified preview workspace for product/version switching and an admin workspace for managing uploads, build jobs, publishing state, and default versions.
 
-## 功能
+[简体中文](./README.zh-CN.md) | [MIT License](./LICENSE)
 
-- `/preview`：统一预览页，按产品 / 版本切换原型
-- `/admin`：后台管理，支持新建产品、上传源码 zip、后台安装依赖与构建、设默认、下线、删除
-- `/api/*`：产品、版本、manifest、preview-resolve 等接口
-- `/prototypes/*`：统一静态原型访问路径
+## Overview
 
-## 技术栈
+Prototype Manage Tool is built for teams that need a simple way to publish static frontend prototypes and browse them by product and version. It combines a Next.js application shell, Prisma-backed metadata storage, and filesystem-based prototype publishing in a single repository.
+
+This repository is suitable for:
+
+- users who want to self-host an internal prototype gallery
+- contributors who want to extend the upload, build, and preview workflow
+
+## Features
+
+- Unified preview page at `/preview` for switching between products and published versions
+- Admin workspace at `/admin` for creating products, uploading prototype archives, monitoring build jobs, setting defaults, taking versions offline, and deleting records
+- API routes for products, versions, manifest resolution, build job status, and preview routing
+- Filesystem-based publishing under `/prototypes/*`
+- Demo seed data for local evaluation
+- Docker image publishing workflow for container-based deployment
+
+## Tech Stack
 
 - Next.js App Router
 - TypeScript
 - Ant Design
-- Prisma + SQLite
-- 本地文件系统发布
+- Prisma
+- SQLite
+- Local filesystem storage for published artifacts
 
-## 目录
+## Quick Start
 
-```text
-app/                    页面、路由与 API
-components/             管理台与预览台组件
-lib/                    配置、领域逻辑、服务端工具
-prisma/                 Prisma schema
-scripts/                初始化与种子脚本
-data/                   SQLite、临时上传、原型发布目录
-tests/                  核心单元测试
+### Prerequisites
+
+- Node.js 22 or newer
+- pnpm 10 or newer
+- Docker, if you want to run the containerized setup
+
+### Local Development
+
+1. Install dependencies:
+
+```bash
+pnpm install
 ```
 
-## 环境变量
+2. Copy the example environment file:
 
-复制 `.env.example` 为 `.env`，然后执行：
+```bash
+cp .env.example .env
+```
+
+3. Initialize Prisma and seed demo data:
 
 ```bash
 pnpm prisma:generate
 pnpm db:push
 pnpm db:seed
+```
+
+4. Start the development server:
+
+```bash
 pnpm dev
 ```
 
-## 上传规范
+5. Open the app:
 
-- 仅支持 `zip`
-- zip 中必须包含 `package.json`
-- 当前仅支持 `pnpm` / `npm` 项目
-- `package.json` 中必须存在 `build` 脚本
-- 构建产物固定要求输出到 `dist/`
-- 平台默认要求 `dist/index.html` 使用相对资源路径
-- 若 `dist/index.html` 中存在 `/assets/...` 这类根绝对路径资源引用，任务会被判定失败
+- Preview workspace: `http://localhost:3000/preview`
+- Admin workspace: `http://localhost:3000/admin`
 
-## 初始化数据
+## Environment Variables
 
-`pnpm db:seed` 会自动创建 `crm`、`erp` 两个产品及 demo 页面。
+### Local Environment
 
-## 验证
+| Variable | Default | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | `file:../data/sqlite/app.db` | Prisma SQLite connection string |
+| `DATA_DIR` | `./data` | Base directory for SQLite, uploads, build jobs, and published prototypes |
+| `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
+| `APP_URL` | `http://localhost:3000` | Public application URL |
+
+### Docker Environment
+
+| Variable | Default | Description |
+| --- | --- | --- |
+| `IMAGE_TAG` | `latest` | Docker image tag used by `compose.yml` |
+| `APP_URL` | `http://localhost` | Public application URL |
+| `APP_PORT` | `3000` | Host port mapped to the container |
+| `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
+
+## Demo Data
+
+Running `pnpm db:seed` creates demo products and published versions so the platform is usable immediately after setup. The current seed includes sample CRM and ERP prototypes.
+
+## How Prototype Uploads Work
+
+The platform accepts a source archive, installs dependencies, runs the prototype build, validates the generated output, and publishes the result into the data directory.
+
+Current constraints:
+
+- only `.zip` uploads are accepted
+- the archive must contain a `package.json`
+- only `pnpm` and `npm` projects are currently supported
+- the project must define a `build` script
+- the build output must be published from `dist/`
+- `dist/index.html` must use relative asset paths
+- root-absolute asset references such as `/assets/...` are rejected
+
+## Available Scripts
+
+| Command | Purpose |
+| --- | --- |
+| `pnpm dev` | Start the local development server |
+| `pnpm build` | Build the Next.js app |
+| `pnpm start` | Start the production server |
+| `pnpm test` | Run the Vitest suite |
+| `pnpm test:watch` | Run Vitest in watch mode |
+| `pnpm typecheck` | Run TypeScript type checking |
+| `pnpm prisma:generate` | Generate the Prisma client |
+| `pnpm prisma:migrate` | Create and apply a Prisma migration in development |
+| `pnpm db:push` | Push the Prisma schema to the SQLite database |
+| `pnpm db:seed` | Seed demo products and versions |
+| `pnpm init` | Generate Prisma client, push schema, and seed demo data |
+
+## Docker Deployment
+
+The repository ships with a container image and a `compose.yml` file for self-hosted deployment.
+
+### Files You Need
+
+- `compose.yml`
+- `.env.docker`
+- `docker-data/`
+
+Create `.env.docker` from `.env.docker.example`, then adjust:
+
+- `APP_URL`
+- `APP_PORT`
+- `IMAGE_TAG`
+
+By default, persistent data is mounted to `./docker-data` and mapped to `/app/data` inside the container. This includes:
+
+- SQLite database at `/app/data/sqlite/app.db`
+- published prototypes at `/app/data/prototypes`
+- temporary uploads at `/app/data/uploads-temp`
+- build job workspaces at `/app/data/build-jobs`
+
+### Initialize the Database
+
+```bash
+docker compose --env-file .env.docker --profile init run --rm db-init
+```
+
+If you also want demo data:
+
+```bash
+docker compose --env-file .env.docker --profile seed run --rm seed-demo
+```
+
+### Start the Application
+
+```bash
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
+```
+
+The default entry points are:
+
+- `http://<server>:3000/preview`
+- `http://<server>:3000/admin`
+
+### Open File Limit Requirement
+
+The provided `compose.yml` sets `ulimits.nofile=65535`. If you run the container in another way, set the same limit explicitly. Otherwise, uploaded Vite or Tailwind projects may fail during dependency resolution with misleading build errors.
+
+### Upgrade or Roll Back
+
+Change `IMAGE_TAG` in `.env.docker`, then run:
+
+```bash
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker up -d
+```
+
+Persistent data in `docker-data/` is not replaced during image upgrades.
+
+## Docker Image Publishing
+
+This repository includes a GitHub Actions workflow at `.github/workflows/docker-publish.yml` that publishes the runtime image to Docker Hub:
+
+- image repository: `horizon2333/prototype-manage-tool`
+- `latest` for the `main` branch
+- `v*` tags for release tags
+
+To use the workflow, configure these repository secrets:
+
+- `DOCKERHUB_USERNAME`
+- `DOCKERHUB_TOKEN`
+
+## Repository Structure
+
+```text
+app/                    Next.js pages, routes, and API handlers
+components/             Admin and preview UI components
+lib/                    Configuration, domain logic, and server utilities
+prisma/                 Prisma schema
+scripts/                Seed and supporting scripts
+tests/                  Unit tests for core behaviors
+data/                   Local SQLite database, uploads, and published prototypes
+docker/                 Container entrypoint and Docker-related files
+public/                 Static assets
+```
+
+## Testing
+
+Run the main verification commands before opening a pull request:
 
 ```bash
 pnpm test
@@ -62,97 +225,21 @@ pnpm typecheck
 pnpm build
 ```
 
-## Docker 部署
+## Contributing
 
-### 1. 准备部署目录
+Contributions are welcome. For changes that affect the upload, build, preview, or publishing flow:
 
-服务器只需要以下内容：
+- keep behavior changes scoped and documented
+- add or update tests in `tests/` when logic changes
+- describe operational impact clearly in your pull request
+- verify local setup or Docker behavior when deployment-related files are touched
 
-- `compose.yml`
-- `.env.docker`
-- `docker-data/`
+If you are unsure where to start, reviewing the API routes in `app/api/` and the server logic in `lib/server/` is usually the fastest way to understand the system.
 
-复制 `.env.docker.example` 为 `.env.docker`，并按实际域名修改：
+## Project Status
 
-- `APP_URL`
-- `APP_PORT`
-- `IMAGE_TAG`（默认 `latest`，正式环境建议使用明确版本号）
+This project is functional but still early-stage. Expect the data model, admin workflow, and deployment details to keep evolving.
 
-宿主机持久化目录默认使用项目下的 `./docker-data`，容器内映射为 `/app/data`，包含：
+## License
 
-- SQLite：`/app/data/sqlite/app.db`
-- 原型文件：`/app/data/prototypes`
-- 上传临时目录：`/app/data/uploads-temp`
-- 构建任务目录：`/app/data/build-jobs`
-
-### 2. 初始化数据库
-
-首次部署先执行：
-
-```bash
-docker compose --env-file .env.docker --profile init run --rm db-init
-```
-
-如果你希望导入演示数据，再额外执行：
-
-```bash
-docker compose --env-file .env.docker --profile seed run --rm seed-demo
-```
-
-### 3. 启动服务
-
-```bash
-docker compose --env-file .env.docker pull
-docker compose --env-file .env.docker up -d
-```
-
-默认通过应用容器直接暴露 `${APP_PORT:-3000}` 端口：
-
-- `http://<server>:3000/preview`
-- `http://<server>:3000/admin`
-
-### 4. 升级
-
-```bash
-docker compose --env-file .env.docker pull
-docker compose --env-file .env.docker up -d
-```
-
-升级时只需要修改 `.env.docker` 中的 `IMAGE_TAG`，然后重新执行上面的两条命令。
-升级不会覆盖 `docker-data/` 中的数据库和原型文件。
-
-### 5. 回滚
-
-将 `.env.docker` 中的 `IMAGE_TAG` 改回旧版本，例如 `v0.1.0`，然后执行：
-
-```bash
-docker compose --env-file .env.docker pull
-docker compose --env-file .env.docker up -d
-```
-
-### 6. 备份与恢复
-
-备份 `docker-data/` 目录即可；恢复时停掉容器、回滚该目录，然后重新启动。
-
-## Docker Hub 发布
-
-镜像仓库：`horizon2333/prototype-manage-tool`
-
-- `latest`：`main` 分支最新可部署镜像
-- `vX.Y.Z`：正式版本镜像
-- `sha-<commit>`：提交级别镜像，便于排查
-
-### GitHub Actions 自动发布
-
-为仓库配置以下 Secrets：
-
-- `DOCKERHUB_USERNAME`
-- `DOCKERHUB_TOKEN`
-
-当 `main` 分支有新提交，或推送 `v*` 标签时，GitHub Actions 会自动构建并推送镜像。
-
-### 本地手动兜底发布
-
-```bash
-docker buildx build --target runner --platform linux/amd64 -t horizon2333/prototype-manage-tool:latest -t horizon2333/prototype-manage-tool:v0.1.0 --push .
-```
+This project is licensed under the MIT License. See [LICENSE](./LICENSE).
