@@ -1,4 +1,8 @@
-export function buildPreviewHref(productKey: string, version?: string) {
+export function buildPreviewHref(productKey?: string, version?: string) {
+  if (!productKey) {
+    return '/preview';
+  }
+
   const query = new URLSearchParams();
   query.set('product', productKey);
 
