@@ -27,6 +27,7 @@ import { DeleteOutlined, EyeOutlined, InboxOutlined, PlusOutlined, PoweroffOutli
 import type { UploadFile } from 'antd/es/upload/interface';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
+import { AdminProductListItem } from '@/components/admin-product-list-item';
 import type { ApiResponse, BuildJobItem, ProductDetail, ProductListItem, ProductVersionItem } from '@/lib/types';
 import { getErrorMessage } from '@/lib/domain/error-message';
 import { buildPreviewHref, resolveAdminProductKey } from '@/lib/ui/navigation';
@@ -365,46 +366,20 @@ export function AdminDashboard() {
             locale={{ emptyText: '暂无产品' }}
             dataSource={products}
             renderItem={(item) => (
-              <List.Item
-                className="product-list-item"
-                actions={[
-                  <Button
-                    key="delete"
-                    type="text"
-                    danger
-                    icon={<DeleteOutlined />}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      modal.confirm({
-                        title: `删除产品 ${item.name}`,
-                        content: '删除后会移除该产品下的所有版本、任务记录和已发布文件，请确认。',
-                        okText: '删除',
-                        okButtonProps: { danger: true },
-                        onOk: async () => handleDeleteProduct(item.key),
-                      });
-                    }}
-                  >
-                    删除
-                  </Button>,
-                ]}
-                style={{
-                  cursor: 'pointer',
-                  background: item.key === selectedProductKey ? '#eef4ff' : undefined,
-                  borderRadius: 8,
-                  marginBottom: 8,
+              <AdminProductListItem
+                item={item}
+                selected={item.key === selectedProductKey}
+                onSelect={handleProductChange}
+                onDelete={(product) => {
+                  modal.confirm({
+                    title: `删除产品 ${product.name}`,
+                    content: '删除后会移除该产品下的所有版本、任务记录和已发布文件，请确认。',
+                    okText: '删除',
+                    okButtonProps: { danger: true },
+                    onOk: async () => handleDeleteProduct(product.key),
+                  });
                 }}
-                onClick={() => handleProductChange(item.key)}
-              >
-                <List.Item.Meta
-                  title={
-                    <div className="product-list-title">
-                      <span className="product-list-title-text">{item.name}</span>
-                      <Tag className="product-list-title-tag">{item.key}</Tag>
-                    </div>
-                  }
-                  description={`${item.publishedCount} 个已发布版本`}
-                />
-              </List.Item>
+              />
             )}
           />
         </Space>
