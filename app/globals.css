@@ -48,3 +48,43 @@ a {
   justify-content: center;
 }
 
+.product-list-item {
+  align-items: flex-start;
+}
+
+.product-list-item .ant-list-item-meta {
+  min-width: 0;
+  align-items: flex-start;
+}
+
+.product-list-item .ant-list-item-meta-content {
+  min-width: 0;
+}
+
+.product-list-item .ant-list-item-action {
+  align-self: flex-start;
+  margin-block: 0;
+}
+
+.product-list-title {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  min-width: 0;
+}
+
+.product-list-title-text {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow-wrap: anywhere;
+  line-height: 1.5;
+}
+
+.product-list-title-tag {
+  flex: none;
+  max-width: 100%;
+}

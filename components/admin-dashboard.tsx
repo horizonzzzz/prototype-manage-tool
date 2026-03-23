@@ -366,6 +366,7 @@ export function AdminDashboard() {
             dataSource={products}
             renderItem={(item) => (
               <List.Item
+                className="product-list-item"
                 actions={[
                   <Button
                     key="delete"
@@ -396,10 +397,10 @@ export function AdminDashboard() {
               >
                 <List.Item.Meta
                   title={
-                    <Space>
-                      <span>{item.name}</span>
-                      <Tag>{item.key}</Tag>
-                    </Space>
+                    <div className="product-list-title">
+                      <span className="product-list-title-text">{item.name}</span>
+                      <Tag className="product-list-title-tag">{item.key}</Tag>
+                    </div>
                   }
                   description={`${item.publishedCount} 个已发布版本`}
                 />

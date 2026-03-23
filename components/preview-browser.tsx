@@ -1,10 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Card, Empty, Input, Layout, List, Space, Tag, Typography } from 'antd';
-import { CopyOutlined, ExportOutlined, ReloadOutlined } from '@ant-design/icons';
+import { App, Button, Card, Dropdown, Empty, Input, Layout, List, Space, Tag, Typography } from 'antd';
+import type { MenuProps } from 'antd';
+import { CopyOutlined, ExportOutlined, MoreOutlined, ReloadOutlined } from '@ant-design/icons';
 import { useRouter, useSearchParams } from 'next/navigation';
 
+import { groupVersionsForPreview } from '@/lib/domain/preview';
 import type { ApiResponse, ManifestProduct, ProductVersionManifest } from '@/lib/types';
 import { buildAdminHref, buildPreviewHref } from '@/lib/ui/navigation';
 import { pageHeaderStyle, pageHeaderSubtitleStyle, pageHeaderTitleStyle } from '@/lib/ui/page-header';
@@ -29,6 +31,16 @@ async function fetchManifest(query: string) {
   }
 
   return payload.data;
+}
+
+function renderVersionButtonContent(version: ProductVersionManifest) {
+  return (
+    <Space size={4}>
+      <span>{version.version}</span>
+      {version.isDefault ? <Tag color="gold">默认</Tag> : null}
+      {version.isLatest ? <Tag color="green">最新</Tag> : null}
+    </Space>
+  );
 }
 
 export function PreviewBrowser() {
@@ -67,6 +79,10 @@ export function PreviewBrowser() {
     versions.find((item) => item.version === selectedVersion) ??
     versions.find((item) => item.version === currentProduct?.defaultVersion) ??
     versions[0];
+  const groupedVersions = useMemo(
+    () => groupVersionsForPreview(versions, currentVersion?.version),
+    [currentVersion?.version, versions],
+  );
 
   const syncUrl = (productKey: string, version: string) => {
     setSelectedProductKey(productKey);
@@ -88,6 +104,18 @@ export function PreviewBrowser() {
       window.open(currentVersion.entryUrl, '_blank', 'noopener,noreferrer');
     }
   };
+
+  const overflowVersionItems = useMemo<MenuProps['items']>(() => {
+    if (!currentProduct) {
+      return [];
+    }
+
+    return groupedVersions.overflowVersions.map((item) => ({
+      key: item.version,
+      label: renderVersionButtonContent(item),
+      onClick: () => syncUrl(currentProduct.key, item.version),
+    }));
+  }, [currentProduct, groupedVersions.overflowVersions]);
 
   return (
     <Layout className="page-shell">
@@ -157,16 +185,17 @@ export function PreviewBrowser() {
           <Card
             title={currentProduct ? `${currentProduct.name} / 版本列表` : '暂无可预览版本'}
             extra={
-              <Space wrap>
-                {versions.map((item: ProductVersionManifest) => (
+              <Space wrap size={[8, 8]}>
+                {groupedVersions.visibleVersions.map((item: ProductVersionManifest) => (
                   <Button key={item.version} type={currentVersion?.version === item.version ? 'primary' : 'default'} onClick={() => syncUrl(currentProduct.key, item.version)}>
-                    <Space size={4}>
-                      <span>{item.version}</span>
-                      {item.isDefault ? <Tag color="gold">默认</Tag> : null}
-                      {item.isLatest ? <Tag color="green">最新</Tag> : null}
-                    </Space>
+                    {renderVersionButtonContent(item)}
                   </Button>
                 ))}
+                {groupedVersions.overflowVersions.length ? (
+                  <Dropdown trigger={['click']} menu={{ items: overflowVersionItems }}>
+                    <Button icon={<MoreOutlined />}>更多版本</Button>
+                  </Dropdown>
+                ) : null}
               </Space>
             }
           >
