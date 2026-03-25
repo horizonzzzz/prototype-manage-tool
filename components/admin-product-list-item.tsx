@@ -16,13 +16,8 @@ type AdminProductListItemProps = {
 export function AdminProductListItem({ item, selected, onSelect, onDelete }: AdminProductListItemProps) {
   return (
     <List.Item
-      className="admin-product-list-item"
-      style={{
-        cursor: 'pointer',
-        background: selected ? '#eef4ff' : undefined,
-        borderRadius: 8,
-        marginBottom: 8,
-      }}
+      className={`admin-product-list-item${selected ? ' is-selected' : ''}`}
+      style={{ cursor: 'pointer' }}
       onClick={() => onSelect(item.key)}
     >
       <div className="admin-product-list-item-content">

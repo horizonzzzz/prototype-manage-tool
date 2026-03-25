@@ -1,18 +1,22 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { App, Button, Card, Dropdown, Empty, Input, Layout, List, Space, Tag, Typography } from 'antd';
+import { App, Button, Dropdown, Empty, Input, List, Space, Tag, Typography } from 'antd';
 import type { MenuProps } from 'antd';
-import { CopyOutlined, ExportOutlined, MoreOutlined, ReloadOutlined } from '@ant-design/icons';
+import {
+  CopyOutlined,
+  ExportOutlined,
+  MoreOutlined,
+  ReloadOutlined,
+  SearchOutlined,
+} from '@ant-design/icons';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { groupVersionsForPreview } from '@/lib/domain/preview';
 import type { ApiResponse, ManifestProduct, ProductVersionManifest } from '@/lib/types';
+import { groupVersionsForPreview } from '@/lib/domain/preview';
 import { buildAdminHref, buildPreviewHref } from '@/lib/ui/navigation';
-import { pageHeaderStyle, pageHeaderSubtitleStyle, pageHeaderTitleStyle } from '@/lib/ui/page-header';
 import { copyText, resolvePreviewEntryUrl } from '@/lib/ui/preview-link';
 
-const { Header, Sider, Content } = Layout;
 const { Title, Text } = Typography;
 
 type ManifestPayload = {
@@ -36,10 +40,10 @@ async function fetchManifest(query: string) {
 
 function renderVersionButtonContent(version: ProductVersionManifest) {
   return (
-    <Space size={4}>
+    <Space size={6}>
       <span>{version.version}</span>
-      {version.isDefault ? <Tag color="gold">默认</Tag> : null}
-      {version.isLatest ? <Tag color="green">最新</Tag> : null}
+      {version.isDefault ? <Tag className="status-chip status-offline">默认</Tag> : null}
+      {version.isLatest ? <Tag className="status-chip status-running">最新</Tag> : null}
     </Space>
   );
 }
@@ -138,104 +142,131 @@ export function PreviewBrowser() {
   }, [currentProduct, groupedVersions.overflowVersions]);
 
   return (
-    <Layout className="page-shell">
-      <Sider width={280} theme="light" style={{ borderRight: '1px solid #f0f0f0', padding: 16 }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+    <div className="page-shell" style={{ display: 'flex' }}>
+      <aside className="page-sidebar" style={{ width: 264, minHeight: '100vh' }}>
+        <div className="page-sidebar-inner">
           <div>
-            <Title level={4} style={{ marginBottom: 8 }}>
+            <h1 className="page-sidebar-title" style={{ marginBottom: 12 }}>
               产品原型
-            </Title>
-            <Input.Search allowClear placeholder="按产品名称搜索" onChange={(event) => setProductKeyword(event.target.value)} />
+            </h1>
+            <Input.Search
+              allowClear
+              className="page-sidebar-search"
+              prefix={<SearchOutlined />}
+              placeholder="按产品名称搜索"
+              onChange={(event) => setProductKeyword(event.target.value)}
+            />
           </div>
+
           <List
-            bordered
+            className="admin-side-list"
             loading={loading}
             locale={{ emptyText: '暂无可预览产品' }}
             dataSource={visibleProducts}
             renderItem={(item) => (
-              <List.Item
-                style={{ cursor: 'pointer', background: item.key === currentProduct?.key ? '#eef4ff' : undefined, borderRadius: 8, marginBottom: 8 }}
-                onClick={() => {
-                  const nextVersion = item.defaultVersion ?? item.versions[0]?.version;
-                  if (nextVersion) {
-                    syncUrl(item.key, nextVersion);
-                  }
-                }}
-              >
-                <List.Item.Meta
-                  title={
-                    <Space>
-                      <span>{item.name}</span>
-                      <Tag>{item.key}</Tag>
-                    </Space>
-                  }
-                  description={`${item.versions.length} 个已发布版本`}
-                />
+              <List.Item style={{ border: 'none', padding: 0 }}>
+                <div
+                  className={`admin-product-list-item-content`}
+                  style={{ width: '100%', cursor: 'pointer' }}
+                  onClick={() => {
+                    const nextVersion = item.defaultVersion ?? item.versions[0]?.version;
+                    if (nextVersion) {
+                      syncUrl(item.key, nextVersion);
+                    }
+                  }}
+                >
+                  <div className={`admin-product-list-item-main${item.key === currentProduct?.key ? ' is-selected' : ''}`}>
+                    <div className="admin-product-list-item-header">
+                      <div className="admin-product-list-item-title">
+                        <span className="admin-product-list-item-title-text">{item.name}</span>
+                      </div>
+                      <Tag className="admin-product-list-item-key-tag">{item.key}</Tag>
+                    </div>
+                    <span className="admin-product-list-item-description">{item.versions.length} 个已发布版本</span>
+                  </div>
+                </div>
               </List.Item>
             )}
           />
-        </Space>
-      </Sider>
-      <Layout>
-        <Header style={{ ...pageHeaderStyle, justifyContent: 'space-between' }}>
+        </div>
+      </aside>
+
+      <main className="page-main" style={{ flex: 1, minWidth: 0 }}>
+        <header className="page-topbar">
           <div>
-            <Title level={3} style={pageHeaderTitleStyle}>
+            <Title level={3} className="page-topbar-title" style={{ fontSize: 20 }}>
               前端原型统一预览台
             </Title>
-            <Text type="secondary" style={pageHeaderSubtitleStyle}>
-              按产品 / 版本切换预览
-            </Text>
+            <Text className="page-topbar-subtitle">按产品 / 版本切换预览</Text>
           </div>
-          <Space>
-            <Button onClick={() => router.push(buildAdminHref(currentProduct?.key))}>
+          <div className="page-topbar-actions">
+            <Button className="subtle-button" onClick={() => router.push(buildAdminHref(currentProduct?.key))}>
               前往管理台
             </Button>
-            <Button icon={<CopyOutlined />} onClick={() => void copyLink()} disabled={!currentVersion}>
+            <Button className="subtle-button" icon={<CopyOutlined />} onClick={() => void copyLink()} disabled={!currentVersion}>
               复制预览链接
             </Button>
-            <Button icon={<ExportOutlined />} onClick={openNewWindow} disabled={!currentVersion}>
+            <Button className="subtle-button" icon={<ExportOutlined />} onClick={openNewWindow} disabled={!currentVersion}>
               新窗口打开
             </Button>
-            <Button icon={<ReloadOutlined />} onClick={() => router.refresh()}>
+            <Button className="subtle-button" icon={<ReloadOutlined />} onClick={() => router.refresh()}>
               刷新
             </Button>
-          </Space>
-        </Header>
-        <Content style={{ padding: 24 }}>
-          <Card
-            title={currentProduct ? `${currentProduct.name} / 版本列表` : '暂无可预览版本'}
-            extra={
-              <Space wrap size={[8, 8]}>
-                {groupedVersions.visibleVersions.map((item: ProductVersionManifest) => (
-                  <Button key={item.version} type={currentVersion?.version === item.version ? 'primary' : 'default'} onClick={() => syncUrl(currentProduct.key, item.version)}>
-                    {renderVersionButtonContent(item)}
+          </div>
+        </header>
+
+        <div className="page-main-scroll">
+          <div className="preview-toolbar">
+            <div>
+              <h3 className="preview-title">
+                {currentProduct ? `${currentProduct.name} / 版本列表` : '暂无可预览版本'}
+              </h3>
+              <div className="preview-meta">
+                <div className="preview-version-code">{currentVersion?.version ?? '—'}</div>
+                <div className="preview-version-remark">{currentVersion?.remark || '暂无更新说明'}</div>
+              </div>
+            </div>
+
+            <div className="preview-version-pillbar">
+              {groupedVersions.visibleVersions.map((item: ProductVersionManifest) => (
+                <Button
+                  key={item.version}
+                  className={`preview-version-pill${currentVersion?.version === item.version ? ' is-active' : ''}`}
+                  onClick={() => syncUrl(currentProduct.key, item.version)}
+                >
+                  {renderVersionButtonContent(item)}
+                </Button>
+              ))}
+              {groupedVersions.overflowVersions.length ? (
+                <Dropdown trigger={['click']} menu={{ items: overflowVersionItems }}>
+                  <Button className="subtle-button" icon={<MoreOutlined />}>
+                    更多版本
                   </Button>
-                ))}
-                {groupedVersions.overflowVersions.length ? (
-                  <Dropdown trigger={['click']} menu={{ items: overflowVersionItems }}>
-                    <Button icon={<MoreOutlined />}>更多版本</Button>
-                  </Dropdown>
-                ) : null}
-              </Space>
-            }
-          >
+                </Dropdown>
+              ) : null}
+            </div>
+          </div>
+
+          <div className="preview-frame">
+            <div className="preview-frame-chrome">
+              <div className="preview-frame-dots">
+                <span />
+                <span />
+                <span />
+              </div>
+              <div className="preview-frame-status">Preview Active</div>
+            </div>
+
             {currentVersion?.entryUrl ? (
-              <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                <div>
-                  <Text strong>{currentVersion.title || currentVersion.version}</Text>
-                  <br />
-                  <Text type="secondary">{currentVersion.remark || '暂无更新说明'}</Text>
-                </div>
-                <iframe className="preview-iframe" src={currentVersion.entryUrl} title={`${currentProduct?.name}-${currentVersion.version}`} />
-              </Space>
+              <iframe className="preview-iframe" src={currentVersion.entryUrl} title={`${currentProduct?.name}-${currentVersion.version}`} />
             ) : (
               <div className="empty-state">
                 <Empty description="暂无可预览版本" />
               </div>
             )}
-          </Card>
-        </Content>
-      </Layout>
-    </Layout>
+          </div>
+        </div>
+      </main>
+    </div>
   );
 }

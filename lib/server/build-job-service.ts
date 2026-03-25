@@ -1,4 +1,5 @@
 import { spawn } from 'node:child_process';
+import { createWriteStream } from 'node:fs';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
@@ -22,8 +23,15 @@ import {
 } from '@/lib/domain/build-job';
 import { normalizeUploadFileName } from '@/lib/domain/upload-validation';
 import { prisma } from '@/lib/prisma';
+import {
+  createBuildJobLogStreamResponse,
+  publishBuildJobLogChunk,
+  publishBuildJobLogStatus,
+} from '@/lib/server/build-job-log-stream';
 import { ensureAppDirectories, extractZipToTemp, findFileRoot, publishExtractedDir } from '@/lib/server/fs-utils';
 import { serializeUploadRecord } from '@/lib/server/serializers';
+import { buildBuildJobStageText, isBuildJobLogStep, isBuildJobLogStreamStep } from '@/lib/ui/build-job-log';
+import type { BuildJobLogItem, BuildJobLogStep, BuildJobLogStreamStep } from '@/lib/types';
 
 type BuildJobInput = {
   productKey: string;
@@ -45,6 +53,15 @@ type QueueState = {
   queue: number[];
   active: Set<number>;
   draining: boolean;
+};
+
+type RunShellCommandOptions = {
+  onChunk?: (chunk: string) => void;
+};
+
+type BuildJobLiveLogSink = {
+  append: (chunk: string) => void;
+  close: () => Promise<void>;
 };
 
 const globalQueueState = globalThis as typeof globalThis & {
@@ -106,7 +123,7 @@ function summarizeOutput(output: string, fallback: string, maxLines = 50) {
   return summary.length > 4000 ? `${summary.slice(summary.length - 4000)}` : summary;
 }
 
-async function runShellCommand(command: string, cwd: string) {
+async function runShellCommand(command: string, cwd: string, options: RunShellCommandOptions = {}) {
   return await new Promise<{ code: number; output: string }>((resolve, reject) => {
     const child = spawn(command, {
       cwd,
@@ -120,16 +137,50 @@ async function runShellCommand(command: string, cwd: string) {
 
     let output = '';
     child.stdout?.on('data', (chunk) => {
-      output += chunk.toString();
+      const text = chunk.toString();
+      output += text;
+      options.onChunk?.(text);
     });
     child.stderr?.on('data', (chunk) => {
-      output += chunk.toString();
+      const text = chunk.toString();
+      output += text;
+      options.onChunk?.(text);
     });
     child.on('error', reject);
     child.on('close', (code) => {
       resolve({ code: code ?? 1, output });
     });
   });
+}
+
+async function createBuildJobLiveLogSink(jobId: number, workspacePath: string, step: BuildJobLogStreamStep): Promise<BuildJobLiveLogSink> {
+  await fse.ensureDir(workspacePath);
+  const logPath = path.join(workspacePath, `${step}.log`);
+  await fs.writeFile(logPath, '', 'utf8');
+
+  const stream = createWriteStream(logPath, {
+    flags: 'a',
+    encoding: 'utf8',
+  });
+  let closed = false;
+
+  return {
+    append(chunk) {
+      stream.write(chunk);
+      publishBuildJobLogChunk(jobId, step, chunk);
+    },
+    async close() {
+      if (closed) {
+        return;
+      }
+
+      closed = true;
+      await new Promise<void>((resolve, reject) => {
+        stream.once('error', reject);
+        stream.end(() => resolve());
+      }).catch(() => {});
+    },
+  };
 }
 
 async function updateJobRecord(
@@ -267,9 +318,11 @@ async function runBuildJob(jobId: number) {
     return;
   }
 
-  const { archivePath, extractPath, jobDir } = getJobPaths(job.id, job.fileName);
+  const { archivePath, extractPath, jobDir, workspacePath } = getJobPaths(job.id, job.fileName);
   let steps = parseJobSteps(job.stepsJson);
   let publishedPath: string | null = null;
+  let activeLogStep: BuildJobLogStreamStep | null = null;
+  let activeLogSink: BuildJobLiveLogSink | null = null;
 
   try {
     steps = await markStep(jobId, steps, 'extract', 'running', '正在解压源码包');
@@ -297,22 +350,30 @@ async function runBuildJob(jobId: number) {
     const packageManagerCacheDir = path.join(jobDir, packageManager === 'pnpm' ? 'pnpm-store' : 'npm-cache');
 
     steps = await markStep(jobId, steps, 'install', 'running', `正在使用 ${packageManager} 安装依赖`);
+    activeLogStep = 'install';
+    activeLogSink = await createBuildJobLiveLogSink(jobId, workspacePath, 'install');
     const installResult = await runShellCommand(
       await getInstallCommand(projectRoot, packageManager, {
         cacheDir: packageManagerCacheDir,
         registry: process.env.BUILD_JOB_NPM_REGISTRY,
       }),
       projectRoot,
+      {
+        onChunk: (chunk) => activeLogSink?.append(chunk),
+      },
     );
-
-    // 保存完整安装日志到文件
-    const installLogPath = path.join(projectRoot, '..', 'install.log');
-    await fs.writeFile(installLogPath, installResult.output, 'utf8').catch(() => {});
+    await activeLogSink.close();
+    activeLogSink = null;
 
     if (installResult.code !== 0) {
-      throw new Error(`依赖安装失败\n${summarizeOutput(installResult.output, '依赖安装失败')}`);
+      const installMessage = `依赖安装失败\n${summarizeOutput(installResult.output, '依赖安装失败')}`;
+      publishBuildJobLogStatus(jobId, 'install', 'failed', installMessage);
+      activeLogStep = null;
+      throw new Error(installMessage);
     }
     steps = await markStep(jobId, steps, 'install', 'success', summarizeOutput(installResult.output, '依赖安装完成'));
+    publishBuildJobLogStatus(jobId, 'install', 'success');
+    activeLogStep = null;
 
     const openFileLimitError = await getOpenFileLimitErrorMessage();
     if (openFileLimitError) {
@@ -320,16 +381,23 @@ async function runBuildJob(jobId: number) {
     }
 
     steps = await markStep(jobId, steps, 'build', 'running', '正在执行构建脚本');
-    const buildResult = await runShellCommand(`${packageManager} run build`, projectRoot);
-
-    // 保存完整构建日志到文件
-    const buildLogPath = path.join(projectRoot, '..', 'build.log');
-    await fs.writeFile(buildLogPath, buildResult.output, 'utf8').catch(() => {});
+    activeLogStep = 'build';
+    activeLogSink = await createBuildJobLiveLogSink(jobId, workspacePath, 'build');
+    const buildResult = await runShellCommand(`${packageManager} run build`, projectRoot, {
+      onChunk: (chunk) => activeLogSink?.append(chunk),
+    });
+    await activeLogSink.close();
+    activeLogSink = null;
 
     if (buildResult.code !== 0) {
-      throw new Error(`项目构建失败\n${summarizeOutput(buildResult.output, '项目构建失败')}`);
+      const buildMessage = `项目构建失败\n${summarizeOutput(buildResult.output, '项目构建失败')}`;
+      publishBuildJobLogStatus(jobId, 'build', 'failed', buildMessage);
+      activeLogStep = null;
+      throw new Error(buildMessage);
     }
     steps = await markStep(jobId, steps, 'build', 'success', summarizeOutput(buildResult.output, '项目构建完成'));
+    publishBuildJobLogStatus(jobId, 'build', 'success');
+    activeLogStep = null;
 
     steps = await markStep(jobId, steps, 'normalize', 'running', '正在规范化 dist 资源路径');
     const distDir = path.join(projectRoot, 'dist');
@@ -350,6 +418,12 @@ async function runBuildJob(jobId: number) {
     await finalizeBuildJobSuccess(jobId, publishedPath, steps);
   } catch (error) {
     const message = error instanceof Error ? error.message : '后台构建失败';
+    if (activeLogSink) {
+      await activeLogSink.close();
+    }
+    if (activeLogStep) {
+      publishBuildJobLogStatus(jobId, activeLogStep, 'failed', message);
+    }
     const currentStep = getCurrentJobStep(steps)?.key ?? 'extract';
     steps = updateJobSteps(steps, currentStep, 'failed', message);
     if (publishedPath) {
@@ -482,6 +556,75 @@ export async function getBuildJob(jobId: number) {
   }
 
   return serializeUploadRecord(record);
+}
+
+export async function getBuildJobLog(jobId: number, step: string): Promise<BuildJobLogItem> {
+  if (!isBuildJobLogStep(step)) {
+    throw new Error('Unsupported log step');
+  }
+
+  const record = await prisma.uploadRecord.findUnique({ where: { id: jobId } });
+  if (!record) {
+    throw new Error('Build job not found');
+  }
+
+  const job = serializeUploadRecord(record);
+  const selectedStep = job.steps.find((item) => item.key === step);
+  if (!selectedStep) {
+    throw new Error('Build job step not found');
+  }
+
+  if (step !== 'install' && step !== 'build') {
+    return {
+      step: step as BuildJobLogStep,
+      content: buildBuildJobStageText(job, selectedStep),
+      exists: true,
+      updatedAt: selectedStep.completedAt ?? selectedStep.startedAt ?? record.completedAt?.toISOString() ?? record.startedAt?.toISOString() ?? record.createdAt.toISOString(),
+    };
+  }
+
+  const workspacePath = record.workspacePath ?? getJobPaths(record.id, record.fileName).workspacePath;
+  const logPath = path.join(workspacePath, `${step}.log`);
+
+  try {
+    const [content, stats] = await Promise.all([fs.readFile(logPath, 'utf8'), fs.stat(logPath)]);
+    return {
+      step: step as BuildJobLogStep,
+      content,
+      exists: true,
+      updatedAt: stats.mtime.toISOString(),
+    };
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+      return {
+        step: step as BuildJobLogStep,
+        content: '',
+        exists: false,
+        updatedAt: null,
+      };
+    }
+
+    throw error;
+  }
+}
+
+export async function getBuildJobLogStreamResponse(jobId: number, step: string, signal?: AbortSignal) {
+  if (!isBuildJobLogStreamStep(step)) {
+    throw new Error('Unsupported realtime log step');
+  }
+
+  const record = await prisma.uploadRecord.findUnique({ where: { id: jobId } });
+  if (!record) {
+    throw new Error('Build job not found');
+  }
+
+  const job = serializeUploadRecord(record);
+  const selectedStep = job.steps.find((item) => item.key === step);
+  if (!selectedStep) {
+    throw new Error('Build job step not found');
+  }
+
+  return createBuildJobLogStreamResponse(jobId, step, signal, await getBuildJobLog(jobId, step));
 }
 
 export async function listBuildJobs(productKey: string) {

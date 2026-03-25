@@ -46,8 +46,10 @@ export type UploadRecordItem = {
   steps: BuildJobStepItem[];
 };
 
+export type BuildJobStepKey = 'extract' | 'install' | 'build' | 'normalize' | 'validate' | 'publish';
+
 export type BuildJobStepItem = {
-  key: string;
+  key: BuildJobStepKey;
   label: string;
   status: string;
   message: string | null;
@@ -73,6 +75,53 @@ export type BuildJobItem = {
 };
 
 export type BuildJobListItem = BuildJobItem;
+
+export type BuildJobLogStep = BuildJobStepKey;
+
+export type BuildJobLogItem = {
+  step: BuildJobLogStep;
+  content: string;
+  exists: boolean;
+  updatedAt: string | null;
+};
+
+export type BuildJobLogStreamStep = Extract<BuildJobLogStep, 'install' | 'build'>;
+
+export type BuildJobLogStreamSnapshotEvent = {
+  type: 'snapshot';
+  step: BuildJobLogStreamStep;
+  content: string;
+  exists: boolean;
+  updatedAt: string | null;
+};
+
+export type BuildJobLogStreamChunkEvent = {
+  type: 'chunk';
+  step: BuildJobLogStreamStep;
+  chunk: string;
+  updatedAt: string;
+};
+
+export type BuildJobLogStreamStatusEvent = {
+  type: 'status';
+  step: BuildJobLogStreamStep;
+  status: 'success' | 'failed';
+  done: true;
+  message?: string;
+  updatedAt: string;
+};
+
+export type BuildJobLogStreamHeartbeatEvent = {
+  type: 'heartbeat';
+  step: BuildJobLogStreamStep;
+  updatedAt: string;
+};
+
+export type BuildJobLogStreamEvent =
+  | BuildJobLogStreamSnapshotEvent
+  | BuildJobLogStreamChunkEvent
+  | BuildJobLogStreamStatusEvent
+  | BuildJobLogStreamHeartbeatEvent;
 
 export type ProductVersionManifest = {
   version: string;

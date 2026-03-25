@@ -6,34 +6,57 @@ import {
   Alert,
   Button,
   Card,
-  Col,
-  Divider,
+  Empty,
   Form,
   Input,
-  Layout,
   List,
   Modal,
   Progress,
-  Row,
   Select,
   Space,
-  Steps,
   Table,
   Tag,
   Typography,
   Upload,
 } from 'antd';
-import { DeleteOutlined, EyeOutlined, InboxOutlined, PlusOutlined, PoweroffOutlined, StarOutlined } from '@ant-design/icons';
+import {
+  DeleteOutlined,
+  EyeOutlined,
+  InboxOutlined,
+  InfoCircleOutlined,
+  PlayCircleOutlined,
+  PlusOutlined,
+  PoweroffOutlined,
+  SearchOutlined,
+  StarOutlined,
+} from '@ant-design/icons';
 import type { UploadFile } from 'antd/es/upload/interface';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { AdminProductListItem } from '@/components/admin-product-list-item';
-import type { ApiResponse, BuildJobItem, ProductDetail, ProductListItem, ProductVersionItem } from '@/lib/types';
+import { BuildJobStepList } from '@/components/build-job-step-list';
+import { BuildJobTerminal } from '@/components/build-job-terminal';
 import { getErrorMessage } from '@/lib/domain/error-message';
+import type {
+  ApiResponse,
+  BuildJobItem,
+  BuildJobLogItem,
+  BuildJobLogStreamEvent,
+  BuildJobStepKey,
+  ProductDetail,
+  ProductListItem,
+  ProductVersionItem,
+} from '@/lib/types';
 import { buildPreviewHref, resolveAdminProductKey } from '@/lib/ui/navigation';
-import { pageHeaderStyle, pageHeaderSubtitleStyle, pageHeaderTitleStyle } from '@/lib/ui/page-header';
+import {
+  applyBuildJobLogStreamEvent,
+  buildBuildJobLogStreamUrl,
+  buildBuildJobStageText,
+  getBuildJobLogStep,
+  isBuildJobLogStreamStep,
+  shouldStreamBuildJobLog,
+} from '@/lib/ui/build-job-log';
 
-const { Header, Content, Sider } = Layout;
 const { Title, Text, Paragraph } = Typography;
 
 type UploadFormValues = {
@@ -53,47 +76,42 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   return payload.data as T;
 }
 
-function getStatusTagColor(status: string) {
+function getStatusTagClass(status: string) {
   switch (status) {
     case 'published':
     case 'success':
-      return 'green';
+      return 'status-success';
     case 'building':
     case 'queued':
     case 'running':
-      return 'blue';
+      return 'status-running';
     case 'failed':
-      return 'error';
+      return 'status-failed';
     case 'offline':
-      return 'default';
+      return 'status-offline';
     default:
-      return 'default';
+      return 'status-offline';
   }
 }
 
 function renderStatusTag(status: string, text = status) {
-  return <Tag color={getStatusTagColor(status)}>{text}</Tag>;
+  return <Tag className={`status-chip ${getStatusTagClass(status)}`}>{text}</Tag>;
 }
 
-function getStepStatus(stepStatus: string): 'wait' | 'process' | 'finish' | 'error' {
-  switch (stepStatus) {
-    case 'success':
-      return 'finish';
-    case 'running':
-      return 'process';
-    case 'failed':
-      return 'error';
-    default:
-      return 'wait';
+function getTerminalEmptyText(activeJob: BuildJobItem | null) {
+  if (!activeJob) {
+    return 'Waiting for build job selection...';
   }
+
+  return activeJob.logSummary || 'No terminal output for the current step.';
 }
 
 function StatusTags({ version }: { version: ProductVersionItem }) {
   return (
-    <Space wrap>
+    <Space wrap size={[6, 6]}>
       {renderStatusTag(version.status)}
-      {version.isDefault ? <Tag color="gold">默认版本</Tag> : null}
-      {version.isLatest ? <Tag color="green">最新记录</Tag> : null}
+      {version.isDefault ? <Tag className="status-chip status-offline">默认版本</Tag> : null}
+      {version.isLatest ? <Tag className="status-chip status-running">最新记录</Tag> : null}
     </Space>
   );
 }
@@ -109,6 +127,9 @@ export function AdminDashboard() {
   const [jobs, setJobs] = useState<BuildJobItem[]>([]);
   const [activeJobId, setActiveJobId] = useState<number>();
   const [activeJob, setActiveJob] = useState<BuildJobItem | null>(null);
+  const [activeJobLog, setActiveJobLog] = useState<BuildJobLogItem | null>(null);
+  const [selectedLogStepKey, setSelectedLogStepKey] = useState<BuildJobStepKey | null>(null);
+  const [isLogStepPinned, setIsLogStepPinned] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -124,6 +145,9 @@ export function AdminDashboard() {
     setJobs([]);
     setActiveJobId(undefined);
     setActiveJob(null);
+    setActiveJobLog(null);
+    setSelectedLogStepKey(null);
+    setIsLogStepPinned(false);
   };
 
   const syncJobs = (nextJobs: BuildJobItem[]) => {
@@ -132,9 +156,12 @@ export function AdminDashboard() {
     if (runningJob) {
       setActiveJobId(runningJob.id);
       setActiveJob(runningJob);
-    } else if (activeJobId && !nextJobs.some((item) => item.id === activeJobId)) {
+      return;
+    }
+
+    setActiveJob((current) => current ? nextJobs.find((item) => item.id === current.id) ?? current : null);
+    if (activeJobId && !nextJobs.some((item) => item.id === activeJobId)) {
       setActiveJobId(undefined);
-      setActiveJob(null);
     }
   };
 
@@ -239,6 +266,116 @@ export function AdminDashboard() {
     };
   }, [activeJobId, selectedProductKey]);
 
+  useEffect(() => {
+    if (!activeJob) {
+      setSelectedLogStepKey(null);
+      setIsLogStepPinned(false);
+      return;
+    }
+
+    const currentStep = getBuildJobLogStep(activeJob.currentStep);
+    if (!isLogStepPinned || !selectedLogStepKey) {
+      setSelectedLogStepKey(currentStep);
+      return;
+    }
+
+    if (!activeJob.steps.some((step) => step.key === selectedLogStepKey)) {
+      setSelectedLogStepKey(currentStep);
+      setIsLogStepPinned(false);
+    }
+  }, [activeJob, isLogStepPinned, selectedLogStepKey]);
+
+  useEffect(() => {
+    if (!activeJobId || !activeJob) {
+      setActiveJobLog(null);
+      return;
+    }
+
+    const logStep = selectedLogStepKey ? getBuildJobLogStep(selectedLogStepKey) : getBuildJobLogStep(activeJob.currentStep);
+    if (!logStep) {
+      setActiveJobLog(null);
+      return;
+    }
+
+    let cancelled = false;
+    let timer: number | null = null;
+    let eventSource: EventSource | null = null;
+
+    const loadLog = async () => {
+      try {
+        const payload = await fetchJson<BuildJobLogItem>(`/api/build-jobs/${activeJobId}/logs?step=${logStep}`);
+        if (!cancelled) {
+          setActiveJobLog(payload);
+        }
+      } catch {
+        if (!cancelled) {
+          setActiveJobLog({
+            step: logStep,
+            content: '',
+            exists: false,
+            updatedAt: null,
+          });
+        }
+      }
+    };
+
+    if (shouldStreamBuildJobLog(activeJob, logStep) && isBuildJobLogStreamStep(logStep) && typeof EventSource !== 'undefined') {
+      const connectStream = async () => {
+        await loadLog();
+        if (cancelled) {
+          return;
+        }
+
+        eventSource = new EventSource(buildBuildJobLogStreamUrl(activeJobId, logStep));
+
+        const handleStreamEvent = (messageEvent: MessageEvent<string>) => {
+          if (cancelled) {
+            return;
+          }
+
+          const event = JSON.parse(messageEvent.data) as BuildJobLogStreamEvent;
+          setActiveJobLog((current) => applyBuildJobLogStreamEvent(current, event));
+
+          if (event.type === 'status' && event.done) {
+            eventSource?.close();
+            eventSource = null;
+          }
+        };
+
+        eventSource.addEventListener('snapshot', handleStreamEvent as EventListener);
+        eventSource.addEventListener('chunk', handleStreamEvent as EventListener);
+        eventSource.addEventListener('status', handleStreamEvent as EventListener);
+        eventSource.addEventListener('heartbeat', handleStreamEvent as EventListener);
+        eventSource.onerror = () => {
+          eventSource?.close();
+          eventSource = null;
+        };
+      };
+      void connectStream();
+
+      return () => {
+        cancelled = true;
+        eventSource?.close();
+      };
+    }
+
+    void loadLog();
+
+    if (['queued', 'running'].includes(activeJob.status)) {
+      timer = window.setInterval(() => {
+        void loadLog();
+      }, 1500);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timer) {
+        window.clearInterval(timer);
+      }
+      eventSource?.close();
+    };
+  }, [activeJob, activeJobId, selectedLogStepKey]);
+
   const filteredVersions = useMemo(() => {
     const keyword = search.trim().toLowerCase();
     const source = productDetail?.versions ?? [];
@@ -307,6 +444,8 @@ export function AdminDashboard() {
           setSelectedUploadFiles([]);
           setActiveJobId(buildJob.id);
           setActiveJob(buildJob);
+          setSelectedLogStepKey(getBuildJobLogStep(buildJob.currentStep));
+          setIsLogStepPinned(false);
           await loadProducts();
           await loadProductDetail(selectedProductKey);
           resolve();
@@ -349,20 +488,26 @@ export function AdminDashboard() {
     await loadProducts();
   };
 
+  const terminalEmptyText = getTerminalEmptyText(activeJob);
+  const selectedStep = activeJob?.steps.find((step) => step.key === selectedLogStepKey) ?? null;
+  const terminalContent = activeJobLog?.exists
+    ? activeJobLog.content
+    : activeJob && selectedStep
+      ? buildBuildJobStageText(activeJob, selectedStep)
+      : '';
+
   return (
-    <Layout className="page-shell">
-      <Sider width={280} theme="light" style={{ borderRight: '1px solid #f0f0f0', padding: 16 }}>
-        <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-          <Space style={{ justifyContent: 'space-between', width: '100%' }}>
-            <Title level={4} style={{ margin: 0 }}>
-              产品列表
-            </Title>
-            <Button type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
+    <div className="page-shell" style={{ display: 'flex' }}>
+      <aside className="page-sidebar" style={{ width: 288, minHeight: '100vh' }}>
+        <div className="page-sidebar-inner">
+          <div className="page-sidebar-header">
+            <h1 className="page-sidebar-title">产品列表</h1>
+            <Button className="hero-button" type="primary" icon={<PlusOutlined />} onClick={() => setCreateOpen(true)}>
               新建
             </Button>
-          </Space>
+          </div>
           <List
-            bordered
+            className="admin-side-list"
             locale={{ emptyText: '暂无产品' }}
             dataSource={products}
             renderItem={(item) => (
@@ -382,127 +527,167 @@ export function AdminDashboard() {
               />
             )}
           />
-        </Space>
-      </Sider>
-      <Layout>
-        <Header style={{ ...pageHeaderStyle, justifyContent: 'space-between' }}>
+        </div>
+      </aside>
+
+      <main className="page-main" style={{ flex: 1, minWidth: 0 }}>
+        <header className="page-topbar">
           <div>
-            <Title level={3} style={pageHeaderTitleStyle}>
+            <Title level={3} className="page-topbar-title">
               原型发布管理台
             </Title>
-            <Text type="secondary" style={pageHeaderSubtitleStyle}>
-              上传源码压缩包，系统自动安装依赖、执行构建并发布 dist
-            </Text>
+            <Text className="page-topbar-subtitle">上传源码压缩包，系统自动安装依赖、执行构建并发布 dist</Text>
           </div>
-          <Button
-            type="primary"
-            icon={<EyeOutlined />}
-            onClick={() => router.push(buildPreviewHref(selectedProductKey))}
-          >
-            前往预览台
-          </Button>
-        </Header>
-        <Content style={{ padding: 24 }}>
-          <Row gutter={[16, 16]}>
-            <Col span={24}>
-              <Card title="上传新版本" loading={loading}>
+          <div className="page-topbar-actions">
+            <Button
+              className="subtle-button"
+              icon={<PlayCircleOutlined style={{ color: '#2563eb' }} />}
+              onClick={() => router.push(buildPreviewHref(selectedProductKey))}
+            >
+              前往预览台
+            </Button>
+          </div>
+        </header>
+
+        <div className="page-main-scroll">
+          <div className="page-main-grid">
+            <div className="page-main-stack">
+              <Card className="prototype-card" title="上传新版本" loading={loading}>
                 <Form form={uploadForm} layout="vertical">
-                  <Row gutter={16}>
-                    <Col xs={24} md={8}>
-                      <Form.Item label="产品" required>
-                        <Select
-                          value={selectedProductKey}
-                          onChange={handleProductChange}
-                          options={products.map((item) => ({ label: `${item.name} (${item.key})`, value: item.key }))}
-                        />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={8}>
-                      <Form.Item name="version" label="版本号" rules={[{ required: true, message: '请输入版本号' }]}>
-                        <Input placeholder="例如 v1.0.0" />
-                      </Form.Item>
-                    </Col>
-                    <Col xs={24} md={8}>
-                      <Form.Item name="title" label="版本标题">
-                        <Input placeholder="可选" />
-                      </Form.Item>
-                    </Col>
-                  </Row>
-                  <Form.Item name="remark" label="更新说明">
-                    <Input.TextArea rows={3} placeholder="可选" />
-                  </Form.Item>
-                  <Form.Item label="源码压缩包">
-                    <Upload.Dragger
-                      beforeUpload={() => false}
-                      accept=".zip"
-                      maxCount={1}
-                      fileList={selectedUploadFiles}
-                      onChange={({ fileList }) => {
-                        setSelectedUploadFiles(fileList.slice(-1));
-                        if (uploadError) {
-                          setUploadError(undefined);
-                        }
-                      }}
-                      onRemove={() => {
-                        setSelectedUploadFiles([]);
-                      }}
-                    >
-                      <p className="ant-upload-drag-icon">
-                        <InboxOutlined />
-                      </p>
-                      <p>拖拽或点击上传源码 zip</p>
-                      <p className="ant-upload-hint">压缩包内需包含 package.json 和 build 脚本，构建产物固定输出到 dist/</p>
-                    </Upload.Dragger>
-                  </Form.Item>
+                  <div className="upload-grid">
+                    <Form.Item className="upload-field" label="产品" required>
+                      <Select
+                        value={selectedProductKey}
+                        onChange={handleProductChange}
+                        options={products.map((item) => ({ label: `${item.name} (${item.key})`, value: item.key }))}
+                      />
+                    </Form.Item>
+                    <Form.Item name="version" className="upload-field" label="版本号" rules={[{ required: true, message: '请输入版本号' }]}>
+                      <Input placeholder="例如 v1.0.0" />
+                    </Form.Item>
+                    <Form.Item name="title" className="upload-field" label="版本标题">
+                      <Input placeholder="可选" />
+                    </Form.Item>
+                    <Form.Item name="remark" className="upload-field-full" label="更新说明">
+                      <Input.TextArea rows={3} placeholder="可选" />
+                    </Form.Item>
+                    <Form.Item className="upload-field-full" label="源码压缩包">
+                      <Upload.Dragger
+                        className="admin-upload-dragger"
+                        beforeUpload={() => false}
+                        accept=".zip"
+                        maxCount={1}
+                        fileList={selectedUploadFiles}
+                        onChange={({ fileList }) => {
+                          setSelectedUploadFiles(fileList.slice(-1));
+                          if (uploadError) {
+                            setUploadError(undefined);
+                          }
+                        }}
+                        onRemove={() => {
+                          setSelectedUploadFiles([]);
+                        }}
+                      >
+                        <p className="ant-upload-drag-icon">
+                          <InboxOutlined style={{ color: '#2563eb' }} />
+                        </p>
+                        <p>拖拽或点击上传源码 zip</p>
+                        <p className="ant-upload-hint">压缩包内需包含 package.json 和 build 脚本，构建产物固定输出到 dist/</p>
+                      </Upload.Dragger>
+                    </Form.Item>
+                  </div>
                 </Form>
-                {uploading ? <Progress percent={uploadProgress} status="active" style={{ marginBottom: 16 }} /> : null}
+
+                {uploading ? <Progress className="task-progress" percent={uploadProgress} status="active" style={{ marginBottom: 16 }} /> : null}
                 {uploadError ? (
                   <Alert type="error" showIcon style={{ marginBottom: 16 }} message="上传失败" description={uploadError} />
                 ) : null}
-                <Button type="primary" onClick={() => void uploadVersion()} loading={uploading}>
+
+                <Button className="hero-button" type="primary" onClick={() => void uploadVersion()} loading={uploading}>
                   上传并创建任务
                 </Button>
+              </Card>
+
+              <Card className="prototype-card" title="当前任务" loading={loading}>
                 {activeJob ? (
                   <>
-                    <Divider />
-                    <Space direction="vertical" size="middle" style={{ width: '100%' }}>
-                      <Space wrap>
-                        <Text strong>
-                          当前任务：{activeJob.version} / {activeJob.fileName}
-                        </Text>
-                        {renderStatusTag(activeJob.status, activeJob.status)}
-                      </Space>
-                      <Progress
-                        percent={activeJob.progressPercent}
-                        status={activeJob.status === 'failed' ? 'exception' : activeJob.status === 'success' ? 'success' : 'active'}
-                      />
-                      <Alert
-                        type={activeJob.status === 'failed' ? 'error' : activeJob.status === 'success' ? 'success' : 'info'}
-                        showIcon
-                        message={activeJob.logSummary || '任务执行中'}
-                        description={activeJob.errorMessage || `当前步骤：${activeJob.currentStep ?? 'waiting'}`}
-                      />
-                      <Steps
-                        direction="vertical"
-                        size="small"
-                        items={activeJob.steps.map((step) => ({
-                          title: step.label,
-                          status: getStepStatus(step.status),
-                          description: step.message || '等待执行',
-                        }))}
-                      />
-                    </Space>
+                    <div className="terminal-card-header">
+                      <div className="terminal-card-title">
+                        <Text strong>当前任务:</Text>
+                        <span className="terminal-job-name">
+                          {activeJob.version} / {activeJob.fileName}
+                        </span>
+                        {renderStatusTag(activeJob.status)}
+                      </div>
+                      <Text type="secondary">{activeJob.progressPercent}%</Text>
+                    </div>
+
+                    <Progress
+                      className="task-progress"
+                      percent={activeJob.progressPercent}
+                      status={activeJob.status === 'failed' ? 'exception' : activeJob.status === 'success' ? 'success' : 'active'}
+                      style={{ marginBottom: 18 }}
+                    />
+
+                    <Alert
+                      type={activeJob.status === 'failed' ? 'error' : activeJob.status === 'success' ? 'success' : 'info'}
+                      showIcon
+                      style={{ marginBottom: 18 }}
+                      message={activeJob.logSummary || '任务执行中'}
+                      description={activeJob.errorMessage || `当前步骤：${activeJob.currentStep ?? 'waiting'}`}
+                    />
+
+                    <div className="task-layout">
+                      <div className="task-steps">
+                        <BuildJobStepList
+                          steps={activeJob.steps}
+                          selectedStepKey={selectedLogStepKey}
+                          onSelect={(stepKey) => {
+                            setSelectedLogStepKey(stepKey);
+                            setIsLogStepPinned(true);
+                          }}
+                        />
+                      </div>
+
+                      <div className="task-terminal-shell">
+                        <div className="task-terminal-chrome">
+                          <div className="task-terminal-lights">
+                            <span />
+                            <span />
+                            <span />
+                          </div>
+                          <div className="task-terminal-badge">
+                            {activeJobLog?.step ?? selectedLogStepKey ?? activeJob.currentStep ?? 'status'}
+                          </div>
+                        </div>
+                        <BuildJobTerminal content={terminalContent} emptyText={terminalEmptyText} />
+                      </div>
+                    </div>
                   </>
-                ) : null}
+                ) : (
+                  <div className="empty-state">
+                    <Empty description="当前没有正在跟踪的任务" />
+                  </div>
+                )}
               </Card>
-            </Col>
-            <Col xs={24} xl={15}>
+
               <Card
+                className="prototype-card prototype-card-tight"
                 title="版本列表"
-                extra={<Input.Search allowClear placeholder="搜索版本号或标题" style={{ width: 280 }} onChange={(event) => setSearch(event.target.value)} />}
+                extra={
+                  <Input.Search
+                    allowClear
+                    className="version-search"
+                    prefix={<SearchOutlined />}
+                    placeholder="搜索版本号或标题"
+                    style={{ width: 280 }}
+                    onChange={(event) => setSearch(event.target.value)}
+                  />
+                }
                 loading={loading}
               >
                 <Table<ProductVersionItem>
+                  className="prototype-table"
                   rowKey="id"
                   pagination={false}
                   dataSource={filteredVersions}
@@ -518,7 +703,7 @@ export function AdminDashboard() {
                         </div>
                       ),
                     },
-                    { title: '状态', key: 'status', width: 180, render: (_, item) => <StatusTags version={item} /> },
+                    { title: '状态', key: 'status', width: 190, render: (_, item) => <StatusTags version={item} /> },
                     { title: '创建时间', dataIndex: 'createdAt', key: 'createdAt', width: 180 },
                     {
                       title: '操作',
@@ -576,59 +761,79 @@ export function AdminDashboard() {
                   ]}
                 />
               </Card>
-            </Col>
-            <Col xs={24} xl={9}>
-              <Card title="最近任务" loading={loading}>
-                <div style={{ maxHeight: 420, overflowY: 'auto', paddingRight: 8 }}>
+            </div>
+
+            <div className="page-main-stack">
+              <Card className="prototype-card prototype-card-tight" title="最近任务" loading={loading}>
+                <div style={{ maxHeight: 420, overflowY: 'auto', padding: 8 }}>
                   <List
                     locale={{ emptyText: '暂无任务记录' }}
                     dataSource={jobs}
                     renderItem={(item) => (
-                      <List.Item
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => {
-                          setActiveJobId(item.id);
-                          setActiveJob(item);
-                        }}
-                      >
-                        <List.Item.Meta
-                          title={
+                      <List.Item style={{ border: 'none', padding: 0 }}>
+                        <div
+                          className={`job-list-item${item.id === activeJob?.id ? ' is-active' : ''}`}
+                          style={{ width: '100%', cursor: 'pointer' }}
+                          onClick={() => {
+                            setActiveJobId(item.id);
+                            setActiveJob(item);
+                          }}
+                        >
+                          <Space wrap style={{ width: '100%', justifyContent: 'space-between' }}>
                             <Space wrap>
-                              <span>{item.version}</span>
+                              <Text strong style={{ fontFamily: "'SFMono-Regular', Consolas, monospace" }}>
+                                {item.version}
+                              </Text>
                               {renderStatusTag(item.status)}
-                              <Text type="secondary">{item.progressPercent}%</Text>
                             </Space>
-                          }
-                          description={
-                            <div>
-                              <div>{item.fileName}</div>
-                              <Text type="secondary">{item.errorMessage || item.logSummary || '等待执行'}</Text>
-                            </div>
-                          }
-                        />
+                            <Text type="secondary">{item.progressPercent}%</Text>
+                          </Space>
+                          <div style={{ marginTop: 8 }}>
+                            <div style={{ fontSize: 13, color: '#334155' }}>{item.fileName}</div>
+                            <Text type="secondary">{item.errorMessage || item.logSummary || '等待执行'}</Text>
+                          </div>
+                        </div>
                       </List.Item>
                     )}
                   />
                 </div>
               </Card>
-              <Divider />
-              <Card title="当前产品信息" loading={loading}>
-                {productDetail ? (
-                  <Space direction="vertical" size="small">
-                    <Text strong>{productDetail.name}</Text>
-                    <Text type="secondary">Key: {productDetail.key}</Text>
-                    <Paragraph className="muted" style={{ marginBottom: 0 }}>
-                      {productDetail.description || '暂无描述'}
-                    </Paragraph>
+
+              <Card
+                className="prototype-card"
+                title={
+                  <Space>
+                    <InfoCircleOutlined style={{ color: '#94a3b8' }} />
+                    <span>当前产品信息</span>
                   </Space>
+                }
+                loading={loading}
+              >
+                {productDetail ? (
+                  <div className="product-info-grid">
+                    <div>
+                      <div className="product-info-item-label">产品名称</div>
+                      <div style={{ fontSize: 15, fontWeight: 600 }}>{productDetail.name}</div>
+                    </div>
+                    <div>
+                      <div className="product-info-item-label">产品 Key</div>
+                      <div className="product-key-pill">{productDetail.key}</div>
+                    </div>
+                    <div>
+                      <div className="product-info-item-label">描述</div>
+                      <Paragraph className="muted" style={{ marginBottom: 0 }}>
+                        {productDetail.description || '暂无描述'}
+                      </Paragraph>
+                    </div>
+                  </div>
                 ) : (
                   <div className="empty-state">请选择产品</div>
                 )}
               </Card>
-            </Col>
-          </Row>
-        </Content>
-      </Layout>
+            </div>
+          </div>
+        </div>
+      </main>
 
       <Modal title="新建产品" open={createOpen} onOk={() => void createProduct()} onCancel={() => setCreateOpen(false)} okText="创建">
         <Form form={productForm} layout="vertical">
@@ -643,6 +848,6 @@ export function AdminDashboard() {
           </Form.Item>
         </Form>
       </Modal>
-    </Layout>
+    </div>
   );
 }
