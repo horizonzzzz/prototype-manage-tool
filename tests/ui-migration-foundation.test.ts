@@ -54,4 +54,10 @@ describe('UI migration foundation', () => {
   test('removes global style selectors that depend on Ant Design DOM internals', () => {
     expect(globalStyles).not.toMatch(/\.ant-[a-z0-9-]+/);
   });
+
+  test('uses tighter global radius tokens and adds pointer feedback for native buttons', () => {
+    expect(globalStyles).toContain('--radius: 0.875rem;');
+    expect(globalStyles).toContain('button:not(:disabled)');
+    expect(globalStyles).toContain('cursor: pointer;');
+  });
 });

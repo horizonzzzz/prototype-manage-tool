@@ -7,7 +7,7 @@ type TerminalShellProps = {
 
 export function TerminalShell({ badge, children }: TerminalShellProps) {
   return (
-    <div className="overflow-hidden rounded-[18px] border border-slate-900/8 bg-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+    <div className="overflow-hidden rounded-[16px] border border-slate-900/8 bg-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
       <div className="flex items-center justify-between gap-3 border-b border-white/10 bg-slate-950 px-4 py-3">
         <div className="flex gap-1.5">
           <span className="size-2.5 rounded-full bg-slate-500/70" />

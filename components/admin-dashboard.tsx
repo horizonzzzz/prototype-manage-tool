@@ -344,7 +344,7 @@ export function AdminDashboard() {
               <AdminProductListItem key={item.id} item={item} selected={item.key === selectedProductKey} onSelect={(productKey) => { setSelectedProductKey(productKey); replaceProductQuery(productKey); }} onDelete={setProductToDelete} />
             ))}
           </ul>
-          {!products.length && !loading ? <div className="flex min-h-56 items-center justify-center rounded-[18px] border border-dashed border-[color:var(--border)] bg-white/70 px-4 text-sm text-slate-500">暂无产品</div> : null}
+          {!products.length && !loading ? <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-dashed border-[color:var(--border)] bg-white/70 px-4 text-sm text-slate-500">暂无产品</div> : null}
         </div>
       </aside>
 

@@ -30,7 +30,7 @@ describe('AdminProductListItem', () => {
 
     expect(markup).toContain('aria-pressed="true"');
     expect(markup).toContain('data-sidebar-item="true"');
-    expect(markup).toContain('rounded-[16px]');
+    expect(markup).toContain('rounded-[14px]');
     expect(markup).toContain('数据处理日志留存专用系统-集团版超长名称');
     expect(markup).toContain('dpls-g');
     expect(markup).toContain('3 个已发布版本');

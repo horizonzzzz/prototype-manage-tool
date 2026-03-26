@@ -29,7 +29,7 @@
   --border-strong: #c7d3e3;
   --input: #c7d3e3;
   --ring: #60a5fa;
-  --radius: 1.125rem;
+  --radius: 0.875rem;
   --shadow-soft: 0 8px 18px rgba(15, 23, 42, 0.05);
   --shadow-panel: 0 16px 38px rgba(15, 23, 42, 0.08);
   --page-glow:
@@ -56,10 +56,11 @@
   --color-ring: var(--ring);
   --font-sans: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   --font-mono: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  --radius-sm: calc(var(--radius) - 8px);
-  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 6px);
+  --radius-xl: calc(var(--radius) + 2px);
+  --radius-2xl: calc(var(--radius) + 4px);
 }
 
 @layer base {
@@ -101,6 +102,14 @@
   textarea,
   select {
     font: inherit;
+  }
+
+  button:not(:disabled) {
+    cursor: pointer;
+  }
+
+  button:disabled {
+    cursor: not-allowed;
   }
 
   ::selection {

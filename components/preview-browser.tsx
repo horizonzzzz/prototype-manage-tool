@@ -143,7 +143,7 @@ export function PreviewBrowser() {
                 <li key={item.key} className="list-none">
                   <button
                     type="button"
-                    className={`w-full rounded-[16px] border px-4 py-3 text-left transition-all ${
+                    className={`w-full rounded-[14px] border px-4 py-3 text-left transition-all ${
                       isSelected
                         ? 'border-sky-200 bg-sky-50/92 shadow-[var(--shadow-soft)]'
                         : 'border-transparent hover:-translate-y-0.5 hover:border-sky-100 hover:bg-white/82'
@@ -170,9 +170,9 @@ export function PreviewBrowser() {
             })}
           </ul>
 
-          {loading ? <div className="mt-2 h-20 animate-pulse rounded-[16px] bg-white/70" /> : null}
+          {loading ? <div className="mt-2 h-20 animate-pulse rounded-[14px] bg-white/70" /> : null}
           {!loading && !visibleProducts.length ? (
-            <div className="flex min-h-56 items-center justify-center rounded-[18px] border border-dashed border-[color:var(--border)] bg-white/70 px-4 text-sm text-slate-500">
+            <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-dashed border-[color:var(--border)] bg-white/70 px-4 text-sm text-slate-500">
               暂无可预览产品
             </div>
           ) : null}
@@ -230,7 +230,7 @@ export function PreviewBrowser() {
             ) : null}
           </section>
 
-          <section className="overflow-hidden rounded-[22px] border border-[color:var(--border-strong)] bg-white/98 shadow-[var(--shadow-panel)]">
+          <section className="overflow-hidden rounded-[20px] border border-[color:var(--border-strong)] bg-white/98 shadow-[var(--shadow-panel)]">
             <div className="flex items-center gap-3 border-b border-[color:var(--border)] bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(255,255,255,0.98))] px-4 py-3">
               <div className="flex gap-1.5">
                 <span className="size-2.5 rounded-full bg-slate-300" />

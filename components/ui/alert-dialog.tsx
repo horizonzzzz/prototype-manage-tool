@@ -28,7 +28,7 @@ function AlertDialogContent({ className, ...props }: React.ComponentProps<typeof
       <AlertDialogPrimitive.Content
         data-slot="alert-dialog-content"
         className={cn(
-          'fixed top-[50%] left-[50%] z-50 grid w-[min(92vw,460px)] translate-x-[-50%] translate-y-[-50%] gap-5 rounded-[24px] border border-[color:var(--border-strong)] bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.18)]',
+          'fixed top-[50%] left-[50%] z-50 grid w-[min(92vw,460px)] translate-x-[-50%] translate-y-[-50%] gap-5 rounded-[20px] border border-[color:var(--border-strong)] bg-white p-6 shadow-[0_30px_80px_rgba(15,23,42,0.18)]',
           className,
         )}
         {...props}

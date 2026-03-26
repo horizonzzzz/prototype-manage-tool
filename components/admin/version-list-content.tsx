@@ -34,14 +34,14 @@ export function VersionListContent({
 }: VersionListContentProps) {
   if (!versions.length) {
     return (
-      <div className="flex min-h-56 items-center justify-center rounded-[18px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-4 text-sm text-slate-500">
+      <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-4 text-sm text-slate-500">
         暂无版本记录
       </div>
     );
   }
 
   return (
-    <div className="overflow-hidden rounded-[18px] border border-[color:var(--border)]">
+    <div className="overflow-hidden rounded-[16px] border border-[color:var(--border)]">
       <Table>
         <TableHeader>
           <TableRow>

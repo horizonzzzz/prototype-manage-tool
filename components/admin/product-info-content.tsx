@@ -7,7 +7,7 @@ type ProductInfoContentProps = {
 export function ProductInfoContent({ productDetail }: ProductInfoContentProps) {
   if (!productDetail) {
     return (
-      <div className="flex min-h-56 items-center justify-center rounded-[18px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-4 text-sm text-slate-500">
+      <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-4 text-sm text-slate-500">
         请选择产品
       </div>
     );

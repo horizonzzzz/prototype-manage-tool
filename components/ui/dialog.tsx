@@ -40,7 +40,7 @@ function DialogContent({ className, children, hideClose, ...props }: React.Compo
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed top-[50%] left-[50%] z-50 grid w-[min(92vw,520px)] translate-x-[-50%] translate-y-[-50%] gap-5 rounded-[24px] border border-[color:var(--border-strong)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-6 shadow-[0_30px_80px_rgba(15,23,42,0.18)] duration-200',
+          'fixed top-[50%] left-[50%] z-50 grid w-[min(92vw,520px)] translate-x-[-50%] translate-y-[-50%] gap-5 rounded-[20px] border border-[color:var(--border-strong)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-6 shadow-[0_30px_80px_rgba(15,23,42,0.18)] duration-200',
           className,
         )}
         {...props}

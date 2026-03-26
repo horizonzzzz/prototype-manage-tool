@@ -25,7 +25,7 @@ export function CurrentJobContent({
 }: CurrentJobContentProps) {
   if (!activeJob) {
     return (
-      <div className="flex min-h-60 items-center justify-center rounded-[18px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-4 text-sm text-slate-500">
+      <div className="flex min-h-60 items-center justify-center rounded-[16px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-4 text-sm text-slate-500">
         当前没有正在跟踪的任务
       </div>
     );

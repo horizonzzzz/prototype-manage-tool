@@ -23,7 +23,7 @@ export function AdminProductListItem({ item, selected, onSelect, onDelete }: Adm
           data-sidebar-item="true"
           aria-pressed={selected}
           className={cn(
-            'w-full min-w-0 rounded-[16px] border px-4 py-3 text-left transition-all',
+            'w-full min-w-0 rounded-[14px] border px-4 py-3 text-left transition-all',
             selected
               ? 'border-sky-200 bg-sky-50/90 shadow-[var(--shadow-soft)]'
               : 'border-transparent bg-transparent hover:-translate-y-0.5 hover:border-sky-100 hover:bg-white/80',

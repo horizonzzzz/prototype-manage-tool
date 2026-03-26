@@ -24,7 +24,7 @@ function VersionIndicators({ version }: { version: ProductVersionManifest }) {
 
 export function VersionPillBar({ currentVersion, visibleVersions, overflowVersions, onSelect }: VersionPillBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-[18px] border border-[color:var(--border-strong)] bg-white/92 p-2 shadow-[var(--shadow-soft)]">
+    <div className="flex flex-wrap items-center gap-2 rounded-[16px] border border-[color:var(--border-strong)] bg-white/92 p-2 shadow-[var(--shadow-soft)]">
       {visibleVersions.map((item) => {
         const isActive = currentVersion === item.version;
 

@@ -10,7 +10,7 @@ type RecentJobsContentProps = {
 export function RecentJobsContent({ jobs, activeJobId, onSelect }: RecentJobsContentProps) {
   if (!jobs.length) {
     return (
-      <div className="flex min-h-56 items-center justify-center rounded-[18px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-4 text-sm text-slate-500">
+      <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-4 text-sm text-slate-500">
         暂无任务记录
       </div>
     );
@@ -22,7 +22,7 @@ export function RecentJobsContent({ jobs, activeJobId, onSelect }: RecentJobsCon
         <button
           key={item.id}
           type="button"
-          className={`w-full rounded-[14px] border px-4 py-4 text-left transition ${
+          className={`w-full rounded-[12px] border px-4 py-4 text-left transition ${
             item.id === activeJobId
               ? 'border-sky-200 bg-slate-50/92 shadow-[var(--shadow-soft)]'
               : 'border-transparent hover:-translate-y-0.5 hover:border-sky-100 hover:bg-slate-50/82'

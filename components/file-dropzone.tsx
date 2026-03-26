@@ -29,7 +29,7 @@ export function FileDropzone({
       <label
         htmlFor={inputId}
         className={cn(
-          'group flex cursor-pointer flex-col items-center justify-center rounded-[18px] border-2 border-dashed border-slate-300 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(239,246,255,0.76))] px-6 py-10 text-center transition hover:border-sky-300 hover:bg-[linear-gradient(180deg,rgba(239,246,255,0.9),rgba(219,234,254,0.72))]',
+          'group flex cursor-pointer flex-col items-center justify-center rounded-[16px] border-2 border-dashed border-slate-300 bg-[linear-gradient(180deg,rgba(248,250,252,0.92),rgba(239,246,255,0.76))] px-6 py-10 text-center transition hover:border-sky-300 hover:bg-[linear-gradient(180deg,rgba(239,246,255,0.9),rgba(219,234,254,0.72))]',
           isDragging && 'border-sky-400 bg-[linear-gradient(180deg,rgba(239,246,255,0.92),rgba(219,234,254,0.76))]',
           disabled && 'pointer-events-none opacity-60',
         )}
