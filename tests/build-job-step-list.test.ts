@@ -25,7 +25,7 @@ const steps: BuildJobStepItem[] = [
 ];
 
 describe('BuildJobStepList', () => {
-  test('renders step labels and status classes without step messages', () => {
+  test('renders step labels with data-status markers and no stale summary text', () => {
     const markup = renderToStaticMarkup(
       React.createElement(BuildJobStepList, {
         steps,
@@ -36,9 +36,11 @@ describe('BuildJobStepList', () => {
 
     expect(markup).toContain('解压源码包');
     expect(markup).toContain('安装依赖');
-    expect(markup).toContain('task-step-item is-success');
-    expect(markup).toContain('task-step-item is-active is-selected');
+    expect(markup).toContain('data-status="success"');
+    expect(markup).toContain('data-status="running"');
+    expect(markup).toContain('aria-pressed="true"');
     expect(markup).not.toContain('这里曾经是日志摘要');
     expect(markup).not.toContain('npm install 输出摘要');
+    expect(markup).not.toContain('task-step-item is-active is-selected');
   });
 });

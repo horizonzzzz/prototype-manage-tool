@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { AntdRegistry } from '@ant-design/nextjs-registry';
+import { Toaster } from 'sonner';
 
 import './globals.css';
 
@@ -12,9 +12,9 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="zh-CN">
       <body>
-        <AntdRegistry>{children}</AntdRegistry>
+        {children}
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );
 }
-

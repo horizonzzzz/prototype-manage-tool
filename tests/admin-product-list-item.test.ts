@@ -18,7 +18,7 @@ function createProduct(overrides: Partial<ProductListItem> = {}): ProductListIte
 }
 
 describe('AdminProductListItem', () => {
-  test('renders compact admin list item markup with separate key tag and delete action', () => {
+  test('renders an accessible sidebar item with a selected trigger and separate delete action', () => {
     const markup = renderToStaticMarkup(
       React.createElement(AdminProductListItem, {
         item: createProduct(),
@@ -28,17 +28,13 @@ describe('AdminProductListItem', () => {
       }),
     );
 
-    expect(markup).toContain('admin-product-list-item');
-    expect(markup).toContain('admin-product-list-item-content');
-    expect(markup).toContain('admin-product-list-item-main');
-    expect(markup).toContain('admin-product-list-item-header');
-    expect(markup).toContain('admin-product-list-item-actions');
-    expect(markup).toContain('admin-product-list-item-title');
-    expect(markup).toContain('admin-product-list-item-title-text');
-    expect(markup).toContain('admin-product-list-item-key-tag');
+    expect(markup).toContain('aria-pressed="true"');
+    expect(markup).toContain('data-sidebar-item="true"');
+    expect(markup).toContain('rounded-[16px]');
     expect(markup).toContain('数据处理日志留存专用系统-集团版超长名称');
     expect(markup).toContain('dpls-g');
     expect(markup).toContain('3 个已发布版本');
     expect(markup).toContain('删除');
+    expect(markup).not.toContain('admin-product-list-item-main');
   });
 });
