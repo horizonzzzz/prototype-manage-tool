@@ -672,7 +672,7 @@ export function AdminDashboard() {
               </Card>
 
               <Card
-                className="prototype-card prototype-card-tight"
+                className="prototype-card"
                 title="版本列表"
                 extra={
                   <Input.Search
@@ -764,8 +764,8 @@ export function AdminDashboard() {
             </div>
 
             <div className="page-main-stack">
-              <Card className="prototype-card prototype-card-tight" title="最近任务" loading={loading}>
-                <div style={{ maxHeight: 420, overflowY: 'auto', padding: 8 }}>
+              <Card className="prototype-card" title="最近任务" loading={loading}>
+                <div className="job-list-scroll">
                   <List
                     locale={{ emptyText: '暂无任务记录' }}
                     dataSource={jobs}

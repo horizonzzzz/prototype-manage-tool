@@ -199,10 +199,6 @@ a {
   padding: 22px;
 }
 
-.prototype-card.prototype-card-tight .ant-card-body {
-  padding: 0;
-}
-
 .hero-button.ant-btn {
   height: 40px;
   padding-inline: 18px;
@@ -499,6 +495,11 @@ a {
 .admin-side-list.ant-list .ant-list-item {
   padding: 0;
   border: none;
+}
+
+.job-list-scroll {
+  max-height: 420px;
+  overflow-y: auto;
 }
 
 .job-list-item {
