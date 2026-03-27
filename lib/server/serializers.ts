@@ -3,7 +3,13 @@ import type { Product, ProductVersion, UploadRecord } from '@prisma/client';
 import { getCurrentJobStep, getJobProgressPercent, parseJobSteps } from '@/lib/domain/build-job';
 import type { ManifestProduct, ProductDetail, ProductListItem, ProductVersionItem, UploadRecordItem } from '@/lib/types';
 
-export function serializeVersion(version: ProductVersion, latestVersionValue?: string): ProductVersionItem {
+type VersionDownloadabilityMap = Record<string, boolean>;
+
+export function serializeVersion(
+  version: ProductVersion,
+  latestVersionValue?: string,
+  downloadabilityMap: VersionDownloadabilityMap = {},
+): ProductVersionItem {
   return {
     id: version.id,
     version: version.version,
@@ -13,6 +19,7 @@ export function serializeVersion(version: ProductVersion, latestVersionValue?: s
     status: version.status,
     isDefault: version.isDefault,
     isLatest: version.version === latestVersionValue,
+    downloadable: downloadabilityMap[version.version] ?? false,
     createdAt: version.createdAt.toISOString(),
   };
 }
@@ -28,7 +35,10 @@ export function serializeProductListItem(product: Product & { versions: ProductV
   };
 }
 
-export function serializeProductDetail(product: Product & { versions: ProductVersion[] }): ProductDetail {
+export function serializeProductDetail(
+  product: Product & { versions: ProductVersion[] },
+  downloadabilityMap: VersionDownloadabilityMap = {},
+): ProductDetail {
   const latestVersionValue = [...product.versions].sort(
     (left, right) => right.createdAt.getTime() - left.createdAt.getTime(),
   )[0]?.version;
@@ -37,7 +47,7 @@ export function serializeProductDetail(product: Product & { versions: ProductVer
     ...serializeProductListItem(product),
     versions: [...product.versions]
       .sort((left, right) => right.createdAt.getTime() - left.createdAt.getTime())
-      .map((version) => serializeVersion(version, latestVersionValue)),
+      .map((version) => serializeVersion(version, latestVersionValue, downloadabilityMap)),
   };
 }
 

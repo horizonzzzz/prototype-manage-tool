@@ -15,6 +15,34 @@ type UploadInput = {
   buffer: Buffer;
 };
 
+type VersionDownloadabilityMap = Record<string, boolean>;
+
+type VersionSourceArchive = {
+  fileName: string;
+  filePath: string;
+};
+
+function createDisabledDownloadabilityMap(versions: string[]): VersionDownloadabilityMap {
+  return Object.fromEntries(versions.map((version) => [version, false]));
+}
+
+function isUploadRecordCompatibilityError(error: unknown) {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+
+  const maybeCode = 'code' in error ? error.code : undefined;
+  if (maybeCode === 'P2022') {
+    return true;
+  }
+
+  if (!(error instanceof Error)) {
+    return false;
+  }
+
+  return /sourcearchivepath|workspacepath|publishedpath|no such column|does not exist/i.test(error.message);
+}
+
 export async function setDefaultVersion(versionId: number) {
   const version = await prisma.productVersion.findUnique({ where: { id: versionId } });
   if (!version) {
@@ -123,4 +151,104 @@ export async function deleteProduct(productKey: string) {
 
 export async function processPrototypeUpload(input: UploadInput) {
   return await createBuildJob(input);
+}
+
+export async function getVersionDownloadabilityMap(productKey: string, versions: string[]) {
+  if (!versions.length) {
+    return {};
+  }
+
+  const downloadabilityMap = createDisabledDownloadabilityMap(versions);
+
+  let records: Array<{ version: string; sourceArchivePath: string | null }> = [];
+  try {
+    records = await prisma.uploadRecord.findMany({
+      where: {
+        productKey,
+        version: { in: versions },
+        status: 'success',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        version: true,
+        sourceArchivePath: true,
+      },
+    });
+  } catch (error) {
+    if (isUploadRecordCompatibilityError(error)) {
+      return downloadabilityMap;
+    }
+
+    throw error;
+  }
+
+  const latestArchivePathByVersion = new Map<string, string | null>();
+  for (const record of records) {
+    if (!latestArchivePathByVersion.has(record.version)) {
+      latestArchivePathByVersion.set(record.version, record.sourceArchivePath);
+    }
+  }
+
+  await Promise.all(
+    versions.map(async (version) => {
+      const sourceArchivePath = latestArchivePathByVersion.get(version);
+      if (!sourceArchivePath) {
+        return;
+      }
+
+      downloadabilityMap[version] = await fse.pathExists(sourceArchivePath);
+    }),
+  );
+
+  return downloadabilityMap;
+}
+
+export async function getVersionSourceArchive(versionId: number): Promise<VersionSourceArchive | null> {
+  const version = await prisma.productVersion.findUnique({
+    where: { id: versionId },
+    include: {
+      product: {
+        select: { key: true },
+      },
+    },
+  });
+
+  if (!version) {
+    throw new Error('Version not found');
+  }
+
+  let record: { fileName: string; sourceArchivePath: string | null } | null = null;
+  try {
+    record = await prisma.uploadRecord.findFirst({
+      where: {
+        productKey: version.product.key,
+        version: version.version,
+        status: 'success',
+      },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        fileName: true,
+        sourceArchivePath: true,
+      },
+    });
+  } catch (error) {
+    if (isUploadRecordCompatibilityError(error)) {
+      return null;
+    }
+
+    throw error;
+  }
+
+  if (!record?.sourceArchivePath) {
+    return null;
+  }
+
+  if (!(await fse.pathExists(record.sourceArchivePath))) {
+    return null;
+  }
+
+  return {
+    fileName: record.fileName,
+    filePath: record.sourceArchivePath,
+  };
 }

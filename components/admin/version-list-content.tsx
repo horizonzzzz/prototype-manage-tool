@@ -1,4 +1,5 @@
-import { Eye, Power, Star, Trash2 } from 'lucide-react';
+import React from 'react';
+import { Download, Eye, Power, Star, Trash2 } from 'lucide-react';
 
 import { StatusChip } from '@/components/status-chip';
 import { Button } from '@/components/ui/button';
@@ -19,6 +20,7 @@ type VersionListContentProps = {
   versions: ProductVersionItem[];
   productDetail: ProductDetail | null;
   onPreview: (item: ProductVersionItem) => void;
+  onDownload: (item: ProductVersionItem) => void;
   onSetDefault: (item: ProductVersionItem) => void;
   onOffline: (item: ProductVersionItem) => void;
   onDelete: (item: ProductVersionItem) => void;
@@ -28,6 +30,7 @@ export function VersionListContent({
   versions,
   productDetail,
   onPreview,
+  onDownload,
   onSetDefault,
   onOffline,
   onDelete,
@@ -75,6 +78,16 @@ export function VersionListContent({
                   >
                     <Eye />
                     预览
+                  </Button>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="secondary"
+                    disabled={!item.downloadable}
+                    onClick={() => onDownload(item)}
+                  >
+                    <Download />
+                    下载
                   </Button>
                   <Button
                     type="button"

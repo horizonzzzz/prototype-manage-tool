@@ -55,6 +55,20 @@ function getTerminalEmptyText(activeJob: BuildJobItem | null) {
   return activeJob ? activeJob.logSummary || 'No terminal output for the current step.' : 'Waiting for build job selection...';
 }
 
+function triggerVersionDownload(versionId: number) {
+  if (typeof document === 'undefined') {
+    return;
+  }
+
+  const link = document.createElement('a');
+  link.href = `/api/versions/${versionId}/download`;
+  link.rel = 'noopener';
+  link.style.display = 'none';
+  document.body.append(link);
+  link.click();
+  link.remove();
+}
+
 export function AdminDashboard() {
   const router = useRouter();
   const pathname = usePathname();
@@ -368,7 +382,7 @@ export function AdminDashboard() {
             </PanelCard>
 
             <PanelCard title="版本列表" loading={loading && !productDetail} actions={<div className="relative w-[280px] max-w-full"><Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" /><Input value={search} onChange={(event) => setSearch(event.target.value)} className="pl-9" placeholder="搜索版本号或标题" /></div>}>
-              <VersionListContent versions={filteredVersions} productDetail={productDetail} onPreview={(item) => productDetail && router.push(buildPreviewHref(productDetail.key, item.version))} onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')} onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')} onDelete={setVersionToDelete} />
+              <VersionListContent versions={filteredVersions} productDetail={productDetail} onPreview={(item) => productDetail && router.push(buildPreviewHref(productDetail.key, item.version))} onDownload={(item) => triggerVersionDownload(item.id)} onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')} onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')} onDelete={setVersionToDelete} />
             </PanelCard>
           </div>
 

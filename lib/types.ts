@@ -13,6 +13,7 @@ export type ProductVersionItem = {
   status: string;
   isDefault: boolean;
   isLatest: boolean;
+  downloadable: boolean;
   createdAt: string;
 };
 

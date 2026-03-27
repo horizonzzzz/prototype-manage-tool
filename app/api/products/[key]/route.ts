@@ -1,7 +1,7 @@
 import { fail, ok } from '@/lib/api';
 import { prisma } from '@/lib/prisma';
 import { serializeProductDetail } from '@/lib/server/serializers';
-import { deleteProduct } from '@/lib/server/upload-service';
+import { deleteProduct, getVersionDownloadabilityMap } from '@/lib/server/upload-service';
 
 type Context = {
   params: Promise<{ key: string }>;
@@ -22,7 +22,12 @@ export async function GET(_: Request, context: Context) {
     return fail('Product not found', 404);
   }
 
-  return ok(serializeProductDetail(product));
+  const downloadabilityMap = await getVersionDownloadabilityMap(
+    key,
+    product.versions.map((version) => version.version),
+  );
+
+  return ok(serializeProductDetail(product, downloadabilityMap));
 }
 
 export async function DELETE(_: Request, context: Context) {
