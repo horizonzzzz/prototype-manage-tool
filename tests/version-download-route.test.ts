@@ -41,6 +41,24 @@ describe('GET /api/versions/[id]/download', () => {
     await expect(response.arrayBuffer()).resolves.toEqual(Uint8Array.from(Buffer.from('zip-bytes')).buffer);
   });
 
+  test('supports unicode archive names without failing header encoding', async () => {
+    getVersionSourceArchiveMock.mockResolvedValue({
+      fileName: '产品预览-v1.0.0.zip',
+      filePath: 'C:/archives/product-v1.0.0.zip',
+    });
+    readFileMock.mockResolvedValue(Buffer.from('zip-bytes'));
+
+    const response = await GET(new Request('http://localhost/api/versions/8/download'), {
+      params: Promise.resolve({ id: '8' }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-disposition')).toContain('filename="____-v1.0.0.zip"');
+    expect(response.headers.get('content-disposition')).toContain(
+      "filename*=UTF-8''%E4%BA%A7%E5%93%81%E9%A2%84%E8%A7%88-v1.0.0.zip",
+    );
+  });
+
   test('returns a 404 payload when the original archive is unavailable', async () => {
     getVersionSourceArchiveMock.mockResolvedValue(null);
 

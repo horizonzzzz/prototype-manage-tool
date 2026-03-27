@@ -8,7 +8,12 @@ type Context = {
 };
 
 function buildContentDisposition(fileName: string) {
-  const safeFileName = fileName.replace(/["\\]/g, '_');
+  const asciiFallback = fileName
+    .replace(/[\r\n]/g, '_')
+    .replace(/["\\]/g, '_')
+    .replace(/[^\x20-\x7E]/g, '_')
+    .trim();
+  const safeFileName = asciiFallback || 'download.zip';
   return `attachment; filename="${safeFileName}"; filename*=UTF-8''${encodeURIComponent(fileName)}`;
 }
 
