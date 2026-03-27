@@ -16,6 +16,11 @@ function StatusTags({ version }: { version: ProductVersionItem }) {
   );
 }
 
+function formatCreatedAt(createdAt: string) {
+  const isoDateTime = createdAt.match(/^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2}:\d{2})/);
+  return isoDateTime ? `${isoDateTime[1]} ${isoDateTime[2]}` : createdAt;
+}
+
 type VersionListContentProps = {
   versions: ProductVersionItem[];
   productDetail: ProductDetail | null;
@@ -45,29 +50,31 @@ export function VersionListContent({
 
   return (
     <div className="overflow-hidden rounded-[16px] border border-[color:var(--border)]">
-      <Table>
+      <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[120px]">版本</TableHead>
-            <TableHead>标题 / 备注</TableHead>
-            <TableHead className="w-[190px]">状态</TableHead>
-            <TableHead className="w-[180px]">创建时间</TableHead>
-            <TableHead className="w-[320px]">操作</TableHead>
+            <TableHead className="w-[11%] px-3">版本</TableHead>
+            <TableHead className="px-3">标题 / 备注</TableHead>
+            <TableHead className="w-[14%] px-3">状态</TableHead>
+            <TableHead className="w-[10%] px-3">创建时间</TableHead>
+            <TableHead className="w-[48%] px-3">操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
           {versions.map((item) => (
             <TableRow key={item.id}>
-              <TableCell className="font-mono text-[13px] font-semibold text-slate-800">{item.version}</TableCell>
-              <TableCell>
-                <div>{item.title || '—'}</div>
-                <div className="mt-1 text-sm text-slate-500">{item.remark || '无备注'}</div>
+              <TableCell className="px-3 py-4 font-mono text-[13px] font-semibold text-slate-800">{item.version}</TableCell>
+              <TableCell className="px-3 py-4">
+                <div className="break-words">{item.title || '—'}</div>
+                <div className="mt-1 break-words text-sm text-slate-500">{item.remark || '无备注'}</div>
               </TableCell>
-              <TableCell>
+              <TableCell className="px-3 py-4">
                 <StatusTags version={item} />
               </TableCell>
-              <TableCell>{item.createdAt}</TableCell>
-              <TableCell>
+              <TableCell className="px-3 py-4 whitespace-normal break-all text-[11px] leading-4 text-slate-500">
+                {formatCreatedAt(item.createdAt)}
+              </TableCell>
+              <TableCell className="px-3 py-4">
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"

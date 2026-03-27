@@ -36,6 +36,47 @@ function createProductDetail(version: ProductVersionItem): ProductDetail {
 }
 
 describe('VersionListContent', () => {
+  test('formats created time as YYYY-MM-DD HH:mm:ss', () => {
+    const version = createVersion({ createdAt: '2026-03-27T01:00:00.000Z' });
+    const markup = renderToStaticMarkup(
+      React.createElement(VersionListContent, {
+        versions: [version],
+        productDetail: createProductDetail(version),
+        onPreview: () => undefined,
+        onDownload: () => undefined,
+        onSetDefault: () => undefined,
+        onOffline: () => undefined,
+        onDelete: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain('2026-03-27 01:00:00');
+    expect(markup).not.toContain('2026-03-27T01:00:00.000Z');
+  });
+
+  test('renders the actions column with wrapped compact buttons without forcing page overflow', () => {
+    const version = createVersion();
+    const markup = renderToStaticMarkup(
+      React.createElement(VersionListContent, {
+        versions: [version],
+        productDetail: createProductDetail(version),
+        onPreview: () => undefined,
+        onDownload: () => undefined,
+        onSetDefault: () => undefined,
+        onOffline: () => undefined,
+        onDelete: () => undefined,
+      }),
+    );
+
+    expect(markup).not.toContain('overflow-x-auto');
+    expect(markup).not.toContain('min-w-[1120px]');
+    expect(markup).toContain('table-fixed');
+    expect(markup).toContain('w-[48%]');
+    expect(markup).toContain('whitespace-normal break-all text-[11px] leading-4');
+    expect(markup).toContain('flex flex-wrap gap-2');
+    expect(markup).toContain('h-8 rounded-md px-2 text-[11px] gap-1');
+  });
+
   test('keeps the download button enabled when the original zip is available', () => {
     const version = createVersion({ downloadable: true });
     const markup = renderToStaticMarkup(
