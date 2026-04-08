@@ -2,6 +2,21 @@
 
 All notable release changes for `Prototype Manage Tool` are tracked here. GitHub Release pages should reuse the matching version section from this file.
 
+## 1.4.0
+
+### Features
+
+- Added published source snapshots and remote MCP access at `POST /api/mcp` so agents can list products, resolve versions, browse source trees, read files, and search source text without downloading prototype archives first. (`4626a12`)
+
+### Operations
+
+- Added changelog-driven GitHub Release notes generation so release tags can publish Docker images and reuse the matching `CHANGELOG.md` section as release notes. (`aadfc2f`)
+
+### Developer Experience
+
+- Added agent-focused repository guidance with `AGENTS.md`, `CLAUDE.md`, and streamlined MCP setup documentation. (`c37f2c9`, `b1df9e3`)
+- Ignored local Prisma migration output because this repository still uses a `db:push`-first schema workflow instead of checked-in migration history. (`17fb2ae`)
+
 ## 1.3.1
 
 ### Features
