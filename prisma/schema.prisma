@@ -28,8 +28,23 @@ model ProductVersion {
   isDefault   Boolean      @default(false)
   createdAt   DateTime     @default(now())
   product     Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  sourceSnapshot SourceSnapshot?
 
   @@unique([productId, version])
+}
+
+model SourceSnapshot {
+  id          Int            @id @default(autoincrement())
+  versionId   Int            @unique
+  status      String
+  rootPath    String
+  fileCount   Int            @default(0)
+  totalBytes  Int            @default(0)
+  generatedAt DateTime?
+  errorMessage String?
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  version     ProductVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
 }
 
 model UploadRecord {

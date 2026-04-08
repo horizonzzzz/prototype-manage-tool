@@ -30,6 +30,7 @@ import {
 } from '@/lib/server/build-job-log-stream';
 import { ensureAppDirectories, extractZipToTemp, findFileRoot, publishExtractedDir } from '@/lib/server/fs-utils';
 import { serializeUploadRecord } from '@/lib/server/serializers';
+import { createSourceSnapshot } from '@/lib/server/source-snapshot-service';
 import { buildBuildJobStageText, isBuildJobLogStep, isBuildJobLogStreamStep } from '@/lib/ui/build-job-log';
 import type { BuildJobLogItem, BuildJobLogStep, BuildJobLogStreamStep } from '@/lib/types';
 
@@ -333,6 +334,23 @@ async function runBuildJob(jobId: number) {
     if (!projectRoot) {
       throw new Error('源码包中必须包含 package.json');
     }
+
+    const targetVersion = await prisma.productVersion.findFirst({
+      where: {
+        product: { key: job.productKey },
+        version: job.version,
+      },
+      select: { id: true },
+    });
+    if (!targetVersion) {
+      throw new Error('Version not found');
+    }
+    await createSourceSnapshot({
+      versionId: targetVersion.id,
+      productKey: job.productKey,
+      version: job.version,
+      sourceDir: projectRoot,
+    });
 
     const packageManager = await detectPackageManager(projectRoot);
     const packageJson = await readProjectPackageJson(projectRoot);

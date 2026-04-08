@@ -2,17 +2,37 @@ import path from 'node:path';
 
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const { pathExistsMock, removeMock, productFindUniqueMock, productVersionFindUniqueMock, uploadRecordDeleteManyMock, uploadRecordFindFirstMock, uploadRecordFindManyMock, productDeleteMock, transactionMock } =
+const {
+  pathExistsMock,
+  removeMock,
+  productFindUniqueMock,
+  productVersionFindUniqueMock,
+  productVersionDeleteMock,
+  productVersionFindFirstMock,
+  productVersionUpdateMock,
+  uploadRecordDeleteManyMock,
+  uploadRecordFindFirstMock,
+  uploadRecordFindManyMock,
+  productDeleteMock,
+  transactionMock,
+  deleteSourceSnapshotForVersionMock,
+  deleteSourceSnapshotsForProductMock,
+} =
   vi.hoisted(() => ({
     pathExistsMock: vi.fn(),
     removeMock: vi.fn(),
     productFindUniqueMock: vi.fn(),
     productVersionFindUniqueMock: vi.fn(),
+    productVersionDeleteMock: vi.fn(),
+    productVersionFindFirstMock: vi.fn(),
+    productVersionUpdateMock: vi.fn(),
     uploadRecordDeleteManyMock: vi.fn(),
     uploadRecordFindFirstMock: vi.fn(),
     uploadRecordFindManyMock: vi.fn(),
     productDeleteMock: vi.fn(),
     transactionMock: vi.fn(),
+    deleteSourceSnapshotForVersionMock: vi.fn(),
+    deleteSourceSnapshotsForProductMock: vi.fn(),
   }));
 
 vi.mock('fs-extra', () => ({
@@ -36,6 +56,9 @@ vi.mock('@/lib/prisma', () => ({
     },
     productVersion: {
       findUnique: productVersionFindUniqueMock,
+      delete: productVersionDeleteMock,
+      findFirst: productVersionFindFirstMock,
+      update: productVersionUpdateMock,
     },
     uploadRecord: {
       deleteMany: uploadRecordDeleteManyMock,
@@ -50,7 +73,49 @@ vi.mock('@/lib/server/build-job-service', () => ({
   createBuildJob: vi.fn(),
 }));
 
-import { deleteProduct, getVersionDownloadabilityMap, getVersionSourceArchive } from '@/lib/server/upload-service';
+vi.mock('@/lib/server/source-snapshot-service', () => ({
+  deleteSourceSnapshotForVersion: deleteSourceSnapshotForVersionMock,
+  deleteSourceSnapshotsForProduct: deleteSourceSnapshotsForProductMock,
+}));
+
+import { deleteProduct, deleteVersion, getVersionDownloadabilityMap, getVersionSourceArchive } from '@/lib/server/upload-service';
+
+describe('deleteVersion', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    pathExistsMock.mockResolvedValue(false);
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        productVersion: {
+          delete: productVersionDeleteMock,
+          findFirst: productVersionFindFirstMock,
+          update: productVersionUpdateMock,
+        },
+      }),
+    );
+  });
+
+  test('cleans up published assets and source snapshots for a deleted version', async () => {
+    productVersionFindUniqueMock.mockResolvedValue({
+      id: 11,
+      version: 'v1.0.0',
+      productId: 1,
+      product: { key: 'crm' },
+      status: 'published',
+    });
+    productVersionDeleteMock.mockResolvedValue({ id: 11 });
+    productVersionFindFirstMock.mockResolvedValue(null);
+    removeMock.mockResolvedValue(undefined);
+    deleteSourceSnapshotForVersionMock.mockResolvedValue(undefined);
+
+    await deleteVersion(11);
+
+    expect(transactionMock).toHaveBeenCalledTimes(1);
+    expect(productVersionDeleteMock).toHaveBeenCalledWith({ where: { id: 11 } });
+    expect(removeMock).toHaveBeenCalledWith(path.join('C:/prototypes-root', 'crm', 'v1.0.0'));
+    expect(deleteSourceSnapshotForVersionMock).toHaveBeenCalledWith('crm', 'v1.0.0');
+  });
+});
 
 describe('deleteProduct', () => {
   beforeEach(() => {
@@ -92,6 +157,7 @@ describe('deleteProduct', () => {
       where: { key: 'crm' },
     });
     expect(removeMock).toHaveBeenCalledWith(path.join('C:/prototypes-root', 'crm'));
+    expect(deleteSourceSnapshotsForProductMock).toHaveBeenCalledWith('crm');
   });
 
   test('throws when deleting a missing product', async () => {
@@ -101,6 +167,7 @@ describe('deleteProduct', () => {
 
     expect(transactionMock).not.toHaveBeenCalled();
     expect(removeMock).not.toHaveBeenCalled();
+    expect(deleteSourceSnapshotsForProductMock).not.toHaveBeenCalled();
   });
 });
 

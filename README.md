@@ -19,6 +19,7 @@ This repository is suitable for:
 - Admin workspace at `/admin` for creating products, uploading prototype archives, monitoring build jobs, setting defaults, taking versions offline, and deleting records
 - API routes for products, versions, manifest resolution, build job status, and preview routing
 - Filesystem-based publishing under `/prototypes/*`
+- MCP endpoint at `POST /api/mcp` for querying published source snapshots
 - Demo seed data for local evaluation
 - Docker image publishing workflow for container-based deployment
 
@@ -82,6 +83,7 @@ pnpm dev
 | `DATA_DIR` | `./data` | Base directory for SQLite, uploads, build jobs, and published prototypes |
 | `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
 | `APP_URL` | `http://localhost:3000` | Public application URL |
+| `MCP_AUTH_TOKEN` | _(empty)_ | Bearer token for `POST /api/mcp`; when empty, MCP endpoint is disabled |
 
 ### Docker Environment
 
@@ -91,6 +93,7 @@ pnpm dev
 | `APP_URL` | `http://localhost` | Public application URL |
 | `APP_PORT` | `3000` | Host port mapped to the container |
 | `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
+| `MCP_AUTH_TOKEN` | _(empty)_ | Bearer token for `POST /api/mcp`; when empty, MCP endpoint is disabled |
 
 ## Demo Data
 
@@ -110,6 +113,40 @@ Current constraints:
 - `dist/index.html` must use relative asset paths
 - root-absolute asset references such as `/assets/...` are rejected
 
+## MCP Source Snapshots
+
+The repository includes an MCP endpoint backed by `@modelcontextprotocol/sdk`.
+
+- Endpoint: `POST /api/mcp`
+- Route mode: stateless request handling (no session persistence between calls)
+- Authentication: send `Authorization: Bearer <MCP_AUTH_TOKEN>`
+- Availability: MCP is disabled when `MCP_AUTH_TOKEN` is empty
+- Visibility: only versions with `status=published` and source snapshot `status=ready` are exposed
+
+Non-POST methods are not supported for MCP operations:
+
+- `GET /api/mcp` returns `405`
+- `DELETE /api/mcp` returns `405`
+
+### Available MCP Tools
+
+- `list_products`: list products that currently have published source snapshots
+- `list_versions`: list published source-snapshot versions for a product
+- `resolve_version`: resolve a product version via `default`, `latest`, or exact version
+- `get_source_tree`: read directory/file tree from a published source snapshot
+- `read_source_file`: read text file content from a published source snapshot
+- `search_source_files`: search text in published source snapshot files
+
+### Backfill Source Snapshots
+
+If published versions existed before source snapshots were introduced, run:
+
+```bash
+pnpm backfill:source-snapshots
+```
+
+This command scans published versions, restores their source archives, and generates missing source snapshots.
+
 ## Available Scripts
 
 | Command | Purpose |
@@ -125,6 +162,7 @@ Current constraints:
 | `pnpm db:push` | Push the Prisma schema to the SQLite database |
 | `pnpm db:seed` | Seed demo products and versions |
 | `pnpm init` | Generate Prisma client, push schema, and seed demo data |
+| `pnpm backfill:source-snapshots` | Backfill missing source snapshots for published versions |
 
 ## Docker Deployment
 
@@ -141,6 +179,7 @@ Create `.env.docker` from `.env.docker.example`, then adjust:
 - `APP_URL`
 - `APP_PORT`
 - `IMAGE_TAG`
+- `MCP_AUTH_TOKEN`
 
 By default, persistent data is mounted to `./docker-data` and mapped to `/app/data` inside the container. This includes:
 

@@ -12,6 +12,7 @@ export async function ensureAppDirectories() {
   await Promise.all([
     fse.ensureDir(appConfig.dataDir),
     fse.ensureDir(appConfig.prototypesDir),
+    fse.ensureDir(appConfig.sourceSnapshotsDir),
     fse.ensureDir(appConfig.uploadsTempDir),
     fse.ensureDir(appConfig.buildJobsDir),
     fse.ensureDir(appConfig.sqliteDir),
