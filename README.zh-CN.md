@@ -4,15 +4,6 @@
 
 [English](./README.md) | [MIT License](./LICENSE)
 
-## 项目简介
-
-Prototype Manage Tool 适用于需要按产品和版本管理静态前端原型的团队。它将 Next.js 应用壳、基于 Prisma 的元数据存储，以及基于文件系统的原型发布能力组合在同一个仓库中。
-
-这个仓库主要面向：
-
-- 希望自部署内部原型展示平台的使用者
-- 希望扩展上传、构建、预览流程的贡献者
-
 ## 核心能力
 
 - 在 `/preview` 提供统一预览页，支持按产品和已发布版本切换
@@ -73,9 +64,11 @@ pnpm dev
 - 预览页：`http://localhost:3000/preview`
 - 管理台：`http://localhost:3000/admin`
 
-## 环境变量
+种子数据会创建 CRM 和 ERP 示例原型。
 
-### 本地环境
+## 配置
+
+### 本地
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -85,7 +78,7 @@ pnpm dev
 | `APP_URL` | `http://localhost:3000` | 对外访问地址 |
 | `MCP_AUTH_TOKEN` | _(空)_ | `POST /api/mcp` 的 Bearer Token；为空时 MCP 接口禁用 |
 
-### Docker 环境
+### Docker
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
@@ -94,10 +87,6 @@ pnpm dev
 | `APP_PORT` | `3000` | 宿主机映射端口 |
 | `UPLOAD_MAX_MB` | `200` | 上传文件大小上限，单位 MB |
 | `MCP_AUTH_TOKEN` | _(空)_ | `POST /api/mcp` 的 Bearer Token；为空时 MCP 接口禁用 |
-
-## 演示数据
-
-执行 `pnpm db:seed` 后，会自动创建演示产品和已发布版本，便于在本地环境中直接体验。当前种子数据包含 CRM 和 ERP 示例原型。
 
 ## 原型上传机制
 
@@ -115,40 +104,21 @@ pnpm dev
 
 ## MCP 源码快照
 
-仓库内置了基于 `@modelcontextprotocol/sdk` 的远程 MCP 接口。
-它的目标很直接，就是让 agent 直接读取已发布原型版本的源码，不再需要先下载 zip 再解压。
-
-### Agent 能拿到什么
+仓库内置了基于 `@modelcontextprotocol/sdk` 的远程 MCP 接口，供 agent 直接读取已发布原型源码。
 
 - 仅 `status=published` 且源码快照 `status=ready` 的版本
 - 已发布源码快照的目录树
 - 文本文件的完整读取，以及按行范围读取
 - 已发布源码文件内的全文搜索
 
-### 服务端开启方式
-
-1. 在 `.env` 或 `.env.docker` 中设置 `MCP_AUTH_TOKEN`。
-2. 确保 `APP_URL` 是 agent 实际可以访问到的地址。
-3. 部署应用，并保证 `/api/mcp` 路由可以通过 HTTP 访问。
-4. 如果历史上已经有已发布版本，执行 `pnpm backfill:source-snapshots` 补齐源码快照。
-
-连接信息如下：
-
 - 接口地址：`POST /api/mcp`
 - 传输方式：无状态 Streamable HTTP
 - 鉴权方式：`Authorization: Bearer <MCP_AUTH_TOKEN>`
 - 可用条件：`MCP_AUTH_TOKEN` 为空时 MCP 接口返回禁用状态
 
-如果前面有反向代理，请确认 `Authorization` 请求头会被正确透传到 Next.js 应用。
-
-MCP 相关操作不支持非 POST 方法：
-
-- `GET /api/mcp` 返回 `405`
-- `DELETE /api/mcp` 返回 `405`
-
 ### Agent 侧配置
 
-很多 MCP 客户端都支持通过 `mcpServers` JSON 注册一个远程服务。把下面的 URL 和 Token 替换成你自己的即可：
+大多数 MCP 客户端都支持通过 `mcpServers` JSON 注册远程服务。将下面的 URL 和 Token 替换为你自己的：
 
 ```json
 {
@@ -163,38 +133,8 @@ MCP 相关操作不支持非 POST 方法：
 }
 ```
 
-有些客户端要求把传输方式显式写出来，而不是直接写顶层 `url`：
-
-```json
-{
-  "mcpServers": {
-    "prototype-source": {
-      "transport": {
-        "type": "streamable-http",
-        "url": "https://your-domain.example.com/api/mcp",
-        "headers": {
-          "Authorization": "Bearer replace-with-your-mcp-auth-token"
-        }
-      }
-    }
-  }
-}
-```
-
-具体写法以你的 agent 或 MCP 客户端为准，但核心参数就是这三个：
-
-- 远程地址：`https://<你的服务地址>/api/mcp`
-- 传输方式：Streamable HTTP
-- 鉴权请求头：`Authorization: Bearer <MCP_AUTH_TOKEN>`
-
-### 推荐的 Agent 调用顺序
-
-如果你希望 agent 真正理解某个原型版本，推荐按下面顺序调用：
-
-1. 先用 `resolve_version`，通过 `default`、`latest` 或 `exactVersion` 解析目标版本。
-2. 再用 `get_source_tree` 看根目录或某个子目录的文件结构。
-3. 接着用 `read_source_file` 精读具体文件。
-4. 需要定位路由、文案、接口 mock 或领域词时，再用 `search_source_files`。
+本地开发通常应使用 `http://localhost:3000/api/mcp`。只有在你确实配置了 HTTPS 时才使用 `https://`。
+如果前面有反向代理，请确认它会透传 `Authorization` 请求头。
 
 ### 可用 MCP 工具
 
@@ -212,8 +152,6 @@ MCP 相关操作不支持非 POST 方法：
 ```bash
 pnpm backfill:source-snapshots
 ```
-
-该命令会扫描已发布版本，恢复其源码归档，并为缺失项生成源码快照。
 
 ## 可用脚本
 
@@ -234,29 +172,14 @@ pnpm backfill:source-snapshots
 
 ## Docker 部署
 
-仓库已经提供了运行镜像和 `compose.yml`，可用于自托管部署。
-
-### 需要准备的文件
-
-- `compose.yml`
-- `.env.docker`
-- `docker-data/`
-
-先从 `.env.docker.example` 复制出 `.env.docker`，再按实际情况调整：
+仓库提供了运行镜像和 `compose.yml`，可用于自托管部署。先从 `.env.docker.example` 复制出 `.env.docker`，再按实际情况调整：
 
 - `APP_URL`
 - `APP_PORT`
 - `IMAGE_TAG`
 - `MCP_AUTH_TOKEN`
 
-默认情况下，持久化数据会挂载到宿主机的 `./docker-data`，容器内路径为 `/app/data`。其中包括：
-
-- SQLite 数据库：`/app/data/sqlite/app.db`
-- 已发布原型：`/app/data/prototypes`
-- 上传临时目录：`/app/data/uploads-temp`
-- 构建任务工作目录：`/app/data/build-jobs`
-
-### 初始化数据库
+初始化数据库：
 
 ```bash
 docker compose --env-file .env.docker --profile init run --rm db-init
@@ -268,45 +191,19 @@ docker compose --env-file .env.docker --profile init run --rm db-init
 docker compose --env-file .env.docker --profile seed run --rm seed-demo
 ```
 
-### 启动应用
+启动应用：
 
 ```bash
 docker compose --env-file .env.docker pull
 docker compose --env-file .env.docker up -d
 ```
 
-默认访问入口为：
+默认访问入口：
 
 - `http://<server>:3000/preview`
 - `http://<server>:3000/admin`
 
-### 文件句柄限制
-
-仓库提供的 `compose.yml` 已设置 `ulimits.nofile=65535`。如果你用其他方式运行容器，请显式设置相同限制。否则上传的 Vite 或 Tailwind 项目在依赖解析阶段可能出现具有误导性的构建错误。
-
-### 升级与回滚
-
-修改 `.env.docker` 中的 `IMAGE_TAG` 后，执行：
-
-```bash
-docker compose --env-file .env.docker pull
-docker compose --env-file .env.docker up -d
-```
-
-镜像升级不会覆盖 `docker-data/` 中的持久化数据。
-
-## Docker 镜像发布
-
-仓库包含 `.github/workflows/docker-publish.yml`，用于将运行镜像发布到 Docker Hub：
-
-- 镜像仓库：`horizon2333/prototype-manage-tool`
-- `main` 分支发布 `latest`
-- `v*` 标签发布对应版本标签
-
-要启用该工作流，需要配置以下仓库 Secrets：
-
-- `DOCKERHUB_USERNAME`
-- `DOCKERHUB_TOKEN`
+仓库里的 `compose.yml` 已设置 `ulimits.nofile=65535`。如果你用其他方式运行容器，请保持相同限制。
 
 ## 仓库结构
 
@@ -334,18 +231,12 @@ pnpm build
 
 ## 贡献说明
 
-欢迎贡献。对于会影响上传、构建、预览或发布流程的修改，建议遵循以下原则：
+欢迎贡献。
 
 - 将行为变化控制在清晰可说明的范围内
 - 逻辑有变更时同步补充或更新 `tests/` 下的测试
 - 在 Pull Request 中明确说明运行和部署层面的影响
 - 如果修改了部署相关文件，补充验证本地或 Docker 行为
-
-如果你不确定从哪里开始阅读，优先查看 `app/api/` 下的接口路由以及 `lib/server/` 下的服务端逻辑，通常是理解系统的最快入口。
-
-## 项目状态
-
-项目已经可用，但仍处于较早阶段。数据模型、管理台流程和部署细节仍可能继续演进。
 
 ## 许可证
 

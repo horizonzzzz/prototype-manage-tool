@@ -4,15 +4,6 @@ An open-source, self-hosted platform for publishing and previewing frontend prot
 
 [简体中文](./README.zh-CN.md) | [MIT License](./LICENSE)
 
-## Overview
-
-Prototype Manage Tool is built for teams that need a simple way to publish static frontend prototypes and browse them by product and version. It combines a Next.js application shell, Prisma-backed metadata storage, and filesystem-based prototype publishing in a single repository.
-
-This repository is suitable for:
-
-- users who want to self-host an internal prototype gallery
-- contributors who want to extend the upload, build, and preview workflow
-
 ## Features
 
 - Unified preview page at `/preview` for switching between products and published versions
@@ -73,9 +64,11 @@ pnpm dev
 - Preview workspace: `http://localhost:3000/preview`
 - Admin workspace: `http://localhost:3000/admin`
 
-## Environment Variables
+The seed data includes sample CRM and ERP prototypes.
 
-### Local Environment
+## Configuration
+
+### Local
 
 | Variable | Default | Description |
 | --- | --- | --- |
@@ -85,7 +78,7 @@ pnpm dev
 | `APP_URL` | `http://localhost:3000` | Public application URL |
 | `MCP_AUTH_TOKEN` | _(empty)_ | Bearer token for `POST /api/mcp`; when empty, MCP endpoint is disabled |
 
-### Docker Environment
+### Docker
 
 | Variable | Default | Description |
 | --- | --- | --- |
@@ -94,10 +87,6 @@ pnpm dev
 | `APP_PORT` | `3000` | Host port mapped to the container |
 | `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
 | `MCP_AUTH_TOKEN` | _(empty)_ | Bearer token for `POST /api/mcp`; when empty, MCP endpoint is disabled |
-
-## Demo Data
-
-Running `pnpm db:seed` creates demo products and published versions so the platform is usable immediately after setup. The current seed includes sample CRM and ERP prototypes.
 
 ## How Prototype Uploads Work
 
@@ -116,42 +105,21 @@ Current constraints:
 ## MCP Source Snapshots
 
 The repository includes a remote MCP endpoint backed by `@modelcontextprotocol/sdk`.
-Its job is simple: let an agent read the published prototype source directly, without
-downloading a zip file and unpacking it first.
-
-### What the Agent Can Access
+It lets an agent inspect published prototype source directly.
 
 - only versions with `status=published` and source snapshot `status=ready`
 - directory trees for a published source snapshot
 - full text file reads, including line-range reads
 - text search inside published source files
 
-### Server Setup
-
-1. Set `MCP_AUTH_TOKEN` in `.env` or `.env.docker`.
-2. Make sure `APP_URL` points to the address the agent can actually reach.
-3. Deploy the app and keep the `/api/mcp` route reachable over HTTP.
-4. If you already had published versions before this feature, run `pnpm backfill:source-snapshots`.
-
-Connection details:
-
 - Endpoint: `POST /api/mcp`
 - Transport style: stateless Streamable HTTP
 - Authentication: `Authorization: Bearer <MCP_AUTH_TOKEN>`
 - Availability: MCP is disabled when `MCP_AUTH_TOKEN` is empty
 
-If you run the app behind a reverse proxy, make sure it forwards the `Authorization`
-header to the Next.js app.
-
-Non-POST methods are not supported for MCP operations:
-
-- `GET /api/mcp` returns `405`
-- `DELETE /api/mcp` returns `405`
-
 ### Agent Configuration
 
-Many MCP clients let you register a remote server with an `mcpServers` JSON block.
-Use your own public URL and token:
+Most MCP clients can register the endpoint with a JSON block like this:
 
 ```json
 {
@@ -166,39 +134,8 @@ Use your own public URL and token:
 }
 ```
 
-Some clients require an explicit transport object instead of a top-level `url`:
-
-```json
-{
-  "mcpServers": {
-    "prototype-source": {
-      "transport": {
-        "type": "streamable-http",
-        "url": "https://your-domain.example.com/api/mcp",
-        "headers": {
-          "Authorization": "Bearer replace-with-your-mcp-auth-token"
-        }
-      }
-    }
-  }
-}
-```
-
-Use whichever format your agent supports. The three values that matter are the same:
-
-- remote URL: `https://<your-app>/api/mcp`
-- transport: Streamable HTTP
-- auth header: `Authorization: Bearer <MCP_AUTH_TOKEN>`
-
-### Recommended Agent Flow
-
-When you want the agent to understand a specific prototype version, this is the most
-useful call sequence:
-
-1. Call `resolve_version` with `selector=default`, `selector=latest`, or `exactVersion`.
-2. Call `get_source_tree` to inspect the root tree or a subdirectory.
-3. Call `read_source_file` for the exact files the agent needs to inspect.
-4. Call `search_source_files` when the agent needs to locate routes, UI text, API mocks, or domain terms.
+Use `http://localhost:3000/api/mcp` for local development unless you have real HTTPS configured.
+If you deploy behind a reverse proxy, make sure it forwards the `Authorization` header.
 
 ### Available MCP Tools
 
@@ -216,8 +153,6 @@ If published versions existed before source snapshots were introduced, run:
 ```bash
 pnpm backfill:source-snapshots
 ```
-
-This command scans published versions, restores their source archives, and generates missing source snapshots.
 
 ## Available Scripts
 
@@ -238,14 +173,7 @@ This command scans published versions, restores their source archives, and gener
 
 ## Docker Deployment
 
-The repository ships with a container image and a `compose.yml` file for self-hosted deployment.
-
-### Files You Need
-
-- `compose.yml`
-- `.env.docker`
-- `docker-data/`
-
+The repository ships with a container image and `compose.yml` for self-hosted deployment.
 Create `.env.docker` from `.env.docker.example`, then adjust:
 
 - `APP_URL`
@@ -253,64 +181,31 @@ Create `.env.docker` from `.env.docker.example`, then adjust:
 - `IMAGE_TAG`
 - `MCP_AUTH_TOKEN`
 
-By default, persistent data is mounted to `./docker-data` and mapped to `/app/data` inside the container. This includes:
-
-- SQLite database at `/app/data/sqlite/app.db`
-- published prototypes at `/app/data/prototypes`
-- temporary uploads at `/app/data/uploads-temp`
-- build job workspaces at `/app/data/build-jobs`
-
-### Initialize the Database
+Initialize the database:
 
 ```bash
 docker compose --env-file .env.docker --profile init run --rm db-init
 ```
 
-If you also want demo data:
+Seed demo data if needed:
 
 ```bash
 docker compose --env-file .env.docker --profile seed run --rm seed-demo
 ```
 
-### Start the Application
+Start the application:
 
 ```bash
 docker compose --env-file .env.docker pull
 docker compose --env-file .env.docker up -d
 ```
 
-The default entry points are:
+Default entry points:
 
 - `http://<server>:3000/preview`
 - `http://<server>:3000/admin`
 
-### Open File Limit Requirement
-
-The provided `compose.yml` sets `ulimits.nofile=65535`. If you run the container in another way, set the same limit explicitly. Otherwise, uploaded Vite or Tailwind projects may fail during dependency resolution with misleading build errors.
-
-### Upgrade or Roll Back
-
-Change `IMAGE_TAG` in `.env.docker`, then run:
-
-```bash
-docker compose --env-file .env.docker pull
-docker compose --env-file .env.docker up -d
-```
-
-Persistent data in `docker-data/` is not replaced during image upgrades.
-
-## Docker Image Publishing
-
-This repository includes a GitHub Actions workflow at `.github/workflows/docker-publish.yml` that publishes the runtime image to Docker Hub:
-
-- image repository: `horizon2333/prototype-manage-tool`
-- `latest` for the `main` branch
-- `v*` tags for release tags
-
-To use the workflow, configure these repository secrets:
-
-- `DOCKERHUB_USERNAME`
-- `DOCKERHUB_TOKEN`
+The provided `compose.yml` sets `ulimits.nofile=65535`. Keep the same limit if you run the container another way.
 
 ## Repository Structure
 
@@ -338,18 +233,12 @@ pnpm build
 
 ## Contributing
 
-Contributions are welcome. For changes that affect the upload, build, preview, or publishing flow:
+Contributions are welcome.
 
 - keep behavior changes scoped and documented
 - add or update tests in `tests/` when logic changes
 - describe operational impact clearly in your pull request
 - verify local setup or Docker behavior when deployment-related files are touched
-
-If you are unsure where to start, reviewing the API routes in `app/api/` and the server logic in `lib/server/` is usually the fastest way to understand the system.
-
-## Project Status
-
-This project is functional but still early-stage. Expect the data model, admin workflow, and deployment details to keep evolving.
 
 ## License
 
