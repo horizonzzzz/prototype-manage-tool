@@ -9,5 +9,6 @@ data
 !data/.gitkeep
 docker-data
 prisma/dev.db
+prisma/migrations
 *.log
 tsconfig.tsbuildinfo
