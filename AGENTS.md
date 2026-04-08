@@ -210,6 +210,33 @@ There are targeted tests for the most important backend flows. If you change one
 - upload/build flow: `tests/upload-service.test.ts`, `tests/build-job-service-source-snapshot.test.ts`
 - backfill: `tests/backfill-source-snapshots.test.ts`
 
+## Release Rules
+
+This repository has an explicit release contract. Do not cut or update releases casually.
+
+Source of truth:
+
+- [package.json](/D:/Work/prototype-manage-tool/package.json)
+- [CHANGELOG.md](/D:/Work/prototype-manage-tool/CHANGELOG.md)
+- [docker-publish.yml](/D:/Work/prototype-manage-tool/.github/workflows/docker-publish.yml)
+- [scripts/prepare-release-notes.mjs](/D:/Work/prototype-manage-tool/scripts/prepare-release-notes.mjs)
+
+Rules:
+
+- Every Git tag intended for release must use the form `vX.Y.Z`.
+- The tag version must exactly match `package.json#version`.
+- `CHANGELOG.md` must contain a matching `## X.Y.Z` section before the tag is created.
+- The changelog is the release-notes source of truth. GitHub Releases should reuse the matching version section from `CHANGELOG.md`.
+- `docker-publish.yml` publishes Docker images on `main` and on `v*` tags, but the GitHub Release notes flow only runs on tags.
+- On a tag build, the workflow validates the tag against `package.json`, extracts the matching changelog section, and writes it into the GitHub Release.
+
+Practical guidance:
+
+- If you change user-visible behavior, deployment flow, packaging, or operator workflow, update `CHANGELOG.md` in the same branch.
+- If you introduce a new release version, update `package.json#version` and add the matching changelog section together.
+- Do not add changelog entries for versions that do not have a real git tag in repository history.
+- Do not create or move tags from inside routine code changes unless the user explicitly asks for release work.
+
 ## Change Guidance for Agents
 
 Prefer these rules when editing:
