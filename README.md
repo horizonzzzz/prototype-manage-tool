@@ -19,7 +19,7 @@ This repository is suitable for:
 - Admin workspace at `/admin` for creating products, uploading prototype archives, monitoring build jobs, setting defaults, taking versions offline, and deleting records
 - API routes for products, versions, manifest resolution, build job status, and preview routing
 - Filesystem-based publishing under `/prototypes/*`
-- MCP endpoint at `POST /api/mcp` for querying published source snapshots
+- Remote MCP endpoint at `POST /api/mcp` so agents can inspect published source snapshots directly
 - Demo seed data for local evaluation
 - Docker image publishing workflow for container-based deployment
 
@@ -115,18 +115,90 @@ Current constraints:
 
 ## MCP Source Snapshots
 
-The repository includes an MCP endpoint backed by `@modelcontextprotocol/sdk`.
+The repository includes a remote MCP endpoint backed by `@modelcontextprotocol/sdk`.
+Its job is simple: let an agent read the published prototype source directly, without
+downloading a zip file and unpacking it first.
+
+### What the Agent Can Access
+
+- only versions with `status=published` and source snapshot `status=ready`
+- directory trees for a published source snapshot
+- full text file reads, including line-range reads
+- text search inside published source files
+
+### Server Setup
+
+1. Set `MCP_AUTH_TOKEN` in `.env` or `.env.docker`.
+2. Make sure `APP_URL` points to the address the agent can actually reach.
+3. Deploy the app and keep the `/api/mcp` route reachable over HTTP.
+4. If you already had published versions before this feature, run `pnpm backfill:source-snapshots`.
+
+Connection details:
 
 - Endpoint: `POST /api/mcp`
-- Route mode: stateless request handling (no session persistence between calls)
-- Authentication: send `Authorization: Bearer <MCP_AUTH_TOKEN>`
+- Transport style: stateless Streamable HTTP
+- Authentication: `Authorization: Bearer <MCP_AUTH_TOKEN>`
 - Availability: MCP is disabled when `MCP_AUTH_TOKEN` is empty
-- Visibility: only versions with `status=published` and source snapshot `status=ready` are exposed
+
+If you run the app behind a reverse proxy, make sure it forwards the `Authorization`
+header to the Next.js app.
 
 Non-POST methods are not supported for MCP operations:
 
 - `GET /api/mcp` returns `405`
 - `DELETE /api/mcp` returns `405`
+
+### Agent Configuration
+
+Many MCP clients let you register a remote server with an `mcpServers` JSON block.
+Use your own public URL and token:
+
+```json
+{
+  "mcpServers": {
+    "prototype-source": {
+      "url": "https://your-domain.example.com/api/mcp",
+      "headers": {
+        "Authorization": "Bearer replace-with-your-mcp-auth-token"
+      }
+    }
+  }
+}
+```
+
+Some clients require an explicit transport object instead of a top-level `url`:
+
+```json
+{
+  "mcpServers": {
+    "prototype-source": {
+      "transport": {
+        "type": "streamable-http",
+        "url": "https://your-domain.example.com/api/mcp",
+        "headers": {
+          "Authorization": "Bearer replace-with-your-mcp-auth-token"
+        }
+      }
+    }
+  }
+}
+```
+
+Use whichever format your agent supports. The three values that matter are the same:
+
+- remote URL: `https://<your-app>/api/mcp`
+- transport: Streamable HTTP
+- auth header: `Authorization: Bearer <MCP_AUTH_TOKEN>`
+
+### Recommended Agent Flow
+
+When you want the agent to understand a specific prototype version, this is the most
+useful call sequence:
+
+1. Call `resolve_version` with `selector=default`, `selector=latest`, or `exactVersion`.
+2. Call `get_source_tree` to inspect the root tree or a subdirectory.
+3. Call `read_source_file` for the exact files the agent needs to inspect.
+4. Call `search_source_files` when the agent needs to locate routes, UI text, API mocks, or domain terms.
 
 ### Available MCP Tools
 
