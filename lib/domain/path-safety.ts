@@ -1,13 +1,13 @@
 import path from 'node:path';
 
-const SAFE_SEGMENT = /^[a-zA-Z0-9._-]+$/;
+import { isSafeRouteSegment } from '@/lib/domain/route-segment';
 
 export function ensureVersionPathInsideRoot(rootDir: string, productKey: string, version: string) {
-  if (!SAFE_SEGMENT.test(productKey) || productKey.includes('..')) {
+  if (!isSafeRouteSegment(productKey)) {
     throw new Error('Invalid product key');
   }
 
-  if (!SAFE_SEGMENT.test(version) || version.includes('..')) {
+  if (!isSafeRouteSegment(version)) {
     throw new Error('Invalid version');
   }
 

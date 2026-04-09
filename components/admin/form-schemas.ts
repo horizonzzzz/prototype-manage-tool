@@ -1,7 +1,11 @@
 import { z } from 'zod';
 
+import { isSafeRouteSegment } from '@/lib/domain/route-segment';
+
 export const uploadFormSchema = z.object({
-  version: z.string().trim().min(1, '请输入版本号'),
+  version: z.string().trim().min(1, '请输入版本号').refine((value) => isSafeRouteSegment(value), {
+    message: '版本号只能包含字母、数字、点、下划线和中划线',
+  }),
   title: z.string().optional(),
   remark: z.string().optional(),
 });

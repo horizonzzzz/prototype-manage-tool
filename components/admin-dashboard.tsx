@@ -2,12 +2,11 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Info, Play, Plus, Search } from 'lucide-react';
+import { Info, Plus, Search } from 'lucide-react';
 import { useForm } from 'react-hook-form';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-import { AdminProductListItem } from '@/components/admin-product-list-item';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { PanelCard } from '@/components/panel-card';
 import { ProductCreateDialog } from '@/components/admin/product-create-dialog';
@@ -20,7 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { createProductSchema, type CreateProductFormValues, type UploadFormValues, uploadFormSchema } from '@/components/admin/form-schemas';
 import { getErrorMessage } from '@/lib/domain/error-message';
-import type {
+import {
   ApiResponse,
   BuildJobItem,
   BuildJobLogItem,
@@ -30,7 +29,7 @@ import type {
   ProductListItem,
   ProductVersionItem,
 } from '@/lib/types';
-import { buildPreviewHref, resolveAdminProductKey } from '@/lib/ui/navigation';
+import { buildAdminHref, buildPreviewHref } from '@/lib/ui/navigation';
 import {
   applyBuildJobLogStreamEvent,
   buildBuildJobLogStreamUrl,
@@ -69,12 +68,9 @@ function triggerVersionDownload(versionId: number) {
   link.remove();
 }
 
-export function AdminDashboard() {
+export function AdminDashboard({ productKey }: { productKey: string }) {
   const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [products, setProducts] = useState<ProductListItem[]>([]);
-  const [selectedProductKey, setSelectedProductKey] = useState<string>();
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
   const [jobs, setJobs] = useState<BuildJobItem[]>([]);
   const [activeJobId, setActiveJobId] = useState<number>();
@@ -129,18 +125,6 @@ export function AdminDashboard() {
 
   const loadProducts = async () => setProducts(await fetchJson<ProductListItem[]>('/api/products'));
 
-  const replaceProductQuery = (productKey?: string) => {
-    const next = new URLSearchParams(searchParams.toString());
-    productKey ? next.set('product', productKey) : next.delete('product');
-    const currentQuery = searchParams.toString();
-    const nextQuery = next.toString();
-    const currentUrl = currentQuery ? `${pathname}?${currentQuery}` : pathname;
-    const nextUrl = nextQuery ? `${pathname}?${nextQuery}` : pathname;
-    if (currentUrl !== nextUrl) {
-      router.replace(nextUrl);
-    }
-  };
-
   const loadProductDetail = async (productKey: string) => {
     setLoading(true);
     try {
@@ -160,20 +144,12 @@ export function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    const resolvedProductKey = resolveAdminProductKey(products.map((item) => item.key), searchParams.get('product'));
-    setSelectedProductKey((current) => (current === resolvedProductKey ? current : resolvedProductKey));
-    if (resolvedProductKey !== searchParams.get('product')) {
-      replaceProductQuery(resolvedProductKey);
-    }
-  }, [products, searchParams]);
-
-  useEffect(() => {
-    if (!selectedProductKey) {
+    if (!productKey) {
       clearProductContext();
       return;
     }
-    void loadProductDetail(selectedProductKey).catch((error) => toast.error(getErrorMessage(error, '加载产品详情失败')));
-  }, [selectedProductKey]);
+    void loadProductDetail(productKey).catch((error) => toast.error(getErrorMessage(error, '加载产品详情失败')));
+  }, [productKey]);
 
   useEffect(() => {
     if (!activeJobId) return;
@@ -186,7 +162,7 @@ export function AdminDashboard() {
         setJobs((current) => current.map((item) => (item.id === job.id ? job : item)));
         if (!['queued', 'running'].includes(job.status)) {
           window.clearInterval(timer);
-          if (selectedProductKey === job.productKey) await loadProductDetail(job.productKey);
+          if (productKey === job.productKey) await loadProductDetail(job.productKey);
         }
       } catch {
         window.clearInterval(timer);
@@ -196,7 +172,7 @@ export function AdminDashboard() {
       cancelled = true;
       window.clearInterval(timer);
     };
-  }, [activeJobId, selectedProductKey]);
+  }, [activeJobId, productKey]);
 
   useEffect(() => {
     if (!activeJob) {
@@ -295,11 +271,11 @@ export function AdminDashboard() {
   const uploadVersion = uploadForm.handleSubmit(async (values) => {
     try {
       setUploadError(undefined);
-      if (!selectedProductKey) return setUploadError('请先选择产品');
+      if (!productKey) return setUploadError('请先选择产品');
       if (!selectedUploadFile) return setUploadError('请上传源码压缩包');
       setUploading(true);
       const formData = new FormData();
-      formData.set('productKey', selectedProductKey);
+      formData.set('productKey', productKey);
       formData.set('version', values.version);
       formData.set('title', values.title ?? '');
       formData.set('remark', values.remark ?? '');
@@ -319,7 +295,7 @@ export function AdminDashboard() {
           setSelectedLogStepKey(getBuildJobLogStep(payload.data.currentStep));
           setIsLogStepPinned(false);
           await loadProducts();
-          await loadProductDetail(selectedProductKey);
+          await loadProductDetail(productKey);
           resolve();
         };
         xhr.onerror = () => reject(new Error('上传失败'));
@@ -335,7 +311,7 @@ export function AdminDashboard() {
     }
   });
 
-  const refreshCurrent = async () => selectedProductKey && (await loadProducts(), await loadProductDetail(selectedProductKey));
+  const refreshCurrent = async () => productKey && (await loadProducts(), await loadProductDetail(productKey));
   const requestAction = async (url: string, successText: string) => {
     await fetchJson(url, { method: url.includes('/default') || url.includes('/offline') ? 'PATCH' : 'DELETE' });
     toast.success(successText);
@@ -346,35 +322,22 @@ export function AdminDashboard() {
   const terminalContent = activeJobLog?.exists ? activeJobLog.content : activeJob && selectedStep ? buildBuildJobStageText(activeJob, selectedStep) : '';
 
   return (
-    <div className="flex min-h-screen bg-transparent">
-      <aside className="w-[288px] shrink-0 border-r border-[color:color-mix(in_srgb,var(--border-strong)_72%,transparent)] bg-white/82 backdrop-blur-xl">
-        <div className="flex h-full flex-col gap-4 px-[18px] py-5">
-          <div className="flex items-center justify-between gap-3">
-            <h1 className="text-base font-semibold text-slate-900">产品列表</h1>
-            <Button type="button" className="h-10 px-4" onClick={() => setCreateOpen(true)}><Plus />新建</Button>
-          </div>
-          <ul className="space-y-2">
-            {products.map((item) => (
-              <AdminProductListItem key={item.id} item={item} selected={item.key === selectedProductKey} onSelect={(productKey) => { setSelectedProductKey(productKey); replaceProductQuery(productKey); }} onDelete={setProductToDelete} />
-            ))}
-          </ul>
-          {!products.length && !loading ? <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-dashed border-[color:var(--border)] bg-white/70 px-4 text-sm text-slate-500">暂无产品</div> : null}
-        </div>
-      </aside>
-
-      <main className="min-w-0 flex-1">
-        <header className="flex items-center justify-between gap-4 border-b border-[color:color-mix(in_srgb,var(--border-strong)_72%,transparent)] bg-white/80 px-7 py-5 backdrop-blur-xl">
+    <>
+      <div className="space-y-6">
+        <section className="flex items-start justify-between gap-4 rounded-[24px] border border-[color:var(--border-strong)] bg-white/88 px-6 py-5 shadow-[var(--shadow-soft)] backdrop-blur-xl">
           <div>
             <h2 className="text-[22px] font-semibold tracking-[-0.02em] text-slate-950">原型发布管理台</h2>
             <p className="mt-1 text-sm text-slate-500">上传源码压缩包，系统自动安装依赖、执行构建并发布 dist</p>
           </div>
-          <Button type="button" variant="secondary" onClick={() => router.push(buildPreviewHref(selectedProductKey))}><Play />前往预览台</Button>
-        </header>
+          <Button type="button" className="h-10 px-4" onClick={() => setCreateOpen(true)}>
+            <Plus />新建产品
+          </Button>
+        </section>
 
-        <div className="grid gap-6 px-7 py-6 xl:grid-cols-[minmax(0,1.9fr)_minmax(320px,0.95fr)]">
+        <div className="grid gap-6 xl:grid-cols-[minmax(0,1.9fr)_minmax(320px,0.95fr)]">
           <div className="space-y-6">
             <PanelCard title="上传新版本" loading={loading && !productDetail}>
-              <UploadVersionForm form={uploadForm} products={products} selectedProductKey={selectedProductKey} selectedUploadFile={selectedUploadFile} uploadError={uploadError} uploading={uploading} uploadProgress={uploadProgress} onProductChange={(productKey) => { setSelectedProductKey(productKey); replaceProductQuery(productKey); }} onFileChange={(file) => { setSelectedUploadFile(file); if (uploadError) setUploadError(undefined); }} onSubmit={uploadVersion} />
+              <UploadVersionForm form={uploadForm} products={products} selectedProductKey={productKey} selectedUploadFile={selectedUploadFile} uploadError={uploadError} uploading={uploading} uploadProgress={uploadProgress} onProductChange={(nextProductKey) => router.push(buildAdminHref(nextProductKey))} onFileChange={(file) => { setSelectedUploadFile(file); if (uploadError) setUploadError(undefined); }} onSubmit={uploadVersion} />
             </PanelCard>
 
             <PanelCard title="当前任务" loading={loading && !activeJob}>
@@ -392,11 +355,11 @@ export function AdminDashboard() {
             </PanelCard>
 
             <PanelCard title={<span className="flex items-center gap-2"><Info className="size-4 text-slate-400" />当前产品信息</span>} loading={loading && !productDetail}>
-              <ProductInfoContent productDetail={productDetail} />
+              <ProductInfoContent productDetail={productDetail} onDeleteProduct={setProductToDelete} />
             </PanelCard>
           </div>
         </div>
-      </main>
+      </div>
 
       <ProductCreateDialog open={createOpen} onOpenChange={setCreateOpen} form={productForm} onSubmit={createProduct} />
 
@@ -406,7 +369,10 @@ export function AdminDashboard() {
           setConfirmingAction('product');
           await fetchJson(`/api/products/${productToDelete.key}`, { method: 'DELETE' });
           toast.success('产品已删除');
-          if (selectedProductKey === productToDelete.key) { setSelectedProductKey(undefined); clearProductContext(); }
+          if (productKey === productToDelete.key) {
+            clearProductContext();
+            router.replace('/admin');
+          }
           await loadProducts();
           setProductToDelete(null);
         } catch (error) {
@@ -428,6 +394,6 @@ export function AdminDashboard() {
           setConfirmingAction(null);
         }
       }} />
-    </div>
+    </>
   );
 }

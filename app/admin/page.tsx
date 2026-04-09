@@ -1,13 +1,31 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import { Suspense } from 'react';
+import { AdminProductListPage } from '@/components/admin/admin-product-list-page';
+import { isSafeRouteSegment } from '@/lib/domain/route-segment';
+import { buildAdminHref } from '@/lib/ui/navigation';
+import { prisma } from '@/lib/prisma';
+import { serializeProductListItem } from '@/lib/server/serializers';
 
-import { AdminDashboard } from '@/components/admin-dashboard';
+type AdminPageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
 
-export default function AdminPage() {
-  return (
-    <Suspense fallback={null}>
-      <AdminDashboard />
-    </Suspense>
-  );
+function takeFirst(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function AdminPage({ searchParams }: AdminPageProps) {
+  const resolvedSearchParams = searchParams ? await searchParams : undefined;
+  const product = takeFirst(resolvedSearchParams?.product);
+
+  if (product && isSafeRouteSegment(product)) {
+    redirect(buildAdminHref(product));
+  }
+
+  const products = await prisma.product.findMany({
+    include: { versions: true },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  return <AdminProductListPage initialProducts={products.map(serializeProductListItem)} />;
 }

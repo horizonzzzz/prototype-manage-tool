@@ -1,10 +1,14 @@
+import { Trash2 } from 'lucide-react';
+
+import { Button } from '@/components/ui/button';
 import type { ProductDetail } from '@/lib/types';
 
 type ProductInfoContentProps = {
   productDetail: ProductDetail | null;
+  onDeleteProduct?: (product: ProductDetail) => void;
 };
 
-export function ProductInfoContent({ productDetail }: ProductInfoContentProps) {
+export function ProductInfoContent({ productDetail, onDeleteProduct }: ProductInfoContentProps) {
   if (!productDetail) {
     return (
       <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-4 text-sm text-slate-500">
@@ -29,6 +33,14 @@ export function ProductInfoContent({ productDetail }: ProductInfoContentProps) {
         <div className="mb-1 text-xs text-slate-500">描述</div>
         <div className="text-sm leading-6 text-slate-500">{productDetail.description || '暂无描述'}</div>
       </div>
+      {onDeleteProduct ? (
+        <div className="pt-2">
+          <Button type="button" variant="destructive" onClick={() => onDeleteProduct(productDetail)}>
+            <Trash2 />
+            删除产品
+          </Button>
+        </div>
+      ) : null}
     </div>
   );
 }
