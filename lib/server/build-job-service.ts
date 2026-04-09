@@ -237,27 +237,17 @@ async function finalizeBuildJobSuccess(jobId: number, publishedPath: string, ste
 
     const job = await transaction.uploadRecord.findUniqueOrThrow({ where: { id: jobId } });
     const targetVersion = version!;
-    const hasOtherPublished = await transaction.productVersion.findFirst({
-      where: {
-        productId: targetVersion.productId,
-        status: 'published',
-        NOT: { id: targetVersion.id },
-      },
+    await transaction.productVersion.updateMany({
+      where: { productId: targetVersion.productId },
+      data: { isDefault: false },
     });
-
-    if (!hasOtherPublished) {
-      await transaction.productVersion.updateMany({
-        where: { productId: targetVersion.productId },
-        data: { isDefault: false },
-      });
-    }
 
     await transaction.productVersion.update({
       where: { id: targetVersion.id },
       data: {
         status: 'published',
         storagePath: publishedPath,
-        isDefault: !hasOtherPublished,
+        isDefault: true,
       },
     });
 

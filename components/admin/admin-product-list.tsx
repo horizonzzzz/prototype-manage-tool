@@ -1,81 +1,97 @@
-import Link from 'next/link';
-import { Search, Plus } from 'lucide-react';
+import { Eye, Plus, Trash2 } from 'lucide-react';
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { StandardTablePage } from '@/components/standard-table-page';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { ProductListItem } from '@/lib/types';
+import { formatDateTime } from '@/lib/ui/format';
 
 interface AdminProductListProps {
   products: ProductListItem[];
+  search: string;
+  onSearchChange: (value: string) => void;
   onCreateProduct?: () => void;
+  onOpenDetail: (productKey: string) => void;
+  onDeleteProduct: (product: ProductListItem) => void;
 }
 
-function ProductListContent({ products }: AdminProductListProps) {
-  return products.map((item) => (
-    <li key={item.id} className="list-none">
-      <Link
-        href={`/admin/${item.key}`}
-        className="block rounded-[18px] border border-transparent bg-white/70 px-4 py-4 transition-all hover:-translate-y-0.5 hover:border-sky-100 hover:bg-white/92"
-      >
-        <div className="flex items-start justify-between gap-3">
-          <div className="min-w-0">
-            <div className="truncate text-sm font-semibold text-slate-900">{item.name}</div>
-            <div className="mt-1 text-xs text-slate-500">{item.publishedCount} 个已发布版本</div>
-          </div>
-          <span className="rounded-full border border-[color:var(--border)] bg-slate-50/90 px-2.5 py-1 font-mono text-[12px] text-slate-500">
-            {item.key}
-          </span>
-        </div>
-      </Link>
-    </li>
-  ));
-}
-
-export function AdminProductList({ products, onCreateProduct }: AdminProductListProps) {
+export function AdminProductList({
+  products,
+  search,
+  onSearchChange,
+  onCreateProduct,
+  onOpenDetail,
+  onDeleteProduct,
+}: AdminProductListProps) {
   return (
-    <div className="space-y-6">
-      <section className="flex items-start justify-between gap-4 rounded-[24px] border border-[color:var(--border-strong)] bg-white/88 px-6 py-5 shadow-[var(--shadow-soft)] backdrop-blur-xl">
-        <div>
-          <h2 className="text-[22px] font-semibold tracking-[-0.02em] text-slate-950">原型发布管理台</h2>
-          <p className="mt-1 text-sm text-slate-500">选择产品后进入独立管理详情页</p>
-        </div>
-        {onCreateProduct ? (
-          <Button type="button" className="h-10 px-4" onClick={onCreateProduct}>
-            <Plus />新建产品
+    <StandardTablePage
+      title="原型发布管理台"
+      description="按产品维度管理原型版本，进入详情页后处理上传、版本发布和历史记录。"
+      tableTitle="产品列表"
+      tableDescription="列表仅展示产品，所有版本级操作统一在产品详情页处理。"
+      searchValue={search}
+      onSearchChange={onSearchChange}
+      searchPlaceholder="搜索产品名称或 Key"
+      actions={
+        onCreateProduct ? (
+          <Button type="button" onClick={onCreateProduct}>
+            <Plus />
+            创建产品
           </Button>
-        ) : null}
-      </section>
-
-      <Card className="rounded-[24px] bg-white/82 backdrop-blur-xl">
-        <CardHeader>
-          <div>
-            <CardTitle>产品列表</CardTitle>
-            <CardDescription>点击产品进入上传、版本与任务详情</CardDescription>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="relative">
-            <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
-            <Input placeholder="按产品名称搜索" className="pl-9" disabled />
-          </div>
-
-          {products.length ? (
-            <ul className="space-y-2">
-              <ProductListContent products={products} />
-            </ul>
-          ) : (
-            <div className="flex min-h-56 flex-col items-center justify-center gap-4 rounded-[16px] border border-dashed border-[color:var(--border)] bg-white/70 px-4 text-sm text-slate-500">
-              <span>暂无产品</span>
-              {onCreateProduct ? (
-                <Button type="button" variant="secondary" onClick={onCreateProduct}>
-                  <Plus />创建第一个产品
-                </Button>
-              ) : null}
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+        ) : null
+      }
+    >
+      {products.length ? (
+        <Table>
+          <TableHeader>
+            <TableRow className="hover:bg-transparent">
+              <TableHead className="w-[24%]">产品名称</TableHead>
+              <TableHead className="w-[16%]">产品 Key</TableHead>
+              <TableHead>描述</TableHead>
+              <TableHead className="w-[12%]">已发布版本</TableHead>
+              <TableHead className="w-[16%]">创建时间</TableHead>
+              <TableHead className="w-[18%]">操作</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {products.map((item) => (
+              <TableRow key={item.id}>
+                <TableCell className="font-semibold text-slate-900">{item.name}</TableCell>
+                <TableCell>
+                  <span className="inline-flex rounded-full border border-[color:var(--border)] bg-slate-50 px-3 py-1 font-mono text-[12px] text-slate-600">
+                    {item.key}
+                  </span>
+                </TableCell>
+                <TableCell className="text-sm leading-6 text-slate-500">{item.description || '暂无描述'}</TableCell>
+                <TableCell className="font-medium text-slate-900">{item.publishedCount}</TableCell>
+                <TableCell className="text-xs leading-5 text-slate-500">{formatDateTime(item.createdAt)}</TableCell>
+                <TableCell>
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" size="sm" variant="secondary" onClick={() => onOpenDetail(item.key)}>
+                      <Eye />
+                      详情
+                    </Button>
+                    <Button type="button" size="sm" variant="destructive" onClick={() => onDeleteProduct(item)}>
+                      <Trash2 />
+                      删除
+                    </Button>
+                  </div>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      ) : (
+        <div className="flex min-h-64 flex-col items-center justify-center gap-4 px-6 text-sm text-slate-500">
+          <span>暂无产品</span>
+          {onCreateProduct ? (
+            <Button type="button" variant="secondary" onClick={onCreateProduct}>
+              <Plus />
+              创建产品
+            </Button>
+          ) : null}
+        </div>
+      )}
+    </StandardTablePage>
   );
 }

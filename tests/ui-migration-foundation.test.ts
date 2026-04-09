@@ -11,7 +11,7 @@ const adminPageSource = readFileSync(new URL('../app/admin/page.tsx', import.met
 const previewPageSource = readFileSync(new URL('../app/preview/page.tsx', import.meta.url), 'utf8');
 const adminDashboardSource = readFileSync(new URL('../components/admin-dashboard.tsx', import.meta.url), 'utf8');
 const previewBrowserSource = readFileSync(new URL('../components/preview-browser.tsx', import.meta.url), 'utf8');
-const adminProductListItemSource = readFileSync(new URL('../components/admin-product-list-item.tsx', import.meta.url), 'utf8');
+const adminProductListSource = readFileSync(new URL('../components/admin/admin-product-list.tsx', import.meta.url), 'utf8');
 const globalStyles = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
 
 describe('UI migration foundation', () => {
@@ -24,10 +24,12 @@ describe('UI migration foundation', () => {
   test('replaces feature-level Ant Design imports with local project UI layers', () => {
     expect(adminDashboardSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
     expect(previewBrowserSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
-    expect(adminProductListItemSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
-    expect(adminDashboardSource).toContain('<PanelCard');
-    expect(previewBrowserSource).toContain('<VersionPillBar');
-    expect(previewBrowserSource).toContain('<StatusChip');
+    expect(adminProductListSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
+    expect(adminDashboardSource).toContain('<StandardTablePage');
+    expect(adminDashboardSource).toContain('<UploadVersionDialog');
+    expect(adminDashboardSource).toContain('<BuildHistoryDrawer');
+    expect(previewBrowserSource).toContain('<PreviewProductList');
+    expect(adminProductListSource).toContain('<Table');
   });
 
   test('swaps package dependencies to the Tailwind v4 and shadcn-style stack', () => {

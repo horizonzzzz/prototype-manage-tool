@@ -5,9 +5,11 @@ const dashboardSource = readFileSync(new URL('../components/admin-dashboard.tsx'
 const globalStyles = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
 
 describe('admin dashboard card padding', () => {
-  test('uses the shared panel card wrapper for the version list and recent task sections', () => {
-    expect(dashboardSource).toMatch(/<PanelCard[^>]+title="版本列表"/s);
-    expect(dashboardSource).toMatch(/<PanelCard[^>]+title="最近任务"/s);
+  test('uses the standard table page shell plus upload dialog and history drawer in the detail surface', () => {
+    expect(dashboardSource).toContain('<StandardTablePage');
+    expect(dashboardSource).toContain('tableTitle="版本列表"');
+    expect(dashboardSource).toContain('<UploadVersionDialog');
+    expect(dashboardSource).toContain('<BuildHistoryDrawer');
   });
 
   test('does not keep legacy card shell selectors tied to ant design internals', () => {

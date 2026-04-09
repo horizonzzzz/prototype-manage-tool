@@ -1,5 +1,5 @@
 import React from 'react';
-import { Download, Eye, Power, Star, Trash2 } from 'lucide-react';
+import { Download, Eye, History, Power, Star, Trash2 } from 'lucide-react';
 
 import { StatusChip } from '@/components/status-chip';
 import { Button } from '@/components/ui/button';
@@ -25,6 +25,7 @@ type VersionListContentProps = {
   versions: ProductVersionItem[];
   productDetail: ProductDetail | null;
   onPreview: (item: ProductVersionItem) => void;
+  onHistory: (item: ProductVersionItem) => void;
   onDownload: (item: ProductVersionItem) => void;
   onSetDefault: (item: ProductVersionItem) => void;
   onOffline: (item: ProductVersionItem) => void;
@@ -35,6 +36,7 @@ export function VersionListContent({
   versions,
   productDetail,
   onPreview,
+  onHistory,
   onDownload,
   onSetDefault,
   onOffline,
@@ -85,6 +87,10 @@ export function VersionListContent({
                   >
                     <Eye />
                     预览
+                  </Button>
+                  <Button type="button" size="sm" variant="secondary" onClick={() => onHistory(item)}>
+                    <History />
+                    历史
                   </Button>
                   <Button
                     type="button"
