@@ -13,7 +13,7 @@ const createProductSchema = z.object({
 export async function GET() {
   const products = await prisma.product.findMany({
     include: { versions: true },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
   });
 
   return ok(products.map(serializeProductListItem));
@@ -40,4 +40,3 @@ export async function POST(request: Request) {
     return fail(error instanceof Error ? error.message : '创建产品失败', 400);
   }
 }
-

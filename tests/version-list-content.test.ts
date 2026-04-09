@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, test } from 'vitest';
 
 import { VersionListContent } from '@/components/admin/version-list-content';
-import type { ProductDetail, ProductVersionItem } from '@/lib/types';
+import type { ProductVersionItem } from '@/lib/types';
 
 (globalThis as { React?: typeof React }).React = React;
 
@@ -23,26 +23,12 @@ function createVersion(overrides: Partial<ProductVersionItem> = {}): ProductVers
   };
 }
 
-function createProductDetail(version: ProductVersionItem): ProductDetail {
-  return {
-    id: 1,
-    key: 'crm',
-    name: 'CRM',
-    description: null,
-    createdAt: '2026-03-27T00:00:00.000Z',
-    publishedCount: 1,
-    versions: [version],
-  };
-}
-
 describe('VersionListContent', () => {
   test('formats created time as YYYY-MM-DD HH:mm:ss', () => {
     const version = createVersion({ createdAt: '2026-03-27T01:00:00.000Z' });
     const markup = renderToStaticMarkup(
       React.createElement(VersionListContent, {
         versions: [version],
-        productDetail: createProductDetail(version),
-        onPreview: () => undefined,
         onHistory: () => undefined,
         onDownload: () => undefined,
         onSetDefault: () => undefined,
@@ -60,8 +46,6 @@ describe('VersionListContent', () => {
     const markup = renderToStaticMarkup(
       React.createElement(VersionListContent, {
         versions: [version],
-        productDetail: createProductDetail(version),
-        onPreview: () => undefined,
         onHistory: () => undefined,
         onDownload: () => undefined,
         onSetDefault: () => undefined,
@@ -77,6 +61,7 @@ describe('VersionListContent', () => {
     expect(markup).toContain('whitespace-normal break-all text-[11px] leading-4');
     expect(markup).toContain('flex flex-wrap gap-2');
     expect(markup).toContain('h-8 rounded-md px-2 text-[11px] gap-1');
+    expect(markup).not.toContain('预览');
   });
 
   test('keeps the download button enabled when the original zip is available', () => {
@@ -84,8 +69,6 @@ describe('VersionListContent', () => {
     const markup = renderToStaticMarkup(
       React.createElement(VersionListContent, {
         versions: [version],
-        productDetail: createProductDetail(version),
-        onPreview: () => undefined,
         onHistory: () => undefined,
         onDownload: () => undefined,
         onSetDefault: () => undefined,
@@ -104,8 +87,6 @@ describe('VersionListContent', () => {
     const markup = renderToStaticMarkup(
       React.createElement(VersionListContent, {
         versions: [version],
-        productDetail: createProductDetail(version),
-        onPreview: () => undefined,
         onHistory: () => undefined,
         onDownload: () => undefined,
         onSetDefault: () => undefined,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, Package2, Upload } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -11,7 +11,6 @@ import { BuildHistoryDrawer } from '@/components/admin/build-history-drawer';
 import { UploadVersionDialog } from '@/components/admin/upload-version-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { StandardTablePage } from '@/components/standard-table-page';
-import { StatusChip } from '@/components/status-chip';
 import { VersionListContent } from '@/components/admin/version-list-content';
 import { Button } from '@/components/ui/button';
 import { type UploadFormValues, uploadFormSchema } from '@/components/admin/form-schemas';
@@ -23,11 +22,9 @@ import type {
   BuildJobLogStreamEvent,
   BuildJobStepKey,
   ProductDetail,
-  ProductListItem,
   ProductVersionItem,
 } from '@/lib/types';
 import { formatDateTime } from '@/lib/ui/format';
-import { buildAdminHref, buildPreviewHref } from '@/lib/ui/navigation';
 import {
   applyBuildJobLogStreamEvent,
   buildBuildJobLogStreamUrl,
@@ -68,7 +65,6 @@ function triggerVersionDownload(versionId: number) {
 
 export function AdminDashboard({ productKey }: { productKey: string }) {
   const router = useRouter();
-  const [products, setProducts] = useState<ProductListItem[]>([]);
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
   const [jobs, setJobs] = useState<BuildJobItem[]>([]);
   const [activeJobId, setActiveJobId] = useState<number>();
@@ -83,18 +79,37 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [historyVersion, setHistoryVersion] = useState<ProductVersionItem | null>(null);
-  const [historyJobId, setHistoryJobId] = useState<number>();
   const [historyStepKey, setHistoryStepKey] = useState<BuildJobStepKey | null>(null);
   const [uploadError, setUploadError] = useState<string>();
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
   const [versionToDelete, setVersionToDelete] = useState<ProductVersionItem | null>(null);
   const [confirmingAction, setConfirmingAction] = useState<'version' | null>(null);
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
+  const uploadDialogOpenRef = useRef(uploadDialogOpen);
+  const uploadDialogSessionRef = useRef(0);
 
   const uploadForm = useForm<UploadFormValues>({
     resolver: zodResolver(uploadFormSchema),
     defaultValues: { version: '', title: '', remark: '' },
   });
+
+  useEffect(() => {
+    uploadDialogOpenRef.current = uploadDialogOpen;
+  }, [uploadDialogOpen]);
+
+  const resetUploadDialogState = () => {
+    uploadDialogSessionRef.current += 1;
+    uploadForm.reset();
+    setSelectedUploadFile(null);
+    setUploadError(undefined);
+    setUploading(false);
+    setUploadProgress(0);
+    setActiveJobId(undefined);
+    setActiveJob(null);
+    setActiveJobLog(null);
+    setSelectedLogStepKey(null);
+    setIsLogStepPinned(false);
+  };
 
   const clearProductContext = () => {
     setProductDetail(null);
@@ -108,6 +123,10 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
 
   const syncJobs = (nextJobs: BuildJobItem[]) => {
     setJobs(nextJobs);
+    if (!uploadDialogOpenRef.current && activeJobId === undefined) {
+      return;
+    }
+
     const runningJob = nextJobs.find((item) => ['queued', 'running'].includes(item.status));
     const fallbackJob = nextJobs[0];
     const nextActive = runningJob ?? (activeJobId ? nextJobs.find((item) => item.id === activeJobId) : undefined) ?? fallbackJob;
@@ -115,8 +134,6 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     setActiveJobId(nextActive?.id);
     setActiveJob(nextActive ?? null);
   };
-
-  const loadProducts = async () => setProducts(await fetchJson<ProductListItem[]>('/api/products'));
 
   const loadProductDetail = async (targetProductKey: string) => {
     setLoading(true);
@@ -131,10 +148,6 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
       setLoading(false);
     }
   };
-
-  useEffect(() => {
-    void loadProducts().catch((error) => toast.error(getErrorMessage(error, '加载产品列表失败')));
-  }, []);
 
   useEffect(() => {
     if (!productKey) {
@@ -287,21 +300,18 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     );
   }, [deferredSearch, productDetail]);
 
-  const versionHistoryJobs = useMemo(() => {
-    if (!historyVersion) {
-      return [];
-    }
-
-    return jobs.filter((item) => item.version === historyVersion.version);
-  }, [historyVersion, jobs]);
-
   const historyActiveJob = useMemo(() => {
-    if (!versionHistoryJobs.length) {
+    if (!historyVersion) {
       return null;
     }
 
-    return versionHistoryJobs.find((item) => item.id === historyJobId) ?? versionHistoryJobs[0];
-  }, [historyJobId, versionHistoryJobs]);
+    const scopedJobs = jobs.filter((item) => item.version === historyVersion.version);
+    if (!scopedJobs.length) {
+      return null;
+    }
+
+    return scopedJobs.find((item) => item.id === activeJobId) ?? scopedJobs[0];
+  }, [activeJobId, historyVersion, jobs]);
 
   const historySelectedStep = useMemo(() => {
     if (!historyActiveJob) {
@@ -316,7 +326,6 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
       return;
     }
 
-    await loadProducts();
     await loadProductDetail(productKey);
   };
 
@@ -327,6 +336,8 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   };
 
   const uploadVersion = uploadForm.handleSubmit(async (values) => {
+    const dialogSessionId = uploadDialogSessionRef.current;
+
     try {
       setUploadError(undefined);
       if (!productKey) {
@@ -350,7 +361,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/api/versions/upload');
         xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable) {
+          if (event.lengthComputable && uploadDialogOpenRef.current && uploadDialogSessionRef.current === dialogSessionId) {
             setUploadProgress(Math.round((event.loaded / event.total) * 100));
           }
         };
@@ -362,14 +373,15 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
           }
 
           toast.success('源码包上传成功，后台任务已开始');
-          uploadForm.reset();
-          setSelectedUploadFile(null);
-          setActiveJobId(payload.data.id);
-          setActiveJob(payload.data);
-          setSelectedLogStepKey(getBuildJobLogStep(payload.data.currentStep));
-          setIsLogStepPinned(false);
-          await loadProducts();
           await loadProductDetail(productKey);
+          if (uploadDialogOpenRef.current && uploadDialogSessionRef.current === dialogSessionId) {
+            uploadForm.reset();
+            setSelectedUploadFile(null);
+            setActiveJobId(payload.data.id);
+            setActiveJob(payload.data);
+            setSelectedLogStepKey(getBuildJobLogStep(payload.data.currentStep));
+            setIsLogStepPinned(false);
+          }
           resolve();
         };
         xhr.onerror = () => reject(new Error('上传失败'));
@@ -377,11 +389,15 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
       });
     } catch (error) {
       const message = getErrorMessage(error, '上传失败');
-      setUploadError(message);
+      if (uploadDialogOpenRef.current && uploadDialogSessionRef.current === dialogSessionId) {
+        setUploadError(message);
+      }
       toast.error(message);
     } finally {
-      setUploading(false);
-      setUploadProgress(0);
+      if (uploadDialogSessionRef.current === dialogSessionId) {
+        setUploading(false);
+        setUploadProgress(0);
+      }
     }
   });
 
@@ -434,18 +450,14 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
 
         <VersionListContent
           versions={filteredVersions}
-          productDetail={productDetail}
-          onPreview={(item) => productDetail && router.push(buildPreviewHref(productDetail.key, item.version))}
           onHistory={(item) => {
             const scopedJobs = jobs.filter((job) => job.version === item.version);
             setHistoryVersion(item);
             setHistoryDrawerOpen(true);
             if (scopedJobs.length) {
               const nextActive = scopedJobs.find((job) => job.id === activeJobId) ?? scopedJobs[0];
-              setHistoryJobId(nextActive.id);
               setHistoryStepKey(getBuildJobLogStep(nextActive.currentStep));
             } else {
-              setHistoryJobId(undefined);
               setHistoryStepKey(null);
             }
           }}
@@ -458,9 +470,14 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
 
       <UploadVersionDialog
         open={uploadDialogOpen}
-        onOpenChange={setUploadDialogOpen}
+        onOpenChange={(open) => {
+          setUploadDialogOpen(open);
+          if (!open) {
+            resetUploadDialogState();
+          }
+        }}
         form={uploadForm}
-        products={products}
+        productName={productDetail?.name}
         selectedProductKey={productKey}
         selectedUploadFile={selectedUploadFile}
         uploadError={uploadError}
@@ -471,7 +488,6 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
         terminalBadge={terminalBadge}
         terminalContent={terminalContent}
         terminalEmptyText={getTerminalEmptyText(activeJob)}
-        onProductChange={(nextProductKey) => router.push(buildAdminHref(nextProductKey))}
         onFileChange={(file) => {
           setSelectedUploadFile(file);
           if (uploadError) {
@@ -491,20 +507,13 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
           setHistoryDrawerOpen(open);
           if (!open) {
             setHistoryVersion(null);
-            setHistoryJobId(undefined);
             setHistoryStepKey(null);
           }
         }}
         versionLabel={historyVersion?.version ?? null}
-        jobs={versionHistoryJobs}
         activeJob={historyActiveJob}
-        activeJobId={historyJobId}
         selectedLogStepKey={historyStepKey}
         terminalContent={historyActiveJob && historySelectedStep ? buildBuildJobStageText(historyActiveJob, historySelectedStep) : ''}
-        onSelectJob={(job) => {
-          setHistoryJobId(job.id);
-          setHistoryStepKey(getBuildJobLogStep(job.currentStep));
-        }}
         onSelectStep={(stepKey) => {
           setHistoryStepKey(stepKey);
         }}

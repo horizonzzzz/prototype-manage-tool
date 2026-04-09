@@ -40,6 +40,6 @@ describe('table page standardization', () => {
     expect(versionListSource).toContain('onHistory');
     expect(historyDrawerSource).toContain('versionLabel');
     expect(historyDrawerSource).toContain('当前版本');
-    expect(historyDrawerSource).toContain('该版本暂无构建记录');
+    expect(historyDrawerSource).toContain('该版本暂无可展示的构建过程');
   });
 });

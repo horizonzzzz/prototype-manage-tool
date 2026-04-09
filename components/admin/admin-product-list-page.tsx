@@ -60,7 +60,7 @@ export function AdminProductListPage({ initialProducts }: AdminProductListPagePr
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(values),
       });
-      setProducts((current) => [...current, created]);
+      setProducts((current) => [created, ...current]);
       setCreateOpen(false);
       form.reset();
       toast.success('产品创建成功');

@@ -24,7 +24,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
 
   const products = await prisma.product.findMany({
     include: { versions: true },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
   });
 
   return <AdminProductListPage initialProducts={products.map(serializeProductListItem)} />;

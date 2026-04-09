@@ -19,12 +19,19 @@ vi.mock('@/lib/prisma', () => ({
   },
 }));
 
+vi.mock('@/components/admin/admin-product-list-page', () => ({
+  AdminProductListPage: () => null,
+}));
+
 import AdminPage from '@/app/admin/page';
 import AdminProductPage from '@/app/admin/[productKey]/page';
 
 describe('admin route redirects', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    (globalThis as any).React = {
+      createElement: () => null,
+    };
   });
 
   test('redirects legacy admin query params to the new segment route', async () => {
@@ -43,5 +50,18 @@ describe('admin route redirects', () => {
         params: Promise.resolve({ productKey: 'broken-key' }),
       }),
     ).rejects.toThrow('REDIRECT:/admin/crm');
+  });
+
+  test('loads admin product list with newest products first when no redirect is needed', async () => {
+    findManyMock.mockResolvedValue([]);
+
+    await AdminPage({
+      searchParams: Promise.resolve({}),
+    });
+
+    expect(findManyMock).toHaveBeenCalledWith({
+      include: { versions: true },
+      orderBy: { createdAt: 'desc' },
+    });
   });
 });

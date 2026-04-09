@@ -10,7 +10,7 @@ export async function getManifest(selectedProduct?: string, selectedVersion?: st
         orderBy: { createdAt: 'desc' },
       },
     },
-    orderBy: { createdAt: 'asc' },
+    orderBy: { createdAt: 'desc' },
   });
 
   const manifestProducts = products.map(serializeManifestProduct).filter((item) => item.versions.length > 0);
@@ -34,4 +34,3 @@ export async function getManifest(selectedProduct?: string, selectedVersion?: st
     },
   };
 }
-

@@ -8,35 +8,31 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import type { ProductListItem } from '@/lib/types';
 
 import { FormField } from '@/components/admin/form-field';
 import type { UploadFormValues } from '@/components/admin/form-schemas';
 
 type UploadVersionFormProps = {
   form: UseFormReturn<UploadFormValues>;
-  products: ProductListItem[];
+  productName?: string;
   selectedProductKey?: string;
   selectedUploadFile: File | null;
   uploadError?: string;
   uploading: boolean;
   uploadProgress: number;
-  onProductChange: (productKey: string) => void;
   onFileChange: (file: File | null) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
 
 export function UploadVersionForm({
   form,
-  products,
+  productName,
   selectedProductKey,
   selectedUploadFile,
   uploadError,
   uploading,
   uploadProgress,
-  onProductChange,
   onFileChange,
   onSubmit,
 }: UploadVersionFormProps) {
@@ -44,18 +40,9 @@ export function UploadVersionForm({
     <form className="space-y-4" onSubmit={onSubmit}>
       <div className="grid gap-4 lg:grid-cols-3">
         <FormField label="产品" required>
-          <Select value={selectedProductKey} onValueChange={onProductChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="请选择产品" />
-            </SelectTrigger>
-            <SelectContent>
-              {products.map((item) => (
-                <SelectItem key={item.key} value={item.key}>
-                  {item.name} ({item.key})
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex min-h-10 items-center rounded-md border border-[color:var(--border)] bg-slate-50 px-3 text-sm text-slate-700">
+            {productName && selectedProductKey ? `${productName} (${selectedProductKey})` : selectedProductKey ?? '当前产品'}
+          </div>
         </FormField>
 
         <FormField label="版本号" required error={form.formState.errors.version?.message}>

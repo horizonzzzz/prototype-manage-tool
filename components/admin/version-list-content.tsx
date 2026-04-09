@@ -1,10 +1,10 @@
 import React from 'react';
-import { Download, Eye, History, Power, Star, Trash2 } from 'lucide-react';
+import { Download, History, Power, Star, Trash2 } from 'lucide-react';
 
 import { StatusChip } from '@/components/status-chip';
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import type { ProductDetail, ProductVersionItem } from '@/lib/types';
+import type { ProductVersionItem } from '@/lib/types';
 
 function StatusTags({ version }: { version: ProductVersionItem }) {
   return (
@@ -23,8 +23,6 @@ function formatCreatedAt(createdAt: string) {
 
 type VersionListContentProps = {
   versions: ProductVersionItem[];
-  productDetail: ProductDetail | null;
-  onPreview: (item: ProductVersionItem) => void;
   onHistory: (item: ProductVersionItem) => void;
   onDownload: (item: ProductVersionItem) => void;
   onSetDefault: (item: ProductVersionItem) => void;
@@ -34,8 +32,6 @@ type VersionListContentProps = {
 
 export function VersionListContent({
   versions,
-  productDetail,
-  onPreview,
   onHistory,
   onDownload,
   onSetDefault,
@@ -78,16 +74,6 @@ export function VersionListContent({
               </TableCell>
               <TableCell className="px-3 py-4">
                 <div className="flex flex-wrap gap-2">
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={!item.entryUrl || item.status !== 'published' || !productDetail}
-                    onClick={() => onPreview(item)}
-                  >
-                    <Eye />
-                    预览
-                  </Button>
                   <Button type="button" size="sm" variant="secondary" onClick={() => onHistory(item)}>
                     <History />
                     历史
