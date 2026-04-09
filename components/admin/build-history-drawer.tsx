@@ -32,7 +32,7 @@ export function BuildHistoryDrawer({
     <Drawer open={open} onOpenChange={onOpenChange}>
       <DrawerContent>
         <DrawerHeader>
-          <DrawerTitle>版本历史</DrawerTitle>
+          <DrawerTitle>构建历史</DrawerTitle>
           <DrawerDescription>
             {versionLabel ? `当前版本：${versionLabel}。仅展示该版本的构建过程。` : '请选择一个版本后查看其构建过程。'}
           </DrawerDescription>

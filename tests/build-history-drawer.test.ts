@@ -8,6 +8,7 @@ describe('BuildHistoryDrawer source', () => {
     expect(historyDrawerSource).not.toContain('构建记录');
     expect(historyDrawerSource).not.toContain('jobs.map');
     expect(historyDrawerSource).not.toContain('onSelectJob');
+    expect(historyDrawerSource).toContain('构建历史');
     expect(historyDrawerSource).toContain('BuildJobStepList');
     expect(historyDrawerSource).toContain('BuildJobTerminal');
   });

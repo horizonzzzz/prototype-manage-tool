@@ -28,9 +28,9 @@ import { formatDateTime } from '@/lib/ui/format';
 import {
   applyBuildJobLogStreamEvent,
   buildBuildJobLogStreamUrl,
-  buildBuildJobStageText,
   getBuildJobLogStep,
   isBuildJobLogStreamStep,
+  resolveBuildJobTerminalContent,
   shouldStreamBuildJobLog,
 } from '@/lib/ui/build-job-log';
 
@@ -80,6 +80,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [historyVersion, setHistoryVersion] = useState<ProductVersionItem | null>(null);
   const [historyStepKey, setHistoryStepKey] = useState<BuildJobStepKey | null>(null);
+  const [historyJobLog, setHistoryJobLog] = useState<BuildJobLogItem | null>(null);
   const [uploadError, setUploadError] = useState<string>();
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
   const [versionToDelete, setVersionToDelete] = useState<ProductVersionItem | null>(null);
@@ -119,6 +120,10 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     setActiveJobLog(null);
     setSelectedLogStepKey(null);
     setIsLogStepPinned(false);
+    setHistoryDrawerOpen(false);
+    setHistoryVersion(null);
+    setHistoryStepKey(null);
+    setHistoryJobLog(null);
   };
 
   const syncJobs = (nextJobs: BuildJobItem[]) => {
@@ -321,6 +326,41 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     return historyActiveJob.steps.find((step) => step.key === historyStepKey) ?? historyActiveJob.steps[0] ?? null;
   }, [historyActiveJob, historyStepKey]);
 
+  useEffect(() => {
+    if (!historyDrawerOpen || !historyActiveJob || !historySelectedStep) {
+      setHistoryJobLog(null);
+      return;
+    }
+
+    const logStep = getBuildJobLogStep(historySelectedStep.key);
+    if (!logStep) {
+      setHistoryJobLog(null);
+      return;
+    }
+
+    let cancelled = false;
+    setHistoryJobLog(null);
+
+    const loadHistoryLog = async () => {
+      try {
+        const payload = await fetchJson<BuildJobLogItem>(`/api/build-jobs/${historyActiveJob.id}/logs?step=${logStep}`);
+        if (!cancelled) {
+          setHistoryJobLog(payload);
+        }
+      } catch {
+        if (!cancelled) {
+          setHistoryJobLog({ step: logStep, content: '', exists: false, updatedAt: null });
+        }
+      }
+    };
+
+    void loadHistoryLog();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [historyActiveJob, historyDrawerOpen, historySelectedStep]);
+
   const refreshCurrent = async () => {
     if (!productKey) {
       return;
@@ -402,13 +442,9 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   });
 
   const selectedStep = activeJob?.steps.find((step) => step.key === selectedLogStepKey) ?? null;
-  const terminalContent =
-    activeJobLog?.exists && activeJobLog.content
-      ? activeJobLog.content
-      : activeJob && selectedStep
-        ? buildBuildJobStageText(activeJob, selectedStep)
-        : '';
+  const terminalContent = resolveBuildJobTerminalContent(activeJob, selectedStep, activeJobLog);
   const terminalBadge = activeJobLog?.step ?? selectedLogStepKey ?? activeJob?.currentStep ?? 'status';
+  const historyTerminalContent = resolveBuildJobTerminalContent(historyActiveJob, historySelectedStep, historyJobLog);
 
   return (
     <>
@@ -508,12 +544,13 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
           if (!open) {
             setHistoryVersion(null);
             setHistoryStepKey(null);
+            setHistoryJobLog(null);
           }
         }}
         versionLabel={historyVersion?.version ?? null}
         activeJob={historyActiveJob}
         selectedLogStepKey={historyStepKey}
-        terminalContent={historyActiveJob && historySelectedStep ? buildBuildJobStageText(historyActiveJob, historySelectedStep) : ''}
+        terminalContent={historyTerminalContent}
         onSelectStep={(stepKey) => {
           setHistoryStepKey(stepKey);
         }}

@@ -107,3 +107,19 @@ export function buildBuildJobStageText(job: BuildJobItem, step: BuildJobStepItem
 
   return lines.join('\r\n');
 }
+
+export function resolveBuildJobTerminalContent(
+  job: BuildJobItem | null | undefined,
+  step: BuildJobStepItem | null | undefined,
+  log: BuildJobLogItem | null | undefined,
+) {
+  if (log?.exists && log.content) {
+    return log.content;
+  }
+
+  if (job && step) {
+    return buildBuildJobStageText(job, step);
+  }
+
+  return '';
+}
