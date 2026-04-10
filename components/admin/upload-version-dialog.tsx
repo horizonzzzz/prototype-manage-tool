@@ -36,13 +36,9 @@ export function UploadVersionDialog({
 }: UploadVersionDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent
-        className="w-[min(94vw,720px)] max-w-none"
-        onInteractOutside={(event) => uploading && event.preventDefault()}
-        onEscapeKeyDown={(event) => uploading && event.preventDefault()}
-      >
+      <DialogContent onInteractOutside={(event) => uploading && event.preventDefault()} onEscapeKeyDown={(event) => uploading && event.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>上传版本</DialogTitle>
+          <DialogTitle>上传新版本</DialogTitle>
           <DialogDescription>填写版本信息并上传源码压缩包。创建成功后会在单独的弹窗中展示任务状态和日志。</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto pr-1">

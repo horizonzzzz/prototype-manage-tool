@@ -8,9 +8,10 @@ describe('admin upload dialog reset behavior', () => {
   test('keeps outside interaction and escape guarded while an upload is running', () => {
     expect(uploadDialogSource).toContain('onInteractOutside={(event) => uploading && event.preventDefault()}');
     expect(uploadDialogSource).toContain('onEscapeKeyDown={(event) => uploading && event.preventDefault()}');
+    expect(uploadDialogSource).not.toContain('w-[min(96vw,960px)]');
   });
 
-  test('resets only the upload form state when the dialog closes and keeps job tracking separate', () => {
+  test('resets only the upload form state when the dialog closes and keeps build log tracking separate', () => {
     expect(adminDashboardSource).toContain('const resetUploadFormState = () =>');
     expect(adminDashboardSource).toContain('uploadForm.reset();');
     expect(adminDashboardSource).toContain('setSelectedUploadFile(null);');

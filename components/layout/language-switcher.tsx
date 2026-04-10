@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
+  APP_LANGUAGE_STORAGE_KEY,
   getBrowserStorage,
   type AppLanguage,
   normalizeLanguagePreference,
@@ -12,7 +13,7 @@ import {
 } from '@/lib/ui/app-preferences';
 
 const languageLabelMap: Record<AppLanguage, string> = {
-  zh: '简体中文',
+  zh: '中文',
   en: 'English',
 };
 
@@ -33,6 +34,9 @@ export function LanguageSwitcher() {
     const nextLanguage = normalizeLanguagePreference(nextValue);
     setLanguage(nextLanguage);
     writeLanguagePreference(getBrowserStorage(), nextLanguage);
+    if (typeof document !== 'undefined') {
+      document.cookie = `${APP_LANGUAGE_STORAGE_KEY}=${nextLanguage}; path=/; max-age=31536000`;
+    }
     applyLanguageToDocument(nextLanguage);
   };
 
@@ -41,7 +45,7 @@ export function LanguageSwitcher() {
       <SelectTrigger className="w-[120px]">
         <SelectValue placeholder="Language">{languageLabelMap[language]}</SelectValue>
       </SelectTrigger>
-      <SelectContent align="end">
+      <SelectContent>
         <SelectItem value="zh">
           {languageLabelMap.zh}
         </SelectItem>

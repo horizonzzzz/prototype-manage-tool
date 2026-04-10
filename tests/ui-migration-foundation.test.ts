@@ -13,6 +13,11 @@ const adminDashboardSource = readFileSync(new URL('../components/admin-dashboard
 const previewBrowserSource = readFileSync(new URL('../components/preview-browser.tsx', import.meta.url), 'utf8');
 const adminProductListSource = readFileSync(new URL('../components/admin/admin-product-list.tsx', import.meta.url), 'utf8');
 const globalStyles = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
+const buttonSource = readFileSync(new URL('../components/ui/button.tsx', import.meta.url), 'utf8');
+const selectSource = readFileSync(new URL('../components/ui/select.tsx', import.meta.url), 'utf8');
+const cardSource = readFileSync(new URL('../components/ui/card.tsx', import.meta.url), 'utf8');
+const dialogSource = readFileSync(new URL('../components/ui/dialog.tsx', import.meta.url), 'utf8');
+const badgeSource = readFileSync(new URL('../components/ui/badge.tsx', import.meta.url), 'utf8');
 
 describe('UI migration foundation', () => {
   test('removes Ant Design providers from the app shell and page entrypoints', () => {
@@ -25,7 +30,7 @@ describe('UI migration foundation', () => {
     expect(adminDashboardSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
     expect(previewBrowserSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
     expect(adminProductListSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
-    expect(adminDashboardSource).toContain('<StandardTablePage');
+    expect(adminDashboardSource).not.toContain('<StandardTablePage');
     expect(adminDashboardSource).toContain('<UploadVersionDialog');
     expect(adminDashboardSource).toContain('<BuildHistoryDrawer');
     expect(previewBrowserSource).toContain('<PreviewProductList');
@@ -61,5 +66,22 @@ describe('UI migration foundation', () => {
     expect(globalStyles).toContain('--radius: 0.625rem;');
     expect(globalStyles).toContain('button:not(:disabled)');
     expect(globalStyles).toContain('cursor: pointer;');
+  });
+
+  test('keeps shared primitives aligned with prototype slot and sizing capabilities', () => {
+    expect(buttonSource).toContain('group/button');
+    expect(buttonSource).toContain('xs:');
+    expect(buttonSource).toMatch(/icon-sm/);
+    expect(selectSource).toContain("size = 'default'");
+    expect(selectSource).toContain('data-size={size}');
+    expect(selectSource).toContain('function SelectGroup');
+    expect(cardSource).toContain("size = 'default'");
+    expect(cardSource).toContain('data-size={size}');
+    expect(cardSource).toContain('function CardAction');
+    expect(dialogSource).toContain('showCloseButton');
+    expect(dialogSource).toContain('size="icon-sm"');
+    expect(badgeSource).toContain('group/badge');
+    expect(badgeSource).toContain('h-5');
+    expect(badgeSource).toContain('ghost');
   });
 });

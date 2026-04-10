@@ -70,26 +70,31 @@ describe('product detail view helpers', () => {
 });
 
 describe('product detail page source migration', () => {
-  test('uses local pagination for filtered versions', () => {
+  test('uses local pagination for versions without rendering the legacy summary strip', () => {
     expect(adminDashboardSource).toContain('const ITEMS_PER_PAGE = 10;');
     expect(adminDashboardSource).toContain('const [versionPage, setVersionPage] = useState(1);');
     expect(adminDashboardSource).toContain('const paginatedVersions = filteredVersions.slice(startIndex, startIndex + ITEMS_PER_PAGE);');
+    expect(adminDashboardSource).not.toContain('关键词支持按版本号、标题、备注和状态过滤');
+    expect(adminDashboardSource).not.toContain('当前任务版本');
+    expect(adminDashboardSource).not.toContain('已发布版本：');
   });
 
-  test('shows active build progress percent with progress bar', () => {
-    expect(adminDashboardSource).toContain('activeJobProgress');
-    expect(adminDashboardSource).toContain('<Progress');
+  test('reuses a shared build log dialog for upload follow-up and later log access', () => {
+    expect(adminDashboardSource).toContain('setBuildProgressDialogOpen(true);');
+    expect(adminDashboardSource).toContain('<BuildHistoryDrawer');
+    expect(adminDashboardSource).not.toContain('<BuildProgressDialog');
+    expect(adminDashboardSource).toContain('UploadVersionDialog');
+    expect(adminDashboardSource).not.toContain('查看进度');
   });
 
-  test('applies truncation and helper-based action gating in version rows', () => {
-    expect(adminDashboardSource).toContain('truncate');
+  test('uses the dedicated version list without the title-remark compound column source', () => {
     expect(adminDashboardSource).toContain('VersionListContent');
-    expect(adminDashboardSource).toContain('getVersionStatusLabel');
+    expect(versionListContentSource).not.toContain('标题 / 备注');
     expect(versionListContentSource).toContain('disabled={!item.downloadable}');
   });
 
-  test('keeps the latest-version indicator in each version row', () => {
-    expect(versionListContentSource).toContain('version.isLatest');
-    expect(versionListContentSource).toContain('最新记录');
+  test('drops the latest-record tag from each version row to match the prototype table', () => {
+    expect(versionListContentSource).not.toContain('version.isLatest');
+    expect(versionListContentSource).not.toContain('最新记录');
   });
 });

@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 
+import { isSafeRouteSegment } from '@/lib/domain/route-segment';
 import { buildPreviewStateHref } from '@/lib/ui/preview-viewer-state';
 import { getManifest } from '@/lib/server/manifest-service';
 
@@ -9,18 +10,16 @@ type PreviewVersionRouteProps = {
 
 export default async function PreviewVersionRoutePage({ params }: PreviewVersionRouteProps) {
   const { productKey, version } = await params;
-  const manifest = await getManifest(productKey, version);
 
-  if (!manifest.resolved.productKey || !manifest.resolved.version) {
+  if (!isSafeRouteSegment(productKey) || !isSafeRouteSegment(version)) {
     redirect('/preview');
   }
 
-  const canonicalHref = buildPreviewStateHref(manifest.resolved.productKey, manifest.resolved.version);
-  const currentHref = buildPreviewStateHref(productKey, version);
+  const manifest = await getManifest(productKey, version);
 
-  if (canonicalHref !== currentHref) {
-    redirect(canonicalHref);
+  if (!manifest.resolved.productKey || manifest.resolved.productKey !== productKey || !manifest.resolved.version) {
+    redirect('/preview');
   }
 
-  redirect(canonicalHref);
+  redirect(buildPreviewStateHref(productKey, manifest.resolved.version));
 }

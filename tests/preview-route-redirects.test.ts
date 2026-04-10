@@ -1,3 +1,5 @@
+import React from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const { redirectMock, getManifestMock } = vi.hoisted(() => ({
@@ -23,20 +25,77 @@ describe('preview route redirects', () => {
     vi.clearAllMocks();
   });
 
-  test('redirects preview product routes into preview list query state', async () => {
+  test('renders standalone viewer route when product and version are canonical', async () => {
     getManifestMock.mockResolvedValue({
-      products: [],
+      products: [
+        {
+          key: 'crm',
+          name: 'CRM',
+          description: null,
+          defaultVersion: 'v1.2.0',
+          createdAt: '2026-04-10T00:00:00.000Z',
+          versions: [
+            {
+              version: 'v1.2.0',
+              title: null,
+              remark: null,
+              entryUrl: '/prototypes/crm/v1.2.0/index.html',
+              createdAt: '2026-04-10T00:00:00.000Z',
+              isDefault: true,
+              isLatest: true,
+            },
+          ],
+        },
+      ],
       resolved: { productKey: 'crm', version: 'v1.2.0' },
     });
 
     await expect(
       PreviewProductRoutePage({
         params: Promise.resolve({ productKey: 'crm' }),
+        searchParams: Promise.resolve({ v: 'v1.2.0' }),
       }),
-    ).rejects.toThrow('REDIRECT:/preview?product=crm&version=v1.2.0');
+    ).resolves.toBeTruthy();
+
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 
-  test('redirects invalid preview version routes to the canonical resolved route', async () => {
+  test('renders standalone viewer route without redirect when version query is omitted', async () => {
+    getManifestMock.mockResolvedValue({
+      products: [
+        {
+          key: 'crm',
+          name: 'CRM',
+          description: null,
+          defaultVersion: 'v1.2.0',
+          createdAt: '2026-04-10T00:00:00.000Z',
+          versions: [
+            {
+              version: 'v1.2.0',
+              title: null,
+              remark: null,
+              entryUrl: '/prototypes/crm/v1.2.0/index.html',
+              createdAt: '2026-04-10T00:00:00.000Z',
+              isDefault: true,
+              isLatest: true,
+            },
+          ],
+        },
+      ],
+      resolved: { productKey: 'crm', version: 'v1.2.0' },
+    });
+
+    await expect(
+      PreviewProductRoutePage({
+        params: Promise.resolve({ productKey: 'crm' }),
+        searchParams: Promise.resolve({}),
+      }),
+    ).resolves.toBeTruthy();
+
+    expect(redirectMock).not.toHaveBeenCalled();
+  });
+
+  test('redirects invalid standalone viewer versions to the canonical resolved route', async () => {
     getManifestMock.mockResolvedValue({
       products: [],
       resolved: { productKey: 'crm', version: 'v1.2.0' },
@@ -46,8 +105,39 @@ describe('preview route redirects', () => {
       PreviewVersionRoutePage({
         params: Promise.resolve({ productKey: 'crm', version: 'broken-version' }),
       }),
-    ).rejects.toThrow('REDIRECT:/preview?product=crm&version=v1.2.0');
+    ).rejects.toThrow('REDIRECT:/preview/crm?v=v1.2.0');
 
     expect(getManifestMock).toHaveBeenCalledWith('crm', 'broken-version');
+  });
+
+  test('redirects product viewer route with invalid version query to canonical version query', async () => {
+    getManifestMock.mockResolvedValue({
+      products: [],
+      resolved: { productKey: 'crm', version: 'v1.2.0' },
+    });
+
+    await expect(
+      PreviewProductRoutePage({
+        params: Promise.resolve({ productKey: 'crm' }),
+        searchParams: Promise.resolve({ v: 'broken-version' }),
+      }),
+    ).rejects.toThrow('REDIRECT:/preview/crm?v=v1.2.0');
+
+    expect(getManifestMock).toHaveBeenCalledWith('crm', 'broken-version');
+  });
+
+  test('renders a product-not-found state for unknown product viewer routes', async () => {
+    getManifestMock.mockResolvedValue({
+      products: [],
+      resolved: { productKey: 'erp', version: 'v2.0.0' },
+    });
+
+    const page = await PreviewProductRoutePage({
+      params: Promise.resolve({ productKey: 'crm' }),
+      searchParams: Promise.resolve({ v: 'v1.0.0' }),
+    });
+
+    expect(renderToStaticMarkup(page)).toContain('产品不存在');
+    expect(redirectMock).not.toHaveBeenCalled();
   });
 });

@@ -1,21 +1,17 @@
 'use client';
 
-import { useDeferredValue, useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, CircleDashed, Package2, Upload } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-import { BuildProgressDialog } from '@/components/admin/build-progress-dialog';
 import { BuildHistoryDrawer } from '@/components/admin/build-history-drawer';
 import { UploadVersionDialog } from '@/components/admin/upload-version-dialog';
 import { VersionListContent } from '@/components/admin/version-list-content';
 import { ConfirmDialog } from '@/components/confirm-dialog';
-import { StatusChip } from '@/components/status-chip';
-import { StandardTablePage } from '@/components/standard-table-page';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 import { type UploadFormValues, uploadFormSchema } from '@/components/admin/form-schemas';
 import { getErrorMessage } from '@/lib/domain/error-message';
 import type {
@@ -27,8 +23,7 @@ import type {
   ProductDetail,
   ProductVersionItem,
 } from '@/lib/types';
-import { formatDateTime } from '@/lib/ui/format';
-import { getVersionStatusLabel, selectActiveBuildJob } from '@/lib/ui/product-detail-view';
+import { selectActiveBuildJob } from '@/lib/ui/product-detail-view';
 import {
   applyBuildJobLogStreamEvent,
   buildBuildJobLogStreamUrl,
@@ -47,10 +42,6 @@ async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> 
   }
 
   return payload.data as T;
-}
-
-function getTerminalEmptyText(activeJob: BuildJobItem | null) {
-  return activeJob ? activeJob.logSummary || '当前步骤暂无日志输出' : '选择一条构建记录后查看日志';
 }
 
 function triggerVersionDownload(versionId: number) {
@@ -78,7 +69,6 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const [activeJobLog, setActiveJobLog] = useState<BuildJobLogItem | null>(null);
   const [selectedLogStepKey, setSelectedLogStepKey] = useState<BuildJobStepKey | null>(null);
   const [isLogStepPinned, setIsLogStepPinned] = useState(false);
-  const [search, setSearch] = useState('');
   const [versionPage, setVersionPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -88,11 +78,11 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const [historyVersion, setHistoryVersion] = useState<ProductVersionItem | null>(null);
   const [historyStepKey, setHistoryStepKey] = useState<BuildJobStepKey | null>(null);
   const [historyJobLog, setHistoryJobLog] = useState<BuildJobLogItem | null>(null);
+  const [productMissing, setProductMissing] = useState(false);
   const [uploadError, setUploadError] = useState<string>();
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
   const [versionToDelete, setVersionToDelete] = useState<ProductVersionItem | null>(null);
   const [confirmingAction, setConfirmingAction] = useState<'version' | null>(null);
-  const deferredSearch = useDeferredValue(search.trim().toLowerCase());
 
   const uploadForm = useForm<UploadFormValues>({
     resolver: zodResolver(uploadFormSchema),
@@ -121,6 +111,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     setHistoryVersion(null);
     setHistoryStepKey(null);
     setHistoryJobLog(null);
+    setProductMissing(false);
   };
 
   const syncJobs = (nextJobs: BuildJobItem[]) => {
@@ -140,6 +131,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
       ]);
       setProductDetail(detail);
       syncJobs(buildJobs);
+      setProductMissing(false);
     } finally {
       setLoading(false);
     }
@@ -151,7 +143,15 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
       return;
     }
 
-    void loadProductDetail(productKey).catch((error) => toast.error(getErrorMessage(error, '加载产品详情失败')));
+    void loadProductDetail(productKey).catch((error) => {
+      const message = getErrorMessage(error, '加载产品详情失败');
+      setProductDetail(null);
+      syncJobs([]);
+      setProductMissing(true);
+      if (message !== 'Product not found') {
+        toast.error(message);
+      }
+    });
   }, [productKey]);
 
   useEffect(() => {
@@ -285,28 +285,19 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     };
   }, [activeJob, activeJobId, selectedLogStepKey]);
 
-  const filteredVersions = useMemo(() => {
-    const source = productDetail?.versions ?? [];
-    if (!deferredSearch) {
-      return source;
-    }
-
-    return source.filter((item) =>
-      [item.version, item.title ?? '', item.remark ?? '', item.status].some((value) => value.toLowerCase().includes(deferredSearch)),
-    );
-  }, [deferredSearch, productDetail]);
+  const filteredVersions = useMemo(() => productDetail?.versions ?? [], [productDetail]);
 
   useEffect(() => {
     setVersionPage(1);
-  }, [deferredSearch, productKey]);
+  }, [productKey]);
 
-  const totalVersionPages = Math.max(1, Math.ceil(filteredVersions.length / ITEMS_PER_PAGE));
+  const totalVersionPages = Math.ceil(filteredVersions.length / ITEMS_PER_PAGE);
 
   useEffect(() => {
-    setVersionPage((current) => Math.min(current, totalVersionPages));
+    setVersionPage((current) => (totalVersionPages > 0 ? Math.min(current, totalVersionPages) : 1));
   }, [totalVersionPages]);
 
-  const currentVersionPage = Math.min(versionPage, totalVersionPages);
+  const currentVersionPage = totalVersionPages > 0 ? Math.min(versionPage, totalVersionPages) : 1;
   const paginatedVersions = useMemo(() => {
     const startIndex = (currentVersionPage - 1) * ITEMS_PER_PAGE;
     const paginatedVersions = filteredVersions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
@@ -451,151 +442,101 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
 
   const selectedStep = activeJob?.steps.find((step) => step.key === selectedLogStepKey) ?? null;
   const terminalContent = resolveBuildJobTerminalContent(activeJob, selectedStep, activeJobLog);
-  const terminalBadge = activeJobLog?.step ?? selectedLogStepKey ?? activeJob?.currentStep ?? 'status';
   const historyTerminalContent = resolveBuildJobTerminalContent(historyActiveJob, historySelectedStep, historyJobLog);
-  const activeJobProgress =
-    activeJob && ['queued', 'running'].includes(activeJob.status) && Number.isFinite(activeJob.progressPercent)
-      ? Math.max(0, Math.min(100, activeJob.progressPercent))
-      : null;
+  const buildLogDialogOpen = buildProgressDialogOpen || historyDrawerOpen;
+  const isActiveBuildLogDialog = buildProgressDialogOpen;
+  const buildLogJob = isActiveBuildLogDialog ? activeJob : historyActiveJob;
+  const buildLogVersionLabel = isActiveBuildLogDialog ? activeJob?.version ?? null : historyVersion?.version ?? null;
+  const buildLogSelectedStepKey = isActiveBuildLogDialog ? selectedLogStepKey : historyStepKey;
+  const buildLogTerminalContent = isActiveBuildLogDialog ? terminalContent : historyTerminalContent;
+  const buildLogTerminalBadge = isActiveBuildLogDialog
+    ? activeJobLog?.step ?? selectedLogStepKey ?? activeJob?.currentStep ?? 'status'
+    : historyJobLog?.step ?? historyStepKey ?? historyActiveJob?.currentStep ?? 'status';
+
+  if (productMissing && !loading) {
+    return (
+      <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
+        <h2 className="text-2xl font-bold">产品不存在</h2>
+        <Button type="button" variant="link" onClick={() => router.push('/admin')}>
+          返回列表
+        </Button>
+      </div>
+    );
+  }
 
   return (
     <>
-      <StandardTablePage
-        title={productDetail?.name ?? productKey}
-        description="当前页面只管理该产品的版本。上传、预览、下载、默认版本切换、下线和删除都在此完成。"
-        tableTitle="版本列表"
-        tableDescription="关键词支持按版本号、标题、备注和状态过滤。"
-        searchValue={search}
-        onSearchChange={setSearch}
-        searchPlaceholder="搜索版本号、标题或状态"
-        headerActions={
-          <>
-            <Button type="button" variant="secondary" onClick={() => router.push('/admin')}>
-              <ArrowLeft />
-              返回产品列表
-            </Button>
-            <Button type="button" onClick={() => setUploadDialogOpen(true)}>
-              <Upload />
-              上传版本
-            </Button>
-          </>
-        }
-        contentClassName="space-y-0"
-      >
-        <div className="space-y-4 border-b border-[color:var(--border)] px-6 py-4">
-          <div className="flex flex-wrap items-center gap-3 text-sm">
-            <div className="inline-flex min-w-0 items-center gap-2 rounded-full border border-[color:var(--border)] bg-slate-50 px-3 py-1.5 text-slate-600">
-              <Package2 className="size-3.5 shrink-0" />
-              <span className="max-w-[min(64vw,420px)] truncate font-mono text-[12px]" title={productDetail?.key ?? productKey}>
-                {productDetail?.key ?? productKey}
-              </span>
-            </div>
-            <div className="text-slate-500">
-              创建时间：{productDetail ? formatDateTime(productDetail.createdAt) : '—'}
-            </div>
-            <div className="text-slate-500">
-              已发布版本：<span className="font-semibold text-slate-900">{productDetail?.publishedCount ?? 0}</span>
-            </div>
-            {productDetail?.description ? (
-              <div className="max-w-[min(72vw,640px)] truncate text-slate-500" title={productDetail.description}>
-                {productDetail.description}
-              </div>
-            ) : null}
+      <div className="space-y-6">
+        <div className="flex items-center gap-4">
+          <Button type="button" variant="ghost" size="icon" onClick={() => router.push('/admin')}>
+            <ArrowLeft className="h-4 w-4" />
+          </Button>
+          <div>
+            <h2 className="text-2xl font-bold tracking-tight">{productDetail?.name ?? productKey}</h2>
+            <p className="text-muted-foreground">Key: {productDetail?.key ?? productKey}</p>
           </div>
+        </div>
 
-          {activeJob ? (
-            <div
-              className={`rounded-[14px] border px-4 py-3 ${
-                ['queued', 'running'].includes(activeJob.status)
-                  ? 'border-sky-200 bg-sky-50/80 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.1)]'
-                  : 'border-[color:var(--border)] bg-slate-50/70'
-              }`}
-            >
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex min-w-0 items-center gap-2">
-                  <StatusChip
-                    status={activeJob.status === 'queued' ? 'running' : activeJob.status}
-                    label={getVersionStatusLabel(activeJob.status)}
-                    className={['queued', 'running'].includes(activeJob.status) ? 'ring-1 ring-sky-300/60' : undefined}
-                  />
-                  {['queued', 'running'].includes(activeJob.status) ? (
-                    <CircleDashed className="size-4 animate-spin text-sky-500" />
-                  ) : null}
-                  <span className="text-xs text-slate-500">当前任务版本</span>
-                  <span className="max-w-[min(40vw,320px)] truncate font-mono text-sm text-slate-800" title={activeJob.version}>
-                    {activeJob.version}
-                  </span>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-slate-500">{formatDateTime(activeJob.createdAt)}</span>
-                  <Button type="button" size="sm" variant="secondary" onClick={() => setBuildProgressDialogOpen(true)}>
-                    查看进度
+        <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
+          <div className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
+            <div className="flex flex-col space-y-1.5">
+              <h3 className="font-semibold leading-none tracking-tight">版本列表</h3>
+              <p className="text-sm text-muted-foreground">管理该产品的所有原型版本</p>
+            </div>
+            <Button type="button" onClick={() => setUploadDialogOpen(true)}>
+              <Upload className="mr-2 h-4 w-4" />
+              上传新版本
+            </Button>
+          </div>
+          <div className="p-6 pt-0">
+            {loading && !productDetail ? (
+              <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-[color:var(--border)] bg-slate-50/80 px-4 text-sm text-slate-500">
+                正在加载版本列表...
+              </div>
+            ) : (
+              <VersionListContent
+                versions={paginatedVersions}
+                onHistory={openBuildHistory}
+                onDownload={(item) => triggerVersionDownload(item.id)}
+                onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
+                onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
+                onDelete={setVersionToDelete}
+              />
+            )}
+
+            {filteredVersions.length ? (
+              <div className="flex items-center justify-end space-x-2 py-4">
+                <div className="flex-1 text-sm text-muted-foreground">共 {filteredVersions.length} 个版本</div>
+                <div className="space-x-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVersionPage((current) => Math.max(1, current - 1))}
+                    disabled={currentVersionPage === 1}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                    上一页
+                  </Button>
+                  <div className="inline-flex items-center justify-center px-2 text-sm font-medium">
+                    {currentVersionPage} / {totalVersionPages}
+                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setVersionPage((current) => Math.min(totalVersionPages, current + 1))}
+                    disabled={currentVersionPage >= totalVersionPages}
+                  >
+                    下一页
+                    <ChevronRight className="h-4 w-4" />
                   </Button>
                 </div>
               </div>
-              {activeJobProgress !== null ? (
-                <div className="mt-3 space-y-1.5">
-                  <div className="flex items-center justify-between text-xs text-slate-600">
-                    <span>构建进度</span>
-                    <span className="font-semibold text-slate-900">{activeJobProgress}%</span>
-                  </div>
-                  <Progress value={activeJobProgress} className="h-2.5" />
-                </div>
-              ) : null}
-              {activeJob.logSummary ? (
-                <p className="mt-2 truncate text-xs text-slate-600" title={activeJob.logSummary}>
-                  {activeJob.logSummary}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
-
-        <div className="space-y-4 px-6 py-5">
-          {loading && !productDetail ? (
-            <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-[color:var(--border)] bg-slate-50/80 px-4 text-sm text-slate-500">
-              正在加载版本列表...
-            </div>
-          ) : (
-            <VersionListContent
-              versions={paginatedVersions}
-              onHistory={openBuildHistory}
-              onDownload={(item) => triggerVersionDownload(item.id)}
-              onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
-              onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
-              onDelete={setVersionToDelete}
-            />
-          )}
-
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <div className="text-sm text-slate-500">
-              共 {filteredVersions.length} 条，当前第 {currentVersionPage} / {totalVersionPages} 页
-            </div>
-            <div className="flex items-center gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setVersionPage((current) => Math.max(1, current - 1))}
-                disabled={currentVersionPage === 1}
-              >
-                <ChevronLeft />
-                上一页
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setVersionPage((current) => Math.min(totalVersionPages, current + 1))}
-                disabled={currentVersionPage >= totalVersionPages}
-              >
-                下一页
-                <ChevronRight />
-              </Button>
-            </div>
+            ) : null}
           </div>
         </div>
-      </StandardTablePage>
+      </div>
 
       <UploadVersionDialog
         open={uploadDialogOpen}
@@ -629,35 +570,29 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
         onSubmit={uploadVersion}
       />
 
-      <BuildProgressDialog
-        open={buildProgressDialogOpen}
-        onOpenChange={setBuildProgressDialogOpen}
-        activeJob={activeJob}
-        selectedLogStepKey={selectedLogStepKey}
-        terminalBadge={terminalBadge}
-        terminalContent={terminalContent}
-        terminalEmptyText={getTerminalEmptyText(activeJob)}
-        onSelectStep={(stepKey) => {
-          setSelectedLogStepKey(stepKey);
-          setIsLogStepPinned(true);
-        }}
-      />
-
       <BuildHistoryDrawer
-        open={historyDrawerOpen}
+        open={buildLogDialogOpen}
         onOpenChange={(open) => {
-          setHistoryDrawerOpen(open);
           if (!open) {
+            setBuildProgressDialogOpen(false);
+            setHistoryDrawerOpen(false);
             setHistoryVersion(null);
             setHistoryStepKey(null);
             setHistoryJobLog(null);
           }
         }}
-        versionLabel={historyVersion?.version ?? null}
-        activeJob={historyActiveJob}
-        selectedLogStepKey={historyStepKey}
-        terminalContent={historyTerminalContent}
+        versionLabel={buildLogVersionLabel}
+        activeJob={buildLogJob}
+        selectedLogStepKey={buildLogSelectedStepKey}
+        terminalBadge={buildLogTerminalBadge}
+        terminalContent={buildLogTerminalContent}
         onSelectStep={(stepKey) => {
+          if (isActiveBuildLogDialog) {
+            setSelectedLogStepKey(stepKey);
+            setIsLogStepPinned(true);
+            return;
+          }
+
           setHistoryStepKey(stepKey);
         }}
       />

@@ -1,15 +1,15 @@
 'use client';
 
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { Layers3, Menu } from 'lucide-react';
 
-import { LanguageSwitcher } from '@/components/layout/language-switcher';
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { UserNav } from '@/components/layout/user-nav';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
+import { getBrowserStorage, readLanguagePreference, type AppLanguage } from '@/lib/ui/app-preferences';
 import { appNavigationItems } from '@/lib/ui/navigation';
 import { cn } from '@/lib/utils';
 
@@ -17,8 +17,28 @@ interface WorkspaceShellProps {
   children: ReactNode;
 }
 
+const navigationLabelMap: Record<AppLanguage, Record<(typeof appNavigationItems)[number]['href'], string>> = {
+  zh: {
+    '/admin': '原型管理',
+    '/preview': '原型预览',
+    '/users': '用户',
+    '/settings': '设置',
+  },
+  en: {
+    '/admin': 'Prototypes',
+    '/preview': 'Previews',
+    '/users': 'Users',
+    '/settings': 'Settings',
+  },
+};
+
 export function WorkspaceShell({ children }: WorkspaceShellProps) {
   const pathname = usePathname();
+  const [language, setLanguage] = useState<AppLanguage>('zh');
+
+  useEffect(() => {
+    setLanguage(readLanguagePreference(getBrowserStorage()));
+  }, []);
 
   const renderNav = () => (
     <>
@@ -27,7 +47,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
           <div className="flex size-8 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <Layers3 className="size-4" />
           </div>
-          <span className="text-base tracking-tight">Prototype Manage Tool</span>
+          <span className="text-lg tracking-tight">Admin Pro</span>
         </Link>
       </div>
       <div className="flex-1 overflow-auto py-4">
@@ -35,6 +55,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
           {appNavigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.match(pathname);
+            const resolvedNavigationLabel = navigationLabelMap[language][item.href] ?? item.label;
 
             return (
               <Link
@@ -46,7 +67,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
                 )}
               >
                 <Icon className="size-4" />
-                {item.label}
+                {resolvedNavigationLabel}
               </Link>
             );
           })}
@@ -74,7 +95,6 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
 
           <div className="flex flex-1 items-center gap-4 md:ml-auto md:gap-2 lg:gap-4">
             <div className="ml-auto flex-1 sm:flex-initial" />
-            <LanguageSwitcher />
             <ThemeToggle />
             <UserNav />
           </div>

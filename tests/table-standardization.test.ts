@@ -8,20 +8,21 @@ const versionListSource = readFileSync(new URL('../components/admin/version-list
 const historyDrawerSource = readFileSync(new URL('../components/admin/build-history-drawer.tsx', import.meta.url), 'utf8');
 
 describe('table page standardization', () => {
-  test('turns the preview list into a standard page with product cards, per-card version switching, and preview actions', () => {
-    expect(previewListSource).toContain('<StandardTablePage');
-    expect(previewListSource).toContain('grid gap-6 sm:grid-cols-2 xl:grid-cols-3');
+  test('turns the preview list into a prototype-aligned card page without the generic standard page wrapper', () => {
+    expect(previewListSource).not.toContain('<StandardTablePage');
+    expect(previewListSource).toContain('grid gap-6 sm:grid-cols-2 lg:grid-cols-3');
     expect(previewListSource).toContain('PreviewViewerDialog');
     expect(previewListSource).toContain('buildPreviewStateHref');
-    expect(previewListSource).toContain('当前版本');
+    expect(previewListSource).not.toContain('当前版本');
+    expect(previewListSource).not.toContain('默认版本：');
+    expect(previewListSource).not.toContain('创建时间');
+    expect(previewListSource).not.toContain('StatusChip');
+    expect(previewListSource).not.toContain('复制链接');
+    expect(previewListSource).not.toContain('打开');
     expect(previewListSource).toContain('搜索产品名称或 Key');
     expect(previewListSource).toContain('<SelectTrigger');
-    expect(previewListSource).toContain('复制链接');
-    expect(previewListSource).toContain('复制链接');
-    expect(previewListSource).toContain('预览');
-    expect(previewListSource).toContain('打开');
-    expect(previewListSource).toContain('未找到匹配产品');
-    expect(previewListSource).toContain('暂无可预览产品');
+    expect(previewListSource).toContain('前往发布管理');
+    expect(previewListSource).toContain('暂无产品');
     expect(previewListSource).not.toContain('<Table');
   });
 
@@ -31,22 +32,25 @@ describe('table page standardization', () => {
     expect(adminListSource).toContain('详情');
     expect(adminListSource).toContain('删除');
     expect(adminListSource).toContain('创建产品');
+    expect(adminListSource).not.toContain('<StandardTablePage');
   });
 
   test('moves product detail management to a version table with upload dialog and history drawer', () => {
-    expect(adminDashboardSource).toContain('上传版本');
-    expect(adminDashboardSource).toContain('BuildProgressDialog');
+    expect(adminDashboardSource).toContain('上传新版本');
     expect(adminDashboardSource).toContain('UploadVersionDialog');
+    expect(adminDashboardSource).toContain('BuildHistoryDrawer');
+    expect(adminDashboardSource).not.toContain('<BuildProgressDialog');
+    expect(adminDashboardSource).not.toContain('<StandardTablePage');
     expect(adminDashboardSource).not.toContain('最近任务');
-    expect(adminDashboardSource).not.toContain("onClick={() => setHistoryDrawerOpen(true)}");
+    expect(adminDashboardSource).not.toContain('当前任务版本');
     expect(adminDashboardSource).not.toContain('删除产品');
   });
 
   test('adds version history to each version row and scopes the drawer to a single version', () => {
-    expect(versionListSource).toContain('历史');
+    expect(versionListSource).toContain('查看构建日志');
     expect(versionListSource).toContain('onHistory');
     expect(historyDrawerSource).toContain('versionLabel');
-    expect(historyDrawerSource).toContain('当前版本');
+    expect(historyDrawerSource).toContain('构建日志 -');
     expect(historyDrawerSource).toContain('该版本暂无可展示的构建过程');
     expect(versionListSource).toContain('DropdownMenu');
   });

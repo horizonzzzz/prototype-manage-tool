@@ -11,7 +11,8 @@ describe('upload dialog separation', () => {
     expect(uploadDialogSource).not.toContain('terminalContent');
   });
 
-  test('mounts a dedicated build progress dialog from the admin dashboard', () => {
-    expect(dashboardSource).toContain('BuildProgressDialog');
+  test('routes upload follow-up into the shared build log dialog from the admin dashboard', () => {
+    expect(dashboardSource).toContain('<BuildHistoryDrawer');
+    expect(dashboardSource).not.toContain('<BuildProgressDialog');
   });
 });

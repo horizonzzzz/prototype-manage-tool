@@ -82,6 +82,7 @@ export function serializeManifestProduct(product: Product & { versions: ProductV
   return {
     key: product.key,
     name: product.name,
+    description: product.description,
     defaultVersion: publishedVersions.find((item) => item.isDefault)?.version ?? latestVersion ?? null,
     createdAt: product.createdAt.toISOString(),
     versions: publishedVersions.map((item) => ({

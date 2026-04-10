@@ -7,6 +7,7 @@ function createManifestProduct(overrides: Partial<ManifestProduct> = {}): Manife
   return {
     key: 'crm',
     name: 'CRM',
+    description: 'CRM customer journey',
     defaultVersion: 'v1.0.0',
     createdAt: '2026-03-27T01:00:00.000Z',
     versions: [
@@ -38,8 +39,12 @@ describe('preview viewer state helpers', () => {
     expect(buildPreviewStateHref()).toBe('/preview');
   });
 
-  test('builds preview list href with product and version query state', () => {
-    expect(buildPreviewStateHref('crm', 'v1.2.0-beta_1')).toBe('/preview?product=crm&version=v1.2.0-beta_1');
+  test('builds preview viewer href with product path and version query state', () => {
+    expect(buildPreviewStateHref('crm', 'v1.2.0-beta_1')).toBe('/preview/crm?v=v1.2.0-beta_1');
+  });
+
+  test('builds preview viewer href with product path when version is omitted', () => {
+    expect(buildPreviewStateHref('crm')).toBe('/preview/crm');
   });
 
   test('resolves an exact viewer target when both product and version are valid', () => {

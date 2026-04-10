@@ -85,4 +85,9 @@ describe('preview selector overflow guards', () => {
   test('truncates selected version label inside selector trigger to protect card layout', () => {
     expect(previewListSource).toContain('<SelectValue className="block truncate text-left"');
   });
+
+  test('marks the default version explicitly in selector options', () => {
+    expect(previewListSource).toContain('version.isDefault');
+    expect(previewListSource).toContain('默认');
+  });
 });

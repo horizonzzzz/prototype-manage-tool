@@ -7,6 +7,7 @@ const products: ManifestProduct[] = [
   {
     key: 'crm-console',
     name: 'CRM Console',
+    description: 'CRM customer journey',
     defaultVersion: '1.0.0',
     createdAt: '2026-04-08T08:00:00.000Z',
     versions: [
@@ -33,6 +34,7 @@ const products: ManifestProduct[] = [
   {
     key: 'ops-console',
     name: 'Ops Console',
+    description: 'Ops dashboard',
     defaultVersion: '2.0.0',
     createdAt: '2026-04-08T09:00:00.000Z',
     versions: [

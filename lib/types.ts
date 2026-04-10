@@ -137,6 +137,7 @@ export type ProductVersionManifest = {
 export type ManifestProduct = {
   key: string;
   name: string;
+  description: string | null;
   defaultVersion: string | null;
   versions: ProductVersionManifest[];
   createdAt: string;

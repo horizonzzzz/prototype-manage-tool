@@ -22,14 +22,17 @@ describe('preview route migration', () => {
     expect(previewPageSource).toContain('PreviewProductList');
   });
 
-  test('uses query-driven preview viewer state from the preview list page', () => {
-    expect(previewPageSource).toContain('selectedProductKey');
-    expect(previewPageSource).toContain('selectedVersion');
-    expect(previewPageSource).not.toContain('redirect(buildPreviewHref(product, version))');
+  test('keeps the preview entry page as a pure list surface without list-query modal state', () => {
+    expect(previewPageSource).not.toContain('selectedProductKey');
+    expect(previewPageSource).not.toContain('selectedVersion');
+    expect(previewPageSource).not.toContain('product=');
+    expect(previewPageSource).not.toContain('version=');
   });
 
-  test('redirects legacy nested preview routes into preview list query state', () => {
+  test('uses dedicated standalone viewer route canonicalization', () => {
     expect(previewProductRouteSource).toContain('buildPreviewStateHref');
+    expect(previewProductRouteSource).toContain('searchParams');
+    expect(previewProductRouteSource).not.toContain("redirect('/preview?product=");
     expect(previewVersionRouteSource).toContain('buildPreviewStateHref');
   });
 });

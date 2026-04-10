@@ -44,7 +44,7 @@ describe('VersionListContent', () => {
     expect(markup).not.toContain('2026-03-27T01:00:00.000Z');
   });
 
-  test('renders a compact history action plus overflow menu without forcing page overflow', () => {
+  test('renders the prototype-aligned version table without the title-remark compound column', () => {
     const version = createVersion();
     const markup = renderToStaticMarkup(
       React.createElement(VersionListContent, {
@@ -60,10 +60,9 @@ describe('VersionListContent', () => {
     expect(markup).not.toContain('overflow-x-auto');
     expect(markup).not.toContain('min-w-[1120px]');
     expect(markup).toContain('table-fixed');
-    expect(markup).toContain('w-[18%]');
-    expect(markup).toContain('whitespace-normal break-all text-[11px] leading-4');
+    expect(markup).not.toContain('标题 / 备注');
+    expect(markup).not.toContain('最新记录');
     expect(markup).toContain('flex items-center gap-1');
-    expect(markup).toContain('h-8 rounded-md px-2 text-[11px] gap-1');
     expect(markup).not.toContain('设默认');
     expect(markup).not.toContain('下线');
   });

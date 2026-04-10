@@ -20,11 +20,11 @@ type PreviewViewerDialogProps = {
 };
 
 const deviceShellClasses: Record<PreviewDevice, string> = {
-  desktop: 'h-full w-full rounded-[28px] border border-slate-200 bg-white shadow-[0_32px_80px_rgba(15,23,42,0.14)]',
+  desktop: 'w-full h-full rounded-none border-0',
   tablet:
-    'aspect-[3/4] h-[min(78vh,960px)] rounded-[32px] border-[10px] border-slate-900 bg-white shadow-[0_36px_90px_rgba(15,23,42,0.26)]',
+    'w-[768px] h-[1024px] border-8 border-slate-800 rounded-3xl shadow-2xl overflow-hidden',
   mobile:
-    'aspect-[390/844] h-[min(78vh,820px)] rounded-[40px] border-[12px] border-slate-900 bg-white shadow-[0_40px_90px_rgba(15,23,42,0.3)]',
+    'w-[375px] h-[812px] border-[12px] border-slate-800 rounded-[3rem] shadow-2xl overflow-hidden',
 };
 
 export function PreviewViewerDialog({
@@ -49,10 +49,10 @@ export function PreviewViewerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideClose
-        className="h-[calc(100vh-1rem)] w-[calc(100vw-1rem)] max-h-none max-w-none gap-0 overflow-hidden rounded-[28px] p-0"
+        className="top-0 left-0 h-screen w-screen max-h-none max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none p-0"
       >
-        <div className="flex min-h-0 h-full flex-col bg-[linear-gradient(180deg,#f8fafc_0%,#eef2ff_48%,#e2e8f0_100%)]">
-          <div className="flex items-center justify-between gap-4 border-b border-slate-200/80 bg-white/88 px-4 py-3 backdrop-blur md:px-5">
+        <div className="flex h-full w-full flex-col bg-slate-100 overflow-hidden">
+          <div className="flex h-14 items-center justify-between border-b bg-white px-4 shadow-sm shrink-0 z-10">
             <div className="flex min-w-0 items-center gap-3">
               <Button type="button" variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
                 <X />
@@ -67,12 +67,12 @@ export function PreviewViewerDialog({
             </div>
 
             <div className="flex items-center gap-2">
-              <div className="hidden items-center gap-1 rounded-xl border border-slate-200 bg-slate-100/90 p-1 md:flex">
+              <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
                 <Button
                   type="button"
                   variant={device === 'desktop' ? 'secondary' : 'ghost'}
                   size="icon"
-                  className="size-8 rounded-lg"
+                  className="h-8 w-8"
                   onClick={() => setDevice('desktop')}
                 >
                   <Monitor />
@@ -82,7 +82,7 @@ export function PreviewViewerDialog({
                   type="button"
                   variant={device === 'tablet' ? 'secondary' : 'ghost'}
                   size="icon"
-                  className="size-8 rounded-lg"
+                  className="h-8 w-8"
                   onClick={() => setDevice('tablet')}
                 >
                   <Tablet />
@@ -92,7 +92,7 @@ export function PreviewViewerDialog({
                   type="button"
                   variant={device === 'mobile' ? 'secondary' : 'ghost'}
                   size="icon"
-                  className="size-8 rounded-lg"
+                  className="h-8 w-8"
                   onClick={() => setDevice('mobile')}
                 >
                   <Smartphone />
@@ -107,7 +107,7 @@ export function PreviewViewerDialog({
             </div>
           </div>
 
-          <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.9)_0,rgba(255,255,255,0.55)_32%,transparent_72%),radial-gradient(#cbd5e1_0.8px,transparent_0.8px)] [background-size:100%_100%,18px_18px] p-3 md:p-6">
+          <div className="flex flex-1 items-center justify-center overflow-auto p-4 md:p-8 bg-slate-100/50 bg-[radial-gradient(#e5e7eb_1px,transparent_1px)] [background-size:16px_16px]">
             <div className={cn('relative shrink-0 overflow-hidden', deviceShellClasses[device])}>
               {targetUrl ? (
                 <iframe

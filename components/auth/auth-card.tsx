@@ -10,17 +10,26 @@ interface AuthCardProps {
   footerText: string;
   footerActionLabel: string;
   footerActionHref: string;
+  brandTitle?: string;
   children: ReactNode;
 }
 
-export function AuthCard({ title, description, footerText, footerActionLabel, footerActionHref, children }: AuthCardProps) {
+export function AuthCard({
+  title,
+  description,
+  footerText,
+  footerActionLabel,
+  footerActionHref,
+  brandTitle = 'Prototype Management System',
+  children,
+}: AuthCardProps) {
   return (
     <div className="flex w-full max-w-sm flex-col gap-6">
       <div className="flex flex-col items-center gap-2 text-center">
         <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <Layers3 className="size-6" />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight">Prototype Manage Tool</h1>
+        <h1 className="text-2xl font-bold tracking-tight">{brandTitle}</h1>
       </div>
 
       <Card>

@@ -12,12 +12,13 @@ export function buildPreviewStateHref(productKey?: string, version?: string) {
     return '/preview';
   }
 
-  const searchParams = new URLSearchParams({ product: productKey });
+  const searchParams = new URLSearchParams();
   if (version) {
-    searchParams.set('version', version);
+    searchParams.set('v', version);
   }
 
-  return `/preview?${searchParams.toString()}`;
+  const query = searchParams.toString();
+  return query ? `/preview/${productKey}?${query}` : `/preview/${productKey}`;
 }
 
 export function resolvePreviewViewerState(
