@@ -7,9 +7,11 @@ An open-source, self-hosted platform for publishing and previewing frontend prot
 ## Features
 
 - Prototype-style workspace shell with sidebar navigation and top-bar theme/language controls across preview and admin surfaces
+- Visual fidelity aligned with the approved local prototype source, including calmer shadcn-style cards, tables, dialogs, and auth pages
 - Unified preview center at `/preview` with card-based product/version selection and published-version switching
 - Admin workspace at `/admin` with paginated product/version management, upload controls, build-job monitoring, default/offline actions, and delete operations
 - Placeholder routes at `/login`, `/register`, `/users`, and `/settings` reserved for future auth and account-management integration
+- Theme switching exposed as `light` / `dark` / `system` while staying local-only in this phase
 - API routes for products, versions, manifest resolution, build job status, and preview routing
 - Filesystem-based publishing under `/prototypes/*`
 - Remote MCP endpoint at `POST /api/mcp` so agents can inspect published source snapshots directly

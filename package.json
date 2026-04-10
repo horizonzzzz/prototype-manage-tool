@@ -20,6 +20,7 @@
     "backfill:source-snapshots": "tsx scripts/backfill-source-snapshots.ts"
   },
   "dependencies": {
+    "@fontsource-variable/geist": "^5.2.8",
     "@hookform/resolvers": "^5.2.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@prisma/client": "^6.0.0",

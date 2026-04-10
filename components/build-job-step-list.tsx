@@ -24,7 +24,7 @@ function getStatusClasses(status: string, selected: boolean) {
     return {
       shell: cn(selected ? 'opacity-100 ring-2 ring-sky-100' : 'opacity-100', 'border-sky-200/70 bg-sky-50/70'),
       dot: 'border-sky-200 bg-[radial-gradient(circle_at_center,#3b82f6_36%,rgba(59,130,246,0.18)_38%),linear-gradient(90deg,rgba(37,99,235,0.2),rgba(96,165,250,0.1))]',
-      title: 'text-[var(--primary-strong)]',
+      title: 'text-blue-700',
     };
   }
 
@@ -39,7 +39,7 @@ function getStatusClasses(status: string, selected: boolean) {
   return {
     shell: cn(selected ? 'opacity-100 ring-2 ring-sky-100/80' : 'opacity-65', 'border-transparent bg-transparent'),
     dot: 'border-slate-300 bg-transparent',
-    title: selected ? 'text-[var(--primary-strong)]' : 'text-slate-900',
+    title: selected ? 'text-blue-700' : 'text-slate-900',
   };
 }
 

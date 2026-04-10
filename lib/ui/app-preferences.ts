@@ -3,7 +3,7 @@ import { isWorkspaceNavigationRoute } from '@/lib/ui/navigation';
 export const APP_THEME_STORAGE_KEY = 'prototype-manage-tool.theme';
 export const APP_LANGUAGE_STORAGE_KEY = 'prototype-manage-tool.language';
 
-export type AppTheme = 'light' | 'dark';
+export type AppTheme = 'light' | 'dark' | 'system';
 export type AppLanguage = 'zh' | 'en';
 export type StorageProvider = Pick<Storage, 'getItem' | 'setItem'>;
 
@@ -15,11 +15,15 @@ function matchesRoutePrefix(pathname: string, prefix: string) {
 
 export function normalizeThemePreference(preference: string | null | undefined): AppTheme {
   if (typeof preference !== 'string') {
-    return 'light';
+    return 'system';
   }
 
   const value = preference.trim().toLowerCase();
-  return value === 'dark' ? 'dark' : 'light';
+  if (value === 'dark' || value === 'light' || value === 'system') {
+    return value;
+  }
+
+  return 'system';
 }
 
 export function normalizeLanguagePreference(preference: string | null | undefined): AppLanguage {

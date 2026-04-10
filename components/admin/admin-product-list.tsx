@@ -55,7 +55,7 @@ export function AdminProductList({
         ) : null
       }
     >
-      <div className="overflow-hidden rounded-b-[18px]">
+      <div className="overflow-hidden rounded-md border">
         <Table className="table-fixed">
           <TableHeader>
             <TableRow className="hover:bg-transparent">
@@ -77,8 +77,8 @@ export function AdminProductList({
             ) : null}
             {!loading && !products.length ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-36 px-6 py-8">
-                  <div className="flex flex-col items-center justify-center gap-4 text-sm text-slate-500">
+                <TableCell colSpan={6} className="h-24 text-center text-muted-foreground">
+                  <div className="flex flex-col items-center justify-center gap-3 text-sm text-muted-foreground">
                     <span>{hasSearch ? '未找到匹配的产品，请调整搜索关键词。' : '暂无产品，请先创建产品。'}</span>
                     {hasSearch ? (
                       <Button type="button" size="sm" variant="secondary" onClick={() => onSearchChange('')}>
@@ -98,19 +98,19 @@ export function AdminProductList({
             {!loading
               ? products.map((item) => (
                   <TableRow key={item.id}>
-                    <TableCell className="font-semibold text-slate-900">{item.name}</TableCell>
+                    <TableCell className="font-medium">{item.name}</TableCell>
                     <TableCell>
-                      <span className="inline-flex max-w-[180px] rounded-full border border-[color:var(--border)] bg-slate-50 px-3 py-1 font-mono text-[12px] text-slate-600">
+                      <span className="inline-flex max-w-[120px] truncate rounded-full border bg-slate-50 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
                         <span className="truncate" title={item.key}>
                           {item.key}
                         </span>
                       </span>
                     </TableCell>
-                    <TableCell className="text-sm leading-6 break-words text-slate-500">{item.description || '暂无描述'}</TableCell>
-                    <TableCell className="font-medium text-slate-900">{item.publishedCount}</TableCell>
-                    <TableCell className="text-xs leading-5 text-slate-500">{formatDateTime(item.createdAt)}</TableCell>
+                    <TableCell className="text-muted-foreground">{item.description || '暂无描述'}</TableCell>
+                    <TableCell>{item.publishedCount}</TableCell>
+                    <TableCell className="text-muted-foreground">{formatDateTime(item.createdAt)}</TableCell>
                     <TableCell>
-                      <div className="flex flex-wrap gap-2">
+                      <div className="flex items-center gap-2">
                         <Button type="button" size="sm" variant="secondary" onClick={() => onOpenDetail(item.key)}>
                           <Eye />
                           详情
@@ -127,14 +127,14 @@ export function AdminProductList({
           </TableBody>
         </Table>
 
-        <div className="flex flex-col gap-3 border-t border-[color:var(--border)] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="text-sm text-slate-500">共 {totalCount} 条记录</div>
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-end space-x-2 py-4">
+          <div className="flex-1 text-sm text-muted-foreground">共 {totalCount} 条记录</div>
+          <div className="space-x-2">
             <Button type="button" variant="outline" size="sm" disabled={isPrevDisabled} onClick={() => onPageChange(page - 1)}>
               <ChevronLeft />
               上一页
             </Button>
-            <div className="min-w-[88px] text-center text-sm font-medium text-slate-700">
+            <div className="inline-flex items-center justify-center px-2 text-sm font-medium">
               {page} / {totalPages}
             </div>
             <Button type="button" variant="outline" size="sm" disabled={isNextDisabled} onClick={() => onPageChange(page + 1)}>

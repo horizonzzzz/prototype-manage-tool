@@ -13,23 +13,23 @@ export default function LoginPage() {
 
   return (
     <AuthCard
-      title="登录演示账号"
-      description="当前为占位认证流程，提交后会进入工作台。"
-      footerText="还没有演示账号？"
-      footerActionLabel="去注册"
+      title="登录"
+      description="输入演示账号信息后进入工作台。"
+      footerText="还没有账号？"
+      footerActionLabel="注册"
       footerActionHref="/register"
     >
       <form action={enterWorkspace} className="grid gap-4">
         <div className="grid gap-2">
           <Label htmlFor="login-email">邮箱</Label>
-          <Input id="login-email" type="email" placeholder="demo@example.com" autoComplete="email" />
+          <Input id="login-email" type="email" placeholder="m@example.com" autoComplete="email" />
         </div>
         <div className="grid gap-2">
           <Label htmlFor="login-password">密码</Label>
-          <Input id="login-password" type="password" placeholder="••••••••" autoComplete="current-password" />
+          <Input id="login-password" type="password" autoComplete="current-password" />
         </div>
         <Button type="submit" className="w-full">
-          进入工作台
+          登录
         </Button>
       </form>
     </AuthCard>

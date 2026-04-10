@@ -17,14 +17,14 @@ function SelectTrigger({ className, children, ...props }: React.ComponentProps<t
     <SelectPrimitive.Trigger
       data-slot="select-trigger"
       className={cn(
-        'flex h-11 w-full items-center justify-between gap-2 rounded-xl border border-[color:var(--border-strong)] bg-[color:var(--secondary)] px-3 text-sm text-[color:var(--foreground)] shadow-[var(--shadow-soft)] outline-none transition placeholder:text-[color:var(--muted-foreground)] focus-visible:border-[color:var(--ring)] focus-visible:ring-4 focus-visible:ring-[color:color-mix(in_srgb,var(--ring)_18%,transparent)] disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:shrink-0',
+        'flex h-8 w-fit items-center justify-between gap-1.5 rounded-lg border border-input bg-transparent py-2 pr-2 pl-2.5 text-sm whitespace-nowrap outline-none transition-colors focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 data-[placeholder]:text-muted-foreground dark:bg-input/30 dark:hover:bg-input/50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
         className,
       )}
       {...props}
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <ChevronDown className="size-4 text-[color:var(--muted-foreground)]" />
+        <ChevronDown className="pointer-events-none size-4 text-muted-foreground" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -36,7 +36,7 @@ function SelectContent({ className, children, position = 'popper', ...props }: R
       <SelectPrimitive.Content
         data-slot="select-content"
         className={cn(
-          'z-50 min-w-[8rem] overflow-hidden rounded-2xl border border-[color:var(--border-strong)] bg-[color:var(--card)] text-[color:var(--foreground)] shadow-[0_20px_45px_rgba(15,23,42,0.12)] backdrop-blur',
+          'relative z-50 max-h-[var(--radix-select-content-available-height)] min-w-36 overflow-hidden rounded-lg bg-popover text-popover-foreground shadow-md ring-1 ring-foreground/10',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
           className,
@@ -65,7 +65,7 @@ function SelectItem({ className, children, ...props }: React.ComponentProps<type
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'relative flex w-full cursor-default select-none items-center rounded-xl py-2 pr-8 pl-3 text-sm text-[color:var(--foreground)] outline-none transition focus:bg-[color:var(--accent)] focus:text-[color:var(--foreground)] data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
+        'relative flex w-full cursor-default select-none items-center rounded-md py-1 pr-8 pl-1.5 text-sm outline-none transition focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50',
         className,
       )}
       {...props}

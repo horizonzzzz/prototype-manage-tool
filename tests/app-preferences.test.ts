@@ -24,8 +24,8 @@ describe('app preferences', () => {
     expect(normalizeThemePreference('light')).toBe('light');
     expect(normalizeThemePreference('dark')).toBe('dark');
     expect(normalizeThemePreference(' DARK ')).toBe('dark');
-    expect(normalizeThemePreference('system')).toBe('light');
-    expect(normalizeThemePreference(undefined)).toBe('light');
+    expect(normalizeThemePreference('system')).toBe('system');
+    expect(normalizeThemePreference(undefined)).toBe('system');
   });
 
   test('normalizes language preference to supported values', () => {
@@ -63,7 +63,7 @@ describe('app preferences', () => {
       },
     } as unknown as Storage;
 
-    expect(readThemePreference(blockedStorage)).toBe('light');
+    expect(readThemePreference(blockedStorage)).toBe('system');
     expect(readLanguagePreference(blockedStorage)).toBe('zh');
     expect(writeThemePreference(blockedStorage, 'dark')).toBe(false);
     expect(writeLanguagePreference(blockedStorage, 'en')).toBe(false);
@@ -80,7 +80,7 @@ describe('app preferences', () => {
       },
     } as Storage;
 
-    expect(readThemePreference(storageProvider)).toBe('light');
+    expect(readThemePreference(storageProvider)).toBe('system');
     expect(readLanguagePreference(storageProvider)).toBe('zh');
     expect(writeThemePreference(storageProvider, 'dark')).toBe(true);
     expect(writeLanguagePreference(storageProvider, 'en')).toBe(true);

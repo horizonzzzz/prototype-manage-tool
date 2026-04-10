@@ -57,8 +57,8 @@ describe('UI migration foundation', () => {
     expect(globalStyles).not.toMatch(/\.ant-[a-z0-9-]+/);
   });
 
-  test('uses tighter global radius tokens and adds pointer feedback for native buttons', () => {
-    expect(globalStyles).toContain('--radius: 0.875rem;');
+  test('uses prototype-aligned radius tokens and adds pointer feedback for native buttons', () => {
+    expect(globalStyles).toContain('--radius: 0.625rem;');
     expect(globalStyles).toContain('button:not(:disabled)');
     expect(globalStyles).toContain('cursor: pointer;');
   });

@@ -21,37 +21,31 @@ function DialogClose(props: React.ComponentProps<typeof DialogPrimitive.Close>) 
 }
 
 function DialogOverlay({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Overlay>) {
-  return (
-    <DialogPrimitive.Overlay
-      data-slot="dialog-overlay"
-      className={cn(
-        'fixed inset-0 z-50 bg-slate-950/28 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out',
-        className,
-      )}
-      {...props}
-    />
-  );
+  return <DialogPrimitive.Overlay data-slot="dialog-overlay" className={cn('fixed inset-0 z-50 bg-black/10 backdrop-blur-xs', className)} {...props} />;
 }
 
-function DialogContent({ className, children, hideClose, ...props }: React.ComponentProps<typeof DialogPrimitive.Content> & { hideClose?: boolean }) {
+function DialogContent({
+  className,
+  children,
+  hideClose,
+  ...props
+}: React.ComponentProps<typeof DialogPrimitive.Content> & { hideClose?: boolean }) {
   return (
     <DialogPortal>
       <DialogOverlay />
       <DialogPrimitive.Content
         data-slot="dialog-content"
         className={cn(
-          'fixed top-[50%] left-[50%] z-50 grid max-h-[calc(100vh-2rem)] w-[min(92vw,520px)] translate-x-[-50%] translate-y-[-50%] gap-5 overflow-y-auto rounded-[20px] border border-[color:var(--border-strong)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] p-6 shadow-[0_30px_80px_rgba(15,23,42,0.18)] duration-200',
+          'fixed top-1/2 left-1/2 z-50 grid max-h-[calc(100vh-2rem)] w-full max-w-[calc(100%-2rem)] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-xl bg-popover p-4 text-sm text-popover-foreground ring-1 ring-foreground/10 outline-none sm:max-w-sm',
           className,
         )}
         {...props}
       >
         {children}
         {hideClose ? null : (
-          <DialogPrimitive.Close
-            className="absolute top-4 right-4 inline-flex size-9 items-center justify-center rounded-full text-slate-400 transition hover:bg-slate-100 hover:text-slate-900"
-          >
+          <DialogPrimitive.Close className="absolute top-2 right-2 inline-flex size-8 items-center justify-center rounded-md hover:bg-muted">
             <X className="size-4" />
-            <span className="sr-only">关闭</span>
+            <span className="sr-only">Close</span>
           </DialogPrimitive.Close>
         )}
       </DialogPrimitive.Content>
@@ -60,28 +54,19 @@ function DialogContent({ className, children, hideClose, ...props }: React.Compo
 }
 
 function DialogHeader({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div className={cn('space-y-1', className)} {...props} />;
+  return <div data-slot="dialog-header" className={cn('flex flex-col gap-2', className)} {...props} />;
 }
 
 function DialogFooter({ className, ...props }: React.ComponentProps<'div'>) {
-  return <div className={cn('flex flex-col-reverse gap-3 sm:flex-row sm:justify-end', className)} {...props} />;
+  return <div data-slot="dialog-footer" className={cn('-mx-4 -mb-4 flex flex-col-reverse gap-2 rounded-b-xl border-t bg-muted/50 p-4 sm:flex-row sm:justify-end', className)} {...props} />;
 }
 
 function DialogTitle({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Title>) {
-  return <DialogPrimitive.Title className={cn('text-lg font-semibold text-slate-950', className)} {...props} />;
+  return <DialogPrimitive.Title data-slot="dialog-title" className={cn('text-base font-medium leading-none', className)} {...props} />;
 }
 
 function DialogDescription({ className, ...props }: React.ComponentProps<typeof DialogPrimitive.Description>) {
-  return <DialogPrimitive.Description className={cn('text-sm text-slate-500', className)} {...props} />;
+  return <DialogPrimitive.Description data-slot="dialog-description" className={cn('text-sm text-muted-foreground', className)} {...props} />;
 }
 
-export {
-  Dialog,
-  DialogClose,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-};
+export { Dialog, DialogClose, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogOverlay, DialogPortal, DialogTitle, DialogTrigger };
