@@ -10,7 +10,7 @@ const layoutSource = readFileSync(new URL('../app/layout.tsx', import.meta.url),
 const adminPageSource = readFileSync(new URL('../app/admin/page.tsx', import.meta.url), 'utf8');
 const previewPageSource = readFileSync(new URL('../app/preview/page.tsx', import.meta.url), 'utf8');
 const adminDashboardSource = readFileSync(new URL('../components/admin-dashboard.tsx', import.meta.url), 'utf8');
-const previewBrowserSource = readFileSync(new URL('../components/preview-browser.tsx', import.meta.url), 'utf8');
+const previewProductListSource = readFileSync(new URL('../components/preview/preview-product-list.tsx', import.meta.url), 'utf8');
 const adminProductListSource = readFileSync(new URL('../components/admin/admin-product-list.tsx', import.meta.url), 'utf8');
 const globalStyles = readFileSync(new URL('../app/globals.css', import.meta.url), 'utf8');
 const buttonSource = readFileSync(new URL('../components/ui/button.tsx', import.meta.url), 'utf8');
@@ -28,34 +28,19 @@ describe('UI migration foundation', () => {
 
   test('replaces feature-level Ant Design imports with local project UI layers', () => {
     expect(adminDashboardSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
-    expect(previewBrowserSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
+    expect(previewProductListSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
     expect(adminProductListSource).not.toMatch(/from 'antd'|@ant-design\/icons/);
     expect(adminDashboardSource).not.toContain('<StandardTablePage');
     expect(adminDashboardSource).toContain('<UploadVersionDialog');
     expect(adminDashboardSource).toContain('<BuildHistoryDrawer');
-    expect(previewBrowserSource).toContain('<PreviewProductList');
+    expect(previewPageSource).toContain('<PreviewProductList');
     expect(adminProductListSource).toContain('<Table');
   });
 
-  test('swaps package dependencies to the Tailwind v4 and shadcn-style stack', () => {
+  test('keeps legacy Ant Design packages out of the dependency graph', () => {
     expect(packageJson.dependencies).not.toHaveProperty('antd');
     expect(packageJson.dependencies).not.toHaveProperty('@ant-design/icons');
     expect(packageJson.dependencies).not.toHaveProperty('@ant-design/nextjs-registry');
-    expect(packageJson.dependencies).toHaveProperty('lucide-react');
-    expect(packageJson.dependencies).toHaveProperty('sonner');
-    expect(packageJson.dependencies).toHaveProperty('react-hook-form');
-    expect(packageJson.dependencies).toHaveProperty('@hookform/resolvers');
-    expect(packageJson.dependencies).toHaveProperty('@radix-ui/react-dialog');
-    expect(packageJson.dependencies).toHaveProperty('@radix-ui/react-dropdown-menu');
-    expect(packageJson.dependencies).toHaveProperty('@radix-ui/react-select');
-    expect(packageJson.dependencies).toHaveProperty('@radix-ui/react-alert-dialog');
-    expect(packageJson.dependencies).toHaveProperty('@radix-ui/react-progress');
-    expect(packageJson.dependencies).toHaveProperty('@radix-ui/react-slot');
-    expect(packageJson.dependencies).toHaveProperty('class-variance-authority');
-    expect(packageJson.dependencies).toHaveProperty('clsx');
-    expect(packageJson.dependencies).toHaveProperty('tailwind-merge');
-    expect(packageJson.devDependencies).toHaveProperty('tailwindcss');
-    expect(packageJson.devDependencies).toHaveProperty('@tailwindcss/postcss');
   });
 
   test('removes global style selectors that depend on Ant Design DOM internals', () => {

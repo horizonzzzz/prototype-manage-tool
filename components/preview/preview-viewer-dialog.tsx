@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import { ExternalLink, Monitor, Smartphone, Tablet, X } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
 import type { ProductVersionManifest } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -51,6 +51,10 @@ export function PreviewViewerDialog({
         hideClose
         className="top-0 left-0 h-screen w-screen max-h-none max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none p-0 sm:max-w-none"
       >
+        <DialogTitle className="sr-only">{title}</DialogTitle>
+        <DialogDescription className="sr-only">
+          {version ? `预览 ${title} 的 ${version.version} 版本。` : '预览当前产品的已发布原型。'}
+        </DialogDescription>
         <div className="flex h-full w-full flex-col bg-slate-100 overflow-hidden">
           <div className="flex h-14 items-center justify-between border-b bg-white px-4 shadow-sm shrink-0 z-10">
             <div className="flex min-w-0 items-center gap-3">

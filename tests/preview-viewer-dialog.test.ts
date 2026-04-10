@@ -17,5 +17,10 @@ describe('PreviewViewerDialog source', () => {
     expect(previewViewerDialogSource).not.toContain('md:flex');
     expect(previewViewerDialogSource).toContain("desktop: 'w-full h-full rounded-none border-0'");
   });
+
+  test('provides dialog title and description for radix accessibility requirements', () => {
+    expect(previewViewerDialogSource).toContain('DialogTitle');
+    expect(previewViewerDialogSource).toContain('DialogDescription');
+  });
 });
 

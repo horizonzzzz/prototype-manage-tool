@@ -73,8 +73,10 @@ When investigating behavior, start here:
   Preview manifest endpoint.
 - [components/admin-dashboard.tsx](/D:/Work/prototype-manage-tool/components/admin-dashboard.tsx)
   Main admin client surface.
-- [components/preview-browser.tsx](/D:/Work/prototype-manage-tool/components/preview-browser.tsx)
+- [components/preview/preview-product-list.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-product-list.tsx)
   Main preview client surface.
+- [components/preview/preview-viewer-dialog.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-viewer-dialog.tsx)
+  Owns the fullscreen preview dialog and device viewport switching.
 
 ## Data Model
 
@@ -130,7 +132,8 @@ Preview is driven by published versions and manifest resolution.
 Relevant files:
 
 - [app/preview/page.tsx](/D:/Work/prototype-manage-tool/app/preview/page.tsx)
-- [components/preview-browser.tsx](/D:/Work/prototype-manage-tool/components/preview-browser.tsx)
+- [components/preview/preview-product-list.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-product-list.tsx)
+- [components/preview/preview-viewer-dialog.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-viewer-dialog.tsx)
 - [lib/server/manifest-service.ts](/D:/Work/prototype-manage-tool/lib/server/manifest-service.ts)
 - [lib/domain/preview.ts](/D:/Work/prototype-manage-tool/lib/domain/preview.ts)
 - [app/prototypes/[...slug]/route.ts](/D:/Work/prototype-manage-tool/app/prototypes/[...slug]/route.ts)
@@ -259,7 +262,7 @@ If the task is about:
 - MCP connectivity or tool behavior: start in [app/api/mcp/route.ts](/D:/Work/prototype-manage-tool/app/api/mcp/route.ts) and [lib/server/prototype-mcp-server.ts](/D:/Work/prototype-manage-tool/lib/server/prototype-mcp-server.ts)
 - source read/search correctness: start in [lib/server/source-snapshot-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-snapshot-service.ts)
 - admin UI bugs: start in [components/admin-dashboard.tsx](/D:/Work/prototype-manage-tool/components/admin-dashboard.tsx) and `components/admin/*`
-- preview UI bugs: start in [components/preview-browser.tsx](/D:/Work/prototype-manage-tool/components/preview-browser.tsx)
+- preview UI bugs: start in [components/preview/preview-product-list.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-product-list.tsx) and [components/preview/preview-viewer-dialog.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-viewer-dialog.tsx)
 
 ## Known Non-Goals
 

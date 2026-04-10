@@ -7,8 +7,9 @@ An open-source, self-hosted platform for publishing and previewing frontend prot
 ## Features
 
 - Prototype-style workspace shell with sidebar navigation and top-bar theme/language controls across preview and admin surfaces
-- Visual fidelity aligned with the approved local prototype source, including calmer shadcn-style cards, tables, dialogs, and auth pages
+- Shared shadcn-style cards, tables, dialogs, auth pages, and placeholder pages aligned to the current workspace UI
 - Unified preview center at `/preview` with card-based product/version selection and published-version switching
+- Fullscreen preview dialog with desktop/tablet/mobile viewport toggles and deep-linkable `/preview/:product?v=:version` state
 - Admin workspace at `/admin` with paginated product/version management, upload controls, build-job monitoring, default/offline actions, and delete operations
 - Placeholder routes at `/login`, `/register`, `/users`, and `/settings` reserved for future auth and account-management integration
 - Theme switching exposed as `light` / `dark` / `system` while staying local-only in this phase
@@ -235,6 +236,8 @@ pnpm test
 pnpm typecheck
 pnpm build
 ```
+
+On Windows, `pnpm build` uses Next.js `output: 'standalone'` and may require Developer Mode or an elevated shell so symlink creation succeeds.
 
 ## Contributing
 
