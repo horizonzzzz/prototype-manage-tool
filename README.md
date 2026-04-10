@@ -6,8 +6,10 @@ An open-source, self-hosted platform for publishing and previewing frontend prot
 
 ## Features
 
-- Unified preview page at `/preview` for switching between products and published versions
-- Admin workspace at `/admin` for creating products, uploading prototype archives, monitoring build jobs, setting defaults, taking versions offline, and deleting records
+- Prototype-style workspace shell with sidebar navigation and top-bar theme/language controls across preview and admin surfaces
+- Unified preview center at `/preview` with card-based product/version selection and published-version switching
+- Admin workspace at `/admin` with paginated product/version management, upload controls, build-job monitoring, default/offline actions, and delete operations
+- Placeholder routes at `/login`, `/register`, `/users`, and `/settings` reserved for future auth and account-management integration
 - API routes for products, versions, manifest resolution, build job status, and preview routing
 - Filesystem-based publishing under `/prototypes/*`
 - Remote MCP endpoint at `POST /api/mcp` so agents can inspect published source snapshots directly
@@ -18,7 +20,8 @@ An open-source, self-hosted platform for publishing and previewing frontend prot
 
 - Next.js App Router
 - TypeScript
-- Ant Design
+- Tailwind CSS v4
+- shadcn/ui primitives
 - Prisma
 - SQLite
 - Local filesystem storage for published artifacts

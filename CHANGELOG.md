@@ -7,6 +7,10 @@ All notable release changes for `Prototype Manage Tool` are tracked here. GitHub
 ### Features
 
 - Added published source snapshots and remote MCP access at `POST /api/mcp` so agents can list products, resolve versions, browse source trees, read files, and search source text without downloading prototype archives first. (`4626a12`)
+- Rebuilt the workspace shell to match the new prototype-style admin experience with sidebar navigation and shared top-bar controls.
+- Added placeholder `login`, `register`, `users`, and `settings` routes to reserve integration points for future auth and account-management capabilities.
+- Added local theme and language preferences in the workspace shell without changing existing auth flow or locale routing contracts.
+- Restyled admin product/version management and preview pages around the approved high-fidelity prototype, including card-based preview center and paginated admin lists.
 
 ### Operations
 

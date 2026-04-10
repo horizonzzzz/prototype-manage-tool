@@ -8,14 +8,21 @@ const versionListSource = readFileSync(new URL('../components/admin/version-list
 const historyDrawerSource = readFileSync(new URL('../components/admin/build-history-drawer.tsx', import.meta.url), 'utf8');
 
 describe('table page standardization', () => {
-  test('turns the preview list into a standard table page with inline version switching and row actions', () => {
-    expect(previewListSource).toContain('<Table');
+  test('turns the preview list into a standard page with product cards, per-card version switching, and preview actions', () => {
+    expect(previewListSource).toContain('<StandardTablePage');
+    expect(previewListSource).toContain('grid gap-4 sm:grid-cols-2 xl:grid-cols-3');
+    expect(previewListSource).toContain('sm:flex-row');
+    expect(previewListSource).toContain('sm:w-[188px] sm:shrink-0');
     expect(previewListSource).toContain('当前版本');
     expect(previewListSource).toContain('搜索产品名称或 Key');
     expect(previewListSource).toContain('<SelectTrigger');
+    expect(previewListSource).toContain('<SelectValue className="block truncate text-left"');
     expect(previewListSource).toContain('复制链接');
     expect(previewListSource).toContain('预览');
-    expect(previewListSource).not.toContain('disabled />');
+    expect(previewListSource).toContain('打开');
+    expect(previewListSource).toContain('未找到匹配产品');
+    expect(previewListSource).toContain('暂无可预览产品');
+    expect(previewListSource).not.toContain('<Table');
   });
 
   test('turns the admin product list into a standard table page with detail and delete actions', () => {

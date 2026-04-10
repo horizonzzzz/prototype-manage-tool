@@ -1,7 +1,7 @@
 'use client';
 
 import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Package2, Upload } from 'lucide-react';
+import { ArrowLeft, ChevronLeft, ChevronRight, CircleDashed, Download, History, Package2, Power, Star, Trash2, Upload } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
@@ -10,9 +10,11 @@ import { toast } from 'sonner';
 import { BuildHistoryDrawer } from '@/components/admin/build-history-drawer';
 import { UploadVersionDialog } from '@/components/admin/upload-version-dialog';
 import { ConfirmDialog } from '@/components/confirm-dialog';
+import { StatusChip } from '@/components/status-chip';
 import { StandardTablePage } from '@/components/standard-table-page';
-import { VersionListContent } from '@/components/admin/version-list-content';
 import { Button } from '@/components/ui/button';
+import { Progress } from '@/components/ui/progress';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type UploadFormValues, uploadFormSchema } from '@/components/admin/form-schemas';
 import { getErrorMessage } from '@/lib/domain/error-message';
 import type {
@@ -25,6 +27,7 @@ import type {
   ProductVersionItem,
 } from '@/lib/types';
 import { formatDateTime } from '@/lib/ui/format';
+import { getVersionStatusLabel, isVersionActionEnabled, selectActiveBuildJob } from '@/lib/ui/product-detail-view';
 import {
   applyBuildJobLogStreamEvent,
   buildBuildJobLogStreamUrl,
@@ -63,6 +66,8 @@ function triggerVersionDownload(versionId: number) {
   link.remove();
 }
 
+const ITEMS_PER_PAGE = 10;
+
 export function AdminDashboard({ productKey }: { productKey: string }) {
   const router = useRouter();
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
@@ -73,6 +78,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const [selectedLogStepKey, setSelectedLogStepKey] = useState<BuildJobStepKey | null>(null);
   const [isLogStepPinned, setIsLogStepPinned] = useState(false);
   const [search, setSearch] = useState('');
+  const [versionPage, setVersionPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -115,6 +121,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const clearProductContext = () => {
     setProductDetail(null);
     setJobs([]);
+    setVersionPage(1);
     setActiveJobId(undefined);
     setActiveJob(null);
     setActiveJobLog(null);
@@ -128,13 +135,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
 
   const syncJobs = (nextJobs: BuildJobItem[]) => {
     setJobs(nextJobs);
-    if (!uploadDialogOpenRef.current && activeJobId === undefined) {
-      return;
-    }
-
-    const runningJob = nextJobs.find((item) => ['queued', 'running'].includes(item.status));
-    const fallbackJob = nextJobs[0];
-    const nextActive = runningJob ?? (activeJobId ? nextJobs.find((item) => item.id === activeJobId) : undefined) ?? fallbackJob;
+    const nextActive = selectActiveBuildJob(nextJobs, activeJobId);
 
     setActiveJobId(nextActive?.id);
     setActiveJob(nextActive ?? null);
@@ -305,6 +306,23 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     );
   }, [deferredSearch, productDetail]);
 
+  useEffect(() => {
+    setVersionPage(1);
+  }, [deferredSearch, productKey]);
+
+  const totalVersionPages = Math.max(1, Math.ceil(filteredVersions.length / ITEMS_PER_PAGE));
+
+  useEffect(() => {
+    setVersionPage((current) => Math.min(current, totalVersionPages));
+  }, [totalVersionPages]);
+
+  const currentVersionPage = Math.min(versionPage, totalVersionPages);
+  const paginatedVersions = useMemo(() => {
+    const startIndex = (currentVersionPage - 1) * ITEMS_PER_PAGE;
+    const paginatedVersions = filteredVersions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
+    return paginatedVersions;
+  }, [currentVersionPage, filteredVersions]);
+
   const historyActiveJob = useMemo(() => {
     if (!historyVersion) {
       return null;
@@ -373,6 +391,19 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     await fetchJson(url, { method: url.includes('/default') || url.includes('/offline') ? 'PATCH' : 'DELETE' });
     toast.success(successText);
     await refreshCurrent();
+  };
+
+  const openBuildHistory = (item: ProductVersionItem) => {
+    const scopedJobs = jobs.filter((job) => job.version === item.version);
+    setHistoryVersion(item);
+    setHistoryDrawerOpen(true);
+    if (scopedJobs.length) {
+      const nextActive = scopedJobs.find((job) => job.id === activeJobId) ?? scopedJobs[0];
+      setHistoryStepKey(getBuildJobLogStep(nextActive.currentStep));
+      return;
+    }
+
+    setHistoryStepKey(null);
   };
 
   const uploadVersion = uploadForm.handleSubmit(async (values) => {
@@ -445,6 +476,10 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const terminalContent = resolveBuildJobTerminalContent(activeJob, selectedStep, activeJobLog);
   const terminalBadge = activeJobLog?.step ?? selectedLogStepKey ?? activeJob?.currentStep ?? 'status';
   const historyTerminalContent = resolveBuildJobTerminalContent(historyActiveJob, historySelectedStep, historyJobLog);
+  const activeJobProgress =
+    activeJob && ['queued', 'running'].includes(activeJob.status) && Number.isFinite(activeJob.progressPercent)
+      ? Math.max(0, Math.min(100, activeJob.progressPercent))
+      : null;
 
   return (
     <>
@@ -470,38 +505,210 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
         }
         contentClassName="space-y-0"
       >
-        <div className="flex flex-wrap items-center gap-3 border-b border-[color:var(--border)] px-6 py-4 text-sm">
-          <div className="inline-flex items-center gap-2 rounded-full border border-[color:var(--border)] bg-slate-50 px-3 py-1.5 font-mono text-[12px] text-slate-600">
-            <Package2 className="size-3.5" />
-            {productDetail?.key ?? productKey}
+        <div className="space-y-4 border-b border-[color:var(--border)] px-6 py-4">
+          <div className="flex flex-wrap items-center gap-3 text-sm">
+            <div className="inline-flex min-w-0 items-center gap-2 rounded-full border border-[color:var(--border)] bg-slate-50 px-3 py-1.5 text-slate-600">
+              <Package2 className="size-3.5 shrink-0" />
+              <span className="max-w-[min(64vw,420px)] truncate font-mono text-[12px]" title={productDetail?.key ?? productKey}>
+                {productDetail?.key ?? productKey}
+              </span>
+            </div>
+            <div className="text-slate-500">
+              创建时间：{productDetail ? formatDateTime(productDetail.createdAt) : '—'}
+            </div>
+            <div className="text-slate-500">
+              已发布版本：<span className="font-semibold text-slate-900">{productDetail?.publishedCount ?? 0}</span>
+            </div>
+            {productDetail?.description ? (
+              <div className="max-w-[min(72vw,640px)] truncate text-slate-500" title={productDetail.description}>
+                {productDetail.description}
+              </div>
+            ) : null}
           </div>
-          <div className="text-slate-500">
-            创建时间：{productDetail ? formatDateTime(productDetail.createdAt) : '—'}
-          </div>
-          <div className="text-slate-500">
-            已发布版本：<span className="font-semibold text-slate-900">{productDetail?.publishedCount ?? 0}</span>
-          </div>
-          {productDetail?.description ? <div className="text-slate-500">{productDetail.description}</div> : null}
+
+          {activeJob ? (
+            <div
+              className={`rounded-[14px] border px-4 py-3 ${
+                ['queued', 'running'].includes(activeJob.status)
+                  ? 'border-sky-200 bg-sky-50/80 shadow-[inset_0_0_0_1px_rgba(14,165,233,0.1)]'
+                  : 'border-[color:var(--border)] bg-slate-50/70'
+              }`}
+            >
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <StatusChip
+                    status={activeJob.status === 'queued' ? 'running' : activeJob.status}
+                    label={getVersionStatusLabel(activeJob.status)}
+                    className={['queued', 'running'].includes(activeJob.status) ? 'ring-1 ring-sky-300/60' : undefined}
+                  />
+                  {['queued', 'running'].includes(activeJob.status) ? (
+                    <CircleDashed className="size-4 animate-spin text-sky-500" />
+                  ) : null}
+                  <span className="text-xs text-slate-500">当前任务版本</span>
+                  <span className="max-w-[min(40vw,320px)] truncate font-mono text-sm text-slate-800" title={activeJob.version}>
+                    {activeJob.version}
+                  </span>
+                </div>
+                <span className="text-xs text-slate-500">{formatDateTime(activeJob.createdAt)}</span>
+              </div>
+              {activeJobProgress !== null ? (
+                <div className="mt-3 space-y-1.5">
+                  <div className="flex items-center justify-between text-xs text-slate-600">
+                    <span>构建进度</span>
+                    <span className="font-semibold text-slate-900">{activeJobProgress}%</span>
+                  </div>
+                  <Progress value={activeJobProgress} className="h-2.5" />
+                </div>
+              ) : null}
+              {activeJob.logSummary ? (
+                <p className="mt-2 truncate text-xs text-slate-600" title={activeJob.logSummary}>
+                  {activeJob.logSummary}
+                </p>
+              ) : null}
+            </div>
+          ) : null}
         </div>
 
-        <VersionListContent
-          versions={filteredVersions}
-          onHistory={(item) => {
-            const scopedJobs = jobs.filter((job) => job.version === item.version);
-            setHistoryVersion(item);
-            setHistoryDrawerOpen(true);
-            if (scopedJobs.length) {
-              const nextActive = scopedJobs.find((job) => job.id === activeJobId) ?? scopedJobs[0];
-              setHistoryStepKey(getBuildJobLogStep(nextActive.currentStep));
-            } else {
-              setHistoryStepKey(null);
-            }
-          }}
-          onDownload={(item) => triggerVersionDownload(item.id)}
-          onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
-          onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
-          onDelete={setVersionToDelete}
-        />
+        <div className="space-y-4 px-6 py-5">
+          <div className="overflow-hidden rounded-[16px] border border-[color:var(--border)]">
+            <Table className="table-fixed">
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[18%] px-3">版本号</TableHead>
+                  <TableHead className="w-[16%] px-3">状态</TableHead>
+                  <TableHead className="px-3">标题 / 备注</TableHead>
+                  <TableHead className="w-[14%] px-3">创建时间</TableHead>
+                  <TableHead className="w-[36%] px-3">操作</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {paginatedVersions.length ? (
+                  paginatedVersions.map((item) => {
+                    const setDefaultEnabled = isVersionActionEnabled('setDefault', {
+                      status: item.status,
+                      isDefault: item.isDefault,
+                    });
+                    const offlineEnabled = isVersionActionEnabled('offline', {
+                      status: item.status,
+                      isDefault: item.isDefault,
+                    });
+
+                    return (
+                      <TableRow key={item.id} className={['queued', 'running'].includes(item.status) ? 'bg-sky-50/60' : undefined}>
+                        <TableCell className="px-3 py-4">
+                          <div className="flex min-w-0 items-center gap-2">
+                            <span className="max-w-[220px] truncate font-mono text-[13px] font-semibold text-slate-900" title={item.version}>
+                              {item.version}
+                            </span>
+                            {item.isDefault ? <StatusChip status="offline" label="默认版本" showDot={false} /> : null}
+                            {item.isLatest ? <StatusChip status="running" label="最新记录" showDot={false} /> : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-3 py-4">
+                          <div className="flex flex-wrap items-center gap-2">
+                            <StatusChip
+                              status={item.status === 'queued' ? 'running' : item.status}
+                              label={getVersionStatusLabel(item.status)}
+                              className={['queued', 'running'].includes(item.status) ? 'ring-1 ring-sky-300/70' : undefined}
+                            />
+                            {['queued', 'running'].includes(item.status) ? (
+                              <CircleDashed className="size-3.5 animate-spin text-sky-500" />
+                            ) : null}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-3 py-4">
+                          <div className="truncate text-slate-800" title={item.title ?? undefined}>
+                            {item.title || '—'}
+                          </div>
+                          <div className="mt-1 truncate text-sm text-slate-500" title={item.remark ?? undefined}>
+                            {item.remark || '无备注'}
+                          </div>
+                        </TableCell>
+                        <TableCell className="px-3 py-4 text-[11px] leading-4 text-slate-500">{formatDateTime(item.createdAt)}</TableCell>
+                        <TableCell className="px-3 py-4">
+                          <div className="flex flex-wrap gap-2">
+                            <Button type="button" size="sm" variant="secondary" onClick={() => openBuildHistory(item)}>
+                              <History />
+                              历史
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={!item.downloadable}
+                              onClick={() => triggerVersionDownload(item.id)}
+                            >
+                              <Download />
+                              下载
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={!setDefaultEnabled}
+                              onClick={() => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
+                            >
+                              <Star />
+                              设默认
+                            </Button>
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="secondary"
+                              disabled={!offlineEnabled}
+                              onClick={() => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
+                            >
+                              <Power />
+                              下线
+                            </Button>
+                            <Button type="button" size="sm" variant="destructive" onClick={() => setVersionToDelete(item)}>
+                              <Trash2 />
+                              删除
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })
+                ) : (
+                  <TableRow>
+                    <TableCell colSpan={5} className="h-32 text-center text-sm text-slate-500">
+                      暂无匹配版本记录
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="text-sm text-slate-500">
+              共 {filteredVersions.length} 条，当前第 {currentVersionPage} / {totalVersionPages} 页
+            </div>
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setVersionPage((current) => Math.max(1, current - 1))}
+                disabled={currentVersionPage === 1}
+              >
+                <ChevronLeft />
+                上一页
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setVersionPage((current) => Math.min(totalVersionPages, current + 1))}
+                disabled={currentVersionPage >= totalVersionPages}
+              >
+                下一页
+                <ChevronRight />
+              </Button>
+            </div>
+          </div>
+        </div>
       </StandardTablePage>
 
       <UploadVersionDialog

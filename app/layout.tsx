@@ -1,7 +1,8 @@
 import type { Metadata } from 'next';
 import { Toaster } from 'sonner';
 
-import { AppShell } from '@/components/app-shell';
+import { AppFrame } from '@/components/layout/app-frame';
+import { ThemeScript } from '@/components/layout/theme-script';
 
 import './globals.css';
 
@@ -12,9 +13,10 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="zh-CN">
+    <html lang="zh-CN" suppressHydrationWarning>
       <body>
-        <AppShell>{children}</AppShell>
+        <ThemeScript />
+        <AppFrame>{children}</AppFrame>
         <Toaster position="top-right" richColors />
       </body>
     </html>

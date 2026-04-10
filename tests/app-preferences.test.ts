@@ -1,0 +1,102 @@
+import { describe, expect, test } from 'vitest';
+
+import {
+  APP_LANGUAGE_STORAGE_KEY,
+  APP_THEME_STORAGE_KEY,
+  isAuthRoute,
+  isWorkspaceRoute,
+  normalizeLanguagePreference,
+  normalizeThemePreference,
+  getBrowserStorage,
+  readLanguagePreference,
+  readThemePreference,
+  writeLanguagePreference,
+  writeThemePreference,
+} from '@/lib/ui/app-preferences';
+
+describe('app preferences', () => {
+  test('uses stable storage keys', () => {
+    expect(APP_THEME_STORAGE_KEY).toBe('prototype-manage-tool.theme');
+    expect(APP_LANGUAGE_STORAGE_KEY).toBe('prototype-manage-tool.language');
+  });
+
+  test('normalizes theme preference to supported values', () => {
+    expect(normalizeThemePreference('light')).toBe('light');
+    expect(normalizeThemePreference('dark')).toBe('dark');
+    expect(normalizeThemePreference(' DARK ')).toBe('dark');
+    expect(normalizeThemePreference('system')).toBe('light');
+    expect(normalizeThemePreference(undefined)).toBe('light');
+  });
+
+  test('normalizes language preference to supported values', () => {
+    expect(normalizeLanguagePreference('zh')).toBe('zh');
+    expect(normalizeLanguagePreference('en')).toBe('en');
+    expect(normalizeLanguagePreference(' EN ')).toBe('en');
+    expect(normalizeLanguagePreference('fr')).toBe('zh');
+    expect(normalizeLanguagePreference(null)).toBe('zh');
+  });
+
+  test('recognizes auth routes', () => {
+    expect(isAuthRoute('/login')).toBe(true);
+    expect(isAuthRoute('/register')).toBe(true);
+    expect(isAuthRoute('/register/confirm')).toBe(true);
+    expect(isAuthRoute('/preview')).toBe(false);
+    expect(isAuthRoute('/')).toBe(false);
+  });
+
+  test('recognizes workspace routes', () => {
+    expect(isWorkspaceRoute('/admin')).toBe(true);
+    expect(isWorkspaceRoute('/preview/demo/v1')).toBe(true);
+    expect(isWorkspaceRoute('/users')).toBe(true);
+    expect(isWorkspaceRoute('/settings/profile')).toBe(true);
+    expect(isWorkspaceRoute('/login')).toBe(false);
+    expect(isWorkspaceRoute('/')).toBe(false);
+  });
+
+  test('falls back safely when storage access throws', () => {
+    const blockedStorage = {
+      getItem() {
+        throw new Error('Blocked');
+      },
+      setItem() {
+        throw new Error('Blocked');
+      },
+    } as unknown as Storage;
+
+    expect(readThemePreference(blockedStorage)).toBe('light');
+    expect(readLanguagePreference(blockedStorage)).toBe('zh');
+    expect(writeThemePreference(blockedStorage, 'dark')).toBe(false);
+    expect(writeLanguagePreference(blockedStorage, 'en')).toBe(false);
+  });
+
+  test('reads and writes preferences through a storage provider', () => {
+    const storageMap = new Map<string, string>();
+    const storageProvider = {
+      getItem(key: string) {
+        return storageMap.get(key) ?? null;
+      },
+      setItem(key: string, value: string) {
+        storageMap.set(key, value);
+      },
+    } as Storage;
+
+    expect(readThemePreference(storageProvider)).toBe('light');
+    expect(readLanguagePreference(storageProvider)).toBe('zh');
+    expect(writeThemePreference(storageProvider, 'dark')).toBe(true);
+    expect(writeLanguagePreference(storageProvider, 'en')).toBe(true);
+    expect(readThemePreference(storageProvider)).toBe('dark');
+    expect(readLanguagePreference(storageProvider)).toBe('en');
+  });
+
+  test('returns null from browser-storage accessor when storage is unavailable', () => {
+    expect(getBrowserStorage(undefined)).toBeNull();
+
+    const throwingStorageTarget = Object.defineProperty({}, 'localStorage', {
+      get() {
+        throw new Error('Blocked');
+      },
+    }) as { localStorage: Storage };
+
+    expect(getBrowserStorage(throwingStorageTarget)).toBeNull();
+  });
+});

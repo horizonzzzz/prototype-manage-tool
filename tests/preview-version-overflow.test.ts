@@ -1,7 +1,10 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, test } from 'vitest';
 
 import type { ProductVersionManifest } from '@/lib/types';
 import * as previewDomain from '@/lib/domain/preview';
+
+const previewListSource = readFileSync(new URL('../components/preview/preview-product-list.tsx', import.meta.url), 'utf8');
 
 function createVersion(version: string, flags?: Partial<Pick<ProductVersionManifest, 'isDefault' | 'isLatest'>>): ProductVersionManifest {
   return {
@@ -75,5 +78,11 @@ describe('groupVersionsForPreview', () => {
 
     expect(result.visibleVersions.map((item) => item.version)).toEqual(['v1.0.0', 'v1.1.0', 'v1.2.0', 'v1.3.0']);
     expect(result.overflowVersions.map((item) => item.version)).toEqual(['v1.4.0']);
+  });
+});
+
+describe('preview selector overflow guards', () => {
+  test('truncates selected version label inside selector trigger to protect card layout', () => {
+    expect(previewListSource).toContain('<SelectValue className="block truncate text-left"');
   });
 });

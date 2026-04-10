@@ -12,10 +12,10 @@ const buttonVariants = cva(
         default:
           'bg-linear-to-br from-[var(--primary)] to-[var(--primary-strong)] text-white shadow-[0_14px_32px_rgba(37,99,235,0.22)] hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(37,99,235,0.28)]',
         secondary:
-          'border border-[color:var(--border-strong)] bg-white/92 text-slate-700 shadow-[var(--shadow-soft)] hover:-translate-y-0.5 hover:bg-white',
+          'border border-[color:var(--border-strong)] bg-[color:var(--secondary)] text-[color:var(--secondary-foreground)] shadow-[var(--shadow-soft)] hover:-translate-y-0.5 hover:bg-[color:var(--accent)]',
         outline:
-          'border border-[color:var(--border-strong)] bg-[var(--panel-soft)] text-slate-700 hover:bg-white',
-        ghost: 'text-slate-500 hover:bg-slate-100 hover:text-slate-900',
+          'border border-[color:var(--border-strong)] bg-[color:var(--panel-soft)] text-[color:var(--secondary-foreground)] hover:bg-[color:var(--accent)]',
+        ghost: 'text-[color:var(--muted-foreground)] hover:bg-[color:var(--accent)] hover:text-[color:var(--foreground)]',
         destructive:
           'bg-[color:var(--destructive)] text-white shadow-[0_14px_32px_rgba(220,38,38,0.18)] hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(220,38,38,0.24)]',
       },

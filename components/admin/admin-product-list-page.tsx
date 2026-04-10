@@ -1,6 +1,6 @@
 'use client';
 
-import { useDeferredValue, useMemo, useState } from 'react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
@@ -12,7 +12,10 @@ import { ProductCreateDialog } from '@/components/admin/product-create-dialog';
 import { createProductSchema, type CreateProductFormValues } from '@/components/admin/form-schemas';
 import { getErrorMessage } from '@/lib/domain/error-message';
 import { buildAdminHref } from '@/lib/ui/navigation';
+import { filterProductsBySearch, paginateProducts } from '@/lib/ui/admin-product-list-view';
 import type { ApiResponse, ProductListItem } from '@/lib/types';
+
+const PAGE_SIZE = 10;
 
 async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const response = await fetch(input, init);
@@ -33,10 +36,11 @@ export function AdminProductListPage({ initialProducts }: AdminProductListPagePr
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const [search, setSearch] = useState('');
+  const [currentPage, setCurrentPage] = useState(1);
   const [createOpen, setCreateOpen] = useState(false);
   const [productToDelete, setProductToDelete] = useState<ProductListItem | null>(null);
   const [deleting, setDeleting] = useState(false);
-  const deferredSearch = useDeferredValue(search.trim().toLowerCase());
+  const deferredSearch = useDeferredValue(search);
 
   const form = useForm<CreateProductFormValues>({
     resolver: zodResolver(createProductSchema),
@@ -44,14 +48,25 @@ export function AdminProductListPage({ initialProducts }: AdminProductListPagePr
   });
 
   const filteredProducts = useMemo(() => {
-    if (!deferredSearch) {
-      return products;
-    }
-
-    return products.filter((product) =>
-      [product.name, product.key].some((value) => value.toLowerCase().includes(deferredSearch)),
-    );
+    return filterProductsBySearch(products, deferredSearch);
   }, [deferredSearch, products]);
+
+  const paginatedProducts = useMemo(
+    () => paginateProducts(filteredProducts, currentPage, PAGE_SIZE),
+    [currentPage, filteredProducts],
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search]);
+
+  useEffect(() => {
+    if (paginatedProducts.page !== currentPage) {
+      setCurrentPage(paginatedProducts.page);
+    }
+  }, [currentPage, paginatedProducts.page]);
+
+  const isFiltering = search !== deferredSearch;
 
   const createProduct = form.handleSubmit(async (values) => {
     try {
@@ -91,9 +106,14 @@ export function AdminProductListPage({ initialProducts }: AdminProductListPagePr
   return (
     <>
       <AdminProductList
-        products={filteredProducts}
+        products={paginatedProducts.items}
         search={search}
         onSearchChange={setSearch}
+        loading={isFiltering}
+        page={paginatedProducts.page}
+        totalPages={paginatedProducts.totalPages}
+        totalCount={paginatedProducts.totalItems}
+        onPageChange={setCurrentPage}
         onCreateProduct={() => setCreateOpen(true)}
         onOpenDetail={(productKey) => router.push(buildAdminHref(productKey))}
         onDeleteProduct={setProductToDelete}
