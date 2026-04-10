@@ -25,10 +25,10 @@ describe('ui primitive theme tokenization', () => {
   });
 
   test('uses theme tokens for shared control surface and text colors', () => {
-    expect(primitiveSources['../components/ui/card.tsx']).toContain('var(--card)');
-    expect(primitiveSources['../components/ui/input.tsx']).toContain('var(--secondary)');
-    expect(primitiveSources['../components/ui/button.tsx']).toContain('var(--foreground)');
-    expect(primitiveSources['../components/ui/select.tsx']).toContain('var(--card)');
-    expect(primitiveSources['../components/ui/dropdown-menu.tsx']).toContain('var(--card)');
+    expect(primitiveSources['../components/ui/card.tsx']).toContain('bg-card');
+    expect(primitiveSources['../components/ui/input.tsx']).toContain('border-input');
+    expect(primitiveSources['../components/ui/button.tsx']).toContain('text-foreground');
+    expect(primitiveSources['../components/ui/select.tsx']).toContain('bg-popover');
+    expect(primitiveSources['../components/ui/dropdown-menu.tsx']).toContain('bg-popover');
   });
 });

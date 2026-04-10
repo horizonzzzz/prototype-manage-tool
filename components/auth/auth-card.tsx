@@ -15,32 +15,27 @@ interface AuthCardProps {
 
 export function AuthCard({ title, description, footerText, footerActionLabel, footerActionHref, children }: AuthCardProps) {
   return (
-    <div className="flex w-full max-w-sm flex-col gap-5">
-      <div className="flex flex-col items-center gap-3 text-center">
-        <div className="flex size-12 items-center justify-center rounded-2xl bg-[color:var(--primary)] text-white shadow-[var(--shadow-soft)]">
+    <div className="flex w-full max-w-sm flex-col gap-6">
+      <div className="flex flex-col items-center gap-2 text-center">
+        <div className="flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground">
           <Layers3 className="size-6" />
         </div>
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-[color:var(--foreground)]">Prototype Manage Tool</h1>
-          <p className="mt-1 text-sm text-[color:var(--muted-foreground)]">原型管理控制台演示入口</p>
-        </div>
+        <h1 className="text-2xl font-bold tracking-tight">Prototype Manage Tool</h1>
       </div>
 
-      <Card className="bg-[color:var(--card)]">
-        <CardHeader className="items-start">
-          <div>
-            <CardTitle className="text-lg text-[color:var(--foreground)]">{title}</CardTitle>
-            <CardDescription className="mt-1 text-[color:var(--muted-foreground)]">{description}</CardDescription>
-          </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{title}</CardTitle>
+          <CardDescription>{description}</CardDescription>
         </CardHeader>
         <CardContent>
           {children}
-          <p className="mt-5 text-center text-sm text-[color:var(--muted-foreground)]">
+          <div className="mt-4 text-center text-sm">
             {footerText}{' '}
-            <Link href={footerActionHref} className="font-medium text-[color:var(--primary)] underline-offset-4 hover:underline">
+            <Link href={footerActionHref} className="underline underline-offset-4">
               {footerActionLabel}
             </Link>
-          </p>
+          </div>
         </CardContent>
       </Card>
     </div>

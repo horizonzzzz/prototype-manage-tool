@@ -38,14 +38,14 @@ export function LanguageSwitcher() {
 
   return (
     <Select value={language} onValueChange={onLanguageChange}>
-      <SelectTrigger className="h-9 w-[136px] rounded-full !border-[color:var(--border)] !bg-[color:var(--secondary)] !text-[color:var(--foreground)]">
+      <SelectTrigger className="w-[120px]">
         <SelectValue placeholder="Language">{languageLabelMap[language]}</SelectValue>
       </SelectTrigger>
-      <SelectContent align="end" className="border-[color:var(--border)] bg-[color:var(--card)] text-[color:var(--foreground)]">
-        <SelectItem className="text-[color:var(--foreground)] focus:bg-[color:var(--accent)] focus:text-[color:var(--foreground)]" value="zh">
+      <SelectContent align="end">
+        <SelectItem value="zh">
           {languageLabelMap.zh}
         </SelectItem>
-        <SelectItem className="text-[color:var(--foreground)] focus:bg-[color:var(--accent)] focus:text-[color:var(--foreground)]" value="en">
+        <SelectItem value="en">
           {languageLabelMap.en}
         </SelectItem>
       </SelectContent>

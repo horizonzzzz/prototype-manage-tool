@@ -33,32 +33,29 @@ export function StandardTablePage({
   contentClassName,
 }: StandardTablePageProps) {
   return (
-    <div className="space-y-5">
-      <section className="rounded-[20px] border border-[color:var(--border-strong)] bg-white px-6 py-5 shadow-[0_8px_24px_rgba(15,23,42,0.05)]">
-        <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
-          <div className="space-y-1">
-            <div className="text-xs font-semibold tracking-[0.18em] text-slate-500 uppercase">Standard Workspace</div>
-            <h2 className="text-[24px] font-semibold tracking-[-0.02em] text-slate-950">{title}</h2>
-            <p className="max-w-3xl text-sm leading-6 text-slate-500">{description}</p>
-          </div>
-          {headerActions ? <div className="flex flex-wrap items-center gap-2">{headerActions}</div> : null}
+    <div className="space-y-6">
+      <section className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+        <div>
+          <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
+          <p className="text-muted-foreground">{description}</p>
         </div>
+        {headerActions ? <div className="flex flex-wrap items-center gap-2">{headerActions}</div> : null}
       </section>
 
-      <Card className="rounded-[18px] border-[color:var(--border-strong)] bg-white shadow-[0_8px_24px_rgba(15,23,42,0.04)]">
-        <CardHeader className="flex-col items-stretch gap-4 border-b border-[color:var(--border)] bg-slate-50/70 xl:flex-row xl:items-center xl:justify-between">
-          <div className="space-y-1">
+      <Card>
+        <CardHeader className="flex-col items-stretch gap-4 border-b xl:flex-row xl:items-center xl:justify-between">
+          <div>
             <CardTitle>{tableTitle}</CardTitle>
             {tableDescription ? <CardDescription>{tableDescription}</CardDescription> : null}
           </div>
           <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-            <div className="relative min-w-[280px] max-w-full xl:w-[320px]">
-              <Search className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-slate-400" />
+            <div className="relative w-full max-w-sm">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
               <Input
                 value={searchValue}
                 onChange={(event) => onSearchChange(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="pl-9 shadow-none"
+                className="pl-8"
               />
             </div>
             {actions ? <div className="flex flex-wrap items-center gap-2">{actions}</div> : null}
@@ -69,4 +66,3 @@ export function StandardTablePage({
     </div>
   );
 }
-

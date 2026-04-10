@@ -5,25 +5,24 @@ import { cva, type VariantProps } from 'class-variance-authority';
 import { cn } from '@/lib/utils';
 
 const buttonVariants = cva(
-  'inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold transition-all outline-none cursor-pointer disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4',
+  'inline-flex shrink-0 items-center justify-center rounded-lg border border-transparent bg-clip-padding text-sm font-medium whitespace-nowrap transition-all outline-none select-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*=size-])]:size-4',
   {
     variants: {
       variant: {
-        default:
-          'bg-linear-to-br from-[var(--primary)] to-[var(--primary-strong)] text-white shadow-[0_14px_32px_rgba(37,99,235,0.22)] hover:-translate-y-0.5 hover:shadow-[0_18px_34px_rgba(37,99,235,0.28)]',
-        secondary:
-          'border border-[color:var(--border-strong)] bg-[color:var(--secondary)] text-[color:var(--secondary-foreground)] shadow-[var(--shadow-soft)] hover:-translate-y-0.5 hover:bg-[color:var(--accent)]',
+        default: 'bg-primary text-primary-foreground hover:bg-primary/80',
         outline:
-          'border border-[color:var(--border-strong)] bg-[color:var(--panel-soft)] text-[color:var(--secondary-foreground)] hover:bg-[color:var(--accent)]',
-        ghost: 'text-[color:var(--muted-foreground)] hover:bg-[color:var(--accent)] hover:text-[color:var(--foreground)]',
+          'border-border bg-background hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:border-input dark:bg-input/30 dark:hover:bg-input/50',
+        secondary: 'bg-secondary text-secondary-foreground hover:bg-secondary/80 aria-expanded:bg-secondary',
+        ghost: 'hover:bg-muted hover:text-foreground aria-expanded:bg-muted aria-expanded:text-foreground dark:hover:bg-muted/50',
         destructive:
-          'bg-[color:var(--destructive)] text-white shadow-[0_14px_32px_rgba(220,38,38,0.18)] hover:-translate-y-0.5 hover:shadow-[0_16px_34px_rgba(220,38,38,0.24)]',
+          'bg-destructive/10 text-destructive hover:bg-destructive/20 focus-visible:border-destructive/40 focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:hover:bg-destructive/30',
+        link: 'text-primary underline-offset-4 hover:underline',
       },
       size: {
-        default: 'h-10 px-4 py-2',
-        sm: 'h-8 rounded-md px-2 text-[11px] gap-1 [&_svg]:size-3.5',
-        lg: 'h-11 px-5 text-sm',
-        icon: 'size-10',
+        default: 'h-8 gap-1.5 px-2.5',
+        sm: 'h-8 rounded-md px-2 text-[11px] gap-1 [&_svg:not([class*=size-])]:size-3.5',
+        lg: 'h-9 gap-1.5 px-2.5',
+        icon: 'size-8',
       },
     },
     defaultVariants: {

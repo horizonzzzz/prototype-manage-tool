@@ -24,7 +24,7 @@ function VersionIndicators({ version }: { version: ProductVersionManifest }) {
 
 export function VersionPillBar({ currentVersion, visibleVersions, overflowVersions, onSelect }: VersionPillBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2 rounded-[16px] border border-[color:var(--border-strong)] bg-white/92 p-2 shadow-[var(--shadow-soft)]">
+    <div className="flex flex-wrap items-center gap-2 rounded-xl border bg-background p-2">
       {visibleVersions.map((item) => {
         const isActive = currentVersion === item.version;
 
@@ -35,7 +35,7 @@ export function VersionPillBar({ currentVersion, visibleVersions, overflowVersio
             variant={isActive ? 'default' : 'ghost'}
             className={cn(
               'h-10 rounded-xl px-4 font-mono text-[13px]',
-              !isActive && 'bg-transparent text-slate-600 hover:bg-sky-50 hover:text-[var(--primary-strong)]',
+              !isActive && 'bg-transparent text-slate-600 hover:bg-slate-100 hover:text-slate-900',
             )}
             onClick={() => onSelect(item.version)}
           >

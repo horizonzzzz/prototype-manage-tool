@@ -177,10 +177,10 @@ export function PreviewProductList({ products, selectedProductKey, selectedVersi
           })}
         </div>
       ) : (
-        <div className="flex min-h-[340px] flex-col items-center justify-center gap-2 rounded-[16px] border border-dashed border-[color:var(--border-strong)] bg-[color:color-mix(in_srgb,var(--secondary)_65%,transparent)] px-4 text-center">
-          <MonitorPlay className="size-10 text-[color:var(--muted-foreground)]/60" />
-          <p className="text-base font-semibold text-[color:var(--foreground)]">{hasProducts ? '未找到匹配产品' : '暂无可预览产品'}</p>
-          <p className="max-w-[460px] text-sm text-[color:var(--muted-foreground)]">
+        <div className="flex min-h-[340px] flex-col items-center justify-center gap-2 rounded-xl border border-dashed bg-muted/50 px-4 text-center">
+          <MonitorPlay className="size-10 text-muted-foreground/60" />
+          <p className="text-base font-semibold">{hasProducts ? '未找到匹配产品' : '暂无可预览产品'}</p>
+          <p className="max-w-[460px] text-sm text-muted-foreground">
             {hasProducts
               ? '没有匹配当前搜索条件的产品，请调整关键词后重试。'
               : '请先在发布管理台创建产品并发布版本，然后在此处进行预览。'}
