@@ -10,8 +10,14 @@ describe('dialog viewport fit', () => {
     expect(dialogSource).toContain('overflow-y-auto');
   });
 
+  test('keeps the default shared dialog width constraint for standard dialogs', () => {
+    expect(dialogSource).toContain('sm:max-w-sm');
+  });
+
   test('lets the upload dialog body grow inside the constrained dialog instead of overflowing past the screen edges', () => {
     expect(uploadDialogSource).toContain('min-h-0');
     expect(uploadDialogSource).toContain('overflow-y-auto');
   });
 });
+
+

@@ -6,6 +6,7 @@ const previewViewerDialogSource = readFileSync(new URL('../components/preview/pr
 describe('PreviewViewerDialog source', () => {
   test('uses a true fullscreen dialog instead of an inset modal shell', () => {
     expect(previewViewerDialogSource).toContain('h-screen w-screen');
+    expect(previewViewerDialogSource).toContain('sm:max-w-none');
     expect(previewViewerDialogSource).not.toContain('calc(100vh-1rem)');
     expect(previewViewerDialogSource).not.toContain('calc(100vw-1rem)');
     expect(previewViewerDialogSource).not.toContain("desktop: 'h-full w-full rounded-[28px]");
@@ -17,3 +18,4 @@ describe('PreviewViewerDialog source', () => {
     expect(previewViewerDialogSource).toContain("desktop: 'w-full h-full rounded-none border-0'");
   });
 });
+

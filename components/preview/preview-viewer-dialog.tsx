@@ -49,7 +49,7 @@ export function PreviewViewerDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
         hideClose
-        className="top-0 left-0 h-screen w-screen max-h-none max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none p-0"
+        className="top-0 left-0 h-screen w-screen max-h-none max-w-none translate-x-0 translate-y-0 gap-0 overflow-hidden rounded-none p-0 sm:max-w-none"
       >
         <div className="flex h-full w-full flex-col bg-slate-100 overflow-hidden">
           <div className="flex h-14 items-center justify-between border-b bg-white px-4 shadow-sm shrink-0 z-10">
