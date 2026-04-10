@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 import { getVersionStatusLabel, isVersionActionEnabled, selectActiveBuildJob } from '@/lib/ui/product-detail-view';
 
 const adminDashboardSource = readFileSync(new URL('../components/admin-dashboard.tsx', import.meta.url), 'utf8');
+const versionListContentSource = readFileSync(new URL('../components/admin/version-list-content.tsx', import.meta.url), 'utf8');
 
 describe('product detail view helpers', () => {
   test("getVersionStatusLabel('published') => '已发布'", () => {
@@ -82,12 +83,13 @@ describe('product detail page source migration', () => {
 
   test('applies truncation and helper-based action gating in version rows', () => {
     expect(adminDashboardSource).toContain('truncate');
-    expect(adminDashboardSource).toContain('isVersionActionEnabled');
+    expect(adminDashboardSource).toContain('VersionListContent');
     expect(adminDashboardSource).toContain('getVersionStatusLabel');
+    expect(versionListContentSource).toContain('disabled={!item.downloadable}');
   });
 
   test('keeps the latest-version indicator in each version row', () => {
-    expect(adminDashboardSource).toContain('item.isLatest');
-    expect(adminDashboardSource).toContain('最新记录');
+    expect(versionListContentSource).toContain('version.isLatest');
+    expect(versionListContentSource).toContain('最新记录');
   });
 });

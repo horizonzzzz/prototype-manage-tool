@@ -2,7 +2,7 @@ import { redirect } from 'next/navigation';
 
 import { PreviewProductList } from '@/components/preview/preview-product-list';
 import { isSafeRouteSegment } from '@/lib/domain/route-segment';
-import { buildPreviewHref } from '@/lib/ui/navigation';
+import { buildPreviewStateHref } from '@/lib/ui/preview-viewer-state';
 import { getManifest } from '@/lib/server/manifest-service';
 
 type PreviewPageProps = {
@@ -18,11 +18,17 @@ export default async function PreviewPage({ searchParams }: PreviewPageProps) {
   const product = takeFirst(resolvedSearchParams?.product);
   const version = takeFirst(resolvedSearchParams?.version);
 
-  if (product && isSafeRouteSegment(product) && (!version || isSafeRouteSegment(version))) {
-    redirect(buildPreviewHref(product, version));
+  if ((product && !isSafeRouteSegment(product)) || (version && !isSafeRouteSegment(version))) {
+    redirect(buildPreviewStateHref());
   }
 
   const manifest = await getManifest();
 
-  return <PreviewProductList products={manifest.products} />;
+  return (
+    <PreviewProductList
+      products={manifest.products}
+      selectedProductKey={product}
+      selectedVersion={version}
+    />
+  );
 }

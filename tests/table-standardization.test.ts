@@ -10,13 +10,13 @@ const historyDrawerSource = readFileSync(new URL('../components/admin/build-hist
 describe('table page standardization', () => {
   test('turns the preview list into a standard page with product cards, per-card version switching, and preview actions', () => {
     expect(previewListSource).toContain('<StandardTablePage');
-    expect(previewListSource).toContain('grid gap-4 sm:grid-cols-2 xl:grid-cols-3');
-    expect(previewListSource).toContain('sm:flex-row');
-    expect(previewListSource).toContain('sm:w-[188px] sm:shrink-0');
+    expect(previewListSource).toContain('grid gap-6 sm:grid-cols-2 xl:grid-cols-3');
+    expect(previewListSource).toContain('PreviewViewerDialog');
+    expect(previewListSource).toContain('buildPreviewStateHref');
     expect(previewListSource).toContain('当前版本');
     expect(previewListSource).toContain('搜索产品名称或 Key');
     expect(previewListSource).toContain('<SelectTrigger');
-    expect(previewListSource).toContain('<SelectValue className="block truncate text-left"');
+    expect(previewListSource).toContain('复制链接');
     expect(previewListSource).toContain('复制链接');
     expect(previewListSource).toContain('预览');
     expect(previewListSource).toContain('打开');
@@ -35,8 +35,8 @@ describe('table page standardization', () => {
 
   test('moves product detail management to a version table with upload dialog and history drawer', () => {
     expect(adminDashboardSource).toContain('上传版本');
-    expect(adminDashboardSource).toContain('Dialog');
-    expect(adminDashboardSource).toContain('Drawer');
+    expect(adminDashboardSource).toContain('BuildProgressDialog');
+    expect(adminDashboardSource).toContain('UploadVersionDialog');
     expect(adminDashboardSource).not.toContain('最近任务');
     expect(adminDashboardSource).not.toContain("onClick={() => setHistoryDrawerOpen(true)}");
     expect(adminDashboardSource).not.toContain('删除产品');
@@ -48,5 +48,6 @@ describe('table page standardization', () => {
     expect(historyDrawerSource).toContain('versionLabel');
     expect(historyDrawerSource).toContain('当前版本');
     expect(historyDrawerSource).toContain('该版本暂无可展示的构建过程');
+    expect(versionListSource).toContain('DropdownMenu');
   });
 });

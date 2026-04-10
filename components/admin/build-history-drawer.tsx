@@ -6,7 +6,7 @@ import { BuildJobStepList } from '@/components/build-job-step-list';
 import { BuildJobTerminal } from '@/components/build-job-terminal';
 import { TerminalShell } from '@/components/terminal-shell';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { Drawer, DrawerBody, DrawerContent, DrawerDescription, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { BuildJobItem, BuildJobStepKey } from '@/lib/types';
 
 type BuildHistoryDrawerProps = {
@@ -29,16 +29,16 @@ export function BuildHistoryDrawer({
   onSelectStep,
 }: BuildHistoryDrawerProps) {
   return (
-    <Drawer open={open} onOpenChange={onOpenChange}>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle>构建历史</DrawerTitle>
-          <DrawerDescription>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="w-[min(94vw,1040px)] max-w-none">
+        <DialogHeader>
+          <DialogTitle>构建历史</DialogTitle>
+          <DialogDescription>
             {versionLabel ? `当前版本：${versionLabel}。仅展示该版本的构建过程。` : '请选择一个版本后查看其构建过程。'}
-          </DrawerDescription>
-        </DrawerHeader>
+          </DialogDescription>
+        </DialogHeader>
 
-        <DrawerBody className="min-h-0">
+        <div className="min-h-0 overflow-y-auto pr-1">
           <div className="min-h-0 space-y-4">
             {activeJob ? (
               <>
@@ -63,8 +63,8 @@ export function BuildHistoryDrawer({
               </div>
             )}
           </div>
-        </DrawerBody>
-      </DrawerContent>
-    </Drawer>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

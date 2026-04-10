@@ -3,11 +3,9 @@
 import type { FormEventHandler } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
 
-import { CurrentJobContent } from '@/components/admin/current-job-content';
 import { UploadVersionForm } from '@/components/admin/upload-version-form';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import type { UploadFormValues } from '@/components/admin/form-schemas';
-import type { BuildJobItem, BuildJobStepKey } from '@/lib/types';
 
 type UploadVersionDialogProps = {
   open: boolean;
@@ -18,14 +16,8 @@ type UploadVersionDialogProps = {
   selectedUploadFile: File | null;
   uploadError?: string;
   uploading: boolean;
-  uploadProgress: number;
-  activeJob: BuildJobItem | null;
-  selectedLogStepKey: BuildJobStepKey | null;
-  terminalBadge: string;
-  terminalContent: string;
-  terminalEmptyText: string;
+  onCancel: () => void;
   onFileChange: (file: File | null) => void;
-  onSelectStep: (stepKey: BuildJobStepKey) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
 
@@ -38,28 +30,22 @@ export function UploadVersionDialog({
   selectedUploadFile,
   uploadError,
   uploading,
-  uploadProgress,
-  activeJob,
-  selectedLogStepKey,
-  terminalBadge,
-  terminalContent,
-  terminalEmptyText,
+  onCancel,
   onFileChange,
-  onSelectStep,
   onSubmit,
 }: UploadVersionDialogProps) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="w-[min(94vw,1040px)] max-w-none"
-        onInteractOutside={(event) => event.preventDefault()}
-        onEscapeKeyDown={(event) => event.preventDefault()}
+        className="w-[min(94vw,720px)] max-w-none"
+        onInteractOutside={(event) => uploading && event.preventDefault()}
+        onEscapeKeyDown={(event) => uploading && event.preventDefault()}
       >
         <DialogHeader>
           <DialogTitle>上传版本</DialogTitle>
-          <DialogDescription>填写版本信息并上传源码压缩包，任务创建后会在当前弹窗内持续展示构建进度。</DialogDescription>
+          <DialogDescription>填写版本信息并上传源码压缩包。创建成功后会在单独的弹窗中展示任务状态和日志。</DialogDescription>
         </DialogHeader>
-        <div className="min-h-0 space-y-6 overflow-y-auto pr-1">
+        <div className="min-h-0 overflow-y-auto pr-1">
           <UploadVersionForm
             form={form}
             productName={productName}
@@ -67,23 +53,10 @@ export function UploadVersionDialog({
             selectedUploadFile={selectedUploadFile}
             uploadError={uploadError}
             uploading={uploading}
-            uploadProgress={uploadProgress}
+            onCancel={onCancel}
             onFileChange={onFileChange}
             onSubmit={onSubmit}
           />
-
-          {activeJob ? (
-            <div className="rounded-[16px] border border-[color:var(--border)] bg-slate-50/80 p-4">
-              <CurrentJobContent
-                activeJob={activeJob}
-                selectedLogStepKey={selectedLogStepKey}
-                terminalBadge={terminalBadge}
-                terminalContent={terminalContent}
-                terminalEmptyText={terminalEmptyText}
-                onSelectStep={onSelectStep}
-              />
-            </div>
-          ) : null}
         </div>
       </DialogContent>
     </Dialog>

@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import { buildPreviewHref } from '@/lib/ui/navigation';
+import { buildPreviewStateHref } from '@/lib/ui/preview-viewer-state';
 import { getManifest } from '@/lib/server/manifest-service';
 
 type PreviewProductRouteProps = {
@@ -15,5 +15,5 @@ export default async function PreviewProductRoutePage({ params }: PreviewProduct
     redirect('/preview');
   }
 
-  redirect(buildPreviewHref(manifest.resolved.productKey, manifest.resolved.version));
+  redirect(buildPreviewStateHref(manifest.resolved.productKey, manifest.resolved.version));
 }

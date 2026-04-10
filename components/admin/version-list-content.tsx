@@ -1,8 +1,9 @@
 import React from 'react';
-import { Download, History, Power, Star, Trash2 } from 'lucide-react';
+import { Download, History, MoreHorizontal, Power, Star, Trash2 } from 'lucide-react';
 
 import { StatusChip } from '@/components/status-chip';
 import { Button } from '@/components/ui/button';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { ProductVersionItem } from '@/lib/types';
 
@@ -51,11 +52,11 @@ export function VersionListContent({
       <Table className="table-fixed">
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[11%] px-3">版本</TableHead>
+            <TableHead className="w-[18%] px-3">版本</TableHead>
             <TableHead className="px-3">标题 / 备注</TableHead>
-            <TableHead className="w-[14%] px-3">状态</TableHead>
-            <TableHead className="w-[10%] px-3">创建时间</TableHead>
-            <TableHead className="w-[48%] px-3">操作</TableHead>
+            <TableHead className="w-[16%] px-3">状态</TableHead>
+            <TableHead className="w-[14%] px-3">创建时间</TableHead>
+            <TableHead className="w-[18%] px-3">操作</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -73,45 +74,39 @@ export function VersionListContent({
                 {formatCreatedAt(item.createdAt)}
               </TableCell>
               <TableCell className="px-3 py-4">
-                <div className="flex flex-wrap gap-2">
+                <div className="flex items-center gap-1">
                   <Button type="button" size="sm" variant="secondary" onClick={() => onHistory(item)}>
                     <History />
                     历史
                   </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={!item.downloadable}
-                    onClick={() => onDownload(item)}
-                  >
-                    <Download />
-                    下载
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={item.isDefault || item.status !== 'published'}
-                    onClick={() => onSetDefault(item)}
-                  >
-                    <Star />
-                    设默认
-                  </Button>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="secondary"
-                    disabled={item.status !== 'published'}
-                    onClick={() => onOffline(item)}
-                  >
-                    <Power />
-                    下线
-                  </Button>
-                  <Button type="button" size="sm" variant="destructive" onClick={() => onDelete(item)}>
-                    <Trash2 />
-                    删除
-                  </Button>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button type="button" variant="ghost" size="icon" aria-label={`更多操作 ${item.version}`}>
+                        <MoreHorizontal />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem disabled={!item.downloadable} onClick={() => onDownload(item)}>
+                        <Download />
+                        下载源码
+                      </DropdownMenuItem>
+                      <DropdownMenuItem
+                        disabled={item.isDefault || item.status !== 'published'}
+                        onClick={() => onSetDefault(item)}
+                      >
+                        <Star />
+                        设为默认
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={item.status !== 'published'} onClick={() => onOffline(item)}>
+                        <Power />
+                        下线版本
+                      </DropdownMenuItem>
+                      <DropdownMenuItem className="text-red-600" onClick={() => onDelete(item)}>
+                        <Trash2 />
+                        删除版本
+                      </DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
                 </div>
               </TableCell>
             </TableRow>

@@ -12,14 +12,12 @@ describe('placeholder routes', () => {
   test('renders reserved-feature copy for users and settings placeholders', () => {
     const usersPageSource = readFileSync(new URL('../app/users/page.tsx', import.meta.url), 'utf8');
     const settingsPageSource = readFileSync(new URL('../app/settings/page.tsx', import.meta.url), 'utf8');
-    const featurePlaceholderSource = readFileSync(new URL('../components/placeholders/feature-placeholder.tsx', import.meta.url), 'utf8');
 
-    expect(usersPageSource).toContain('预留功能');
-    expect(usersPageSource).toContain('演示入口');
-    expect(settingsPageSource).toContain('预留功能');
-    expect(settingsPageSource).toContain('演示入口');
-    expect(featurePlaceholderSource).toContain('disabled');
-    expect(featurePlaceholderSource).toContain('返回工作台');
+    expect(usersPageSource).toContain('即将推出');
+    expect(usersPageSource).toContain('用户管理功能将在此提供');
+    expect(settingsPageSource).toContain('语言');
+    expect(settingsPageSource).toContain('切换工作台演示语言');
+    expect(settingsPageSource).not.toContain('FeaturePlaceholder');
   });
 
   test('auth placeholders submit forms into workspace demo route', () => {

@@ -7,7 +7,6 @@ import { FileDropzone } from '@/components/file-dropzone';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Progress } from '@/components/ui/progress';
 import { Textarea } from '@/components/ui/textarea';
 
 import { FormField } from '@/components/admin/form-field';
@@ -20,7 +19,7 @@ type UploadVersionFormProps = {
   selectedUploadFile: File | null;
   uploadError?: string;
   uploading: boolean;
-  uploadProgress: number;
+  onCancel: () => void;
   onFileChange: (file: File | null) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
@@ -32,7 +31,7 @@ export function UploadVersionForm({
   selectedUploadFile,
   uploadError,
   uploading,
-  uploadProgress,
+  onCancel,
   onFileChange,
   onSubmit,
 }: UploadVersionFormProps) {
@@ -62,7 +61,6 @@ export function UploadVersionForm({
         <FileDropzone file={selectedUploadFile} onFileChange={onFileChange} disabled={uploading} />
       </FormField>
 
-      {uploading ? <Progress value={uploadProgress} className="h-3" /> : null}
       {uploadError ? (
         <Alert variant="destructive">
           <AlertTitle>上传失败</AlertTitle>
@@ -70,9 +68,14 @@ export function UploadVersionForm({
         </Alert>
       ) : null}
 
-      <Button type="submit" disabled={uploading}>
-        上传并创建任务
-      </Button>
+      <div className="flex items-center justify-end gap-2 border-t border-[color:var(--border)] pt-4">
+        <Button type="button" variant="secondary" onClick={onCancel} disabled={uploading}>
+          取消
+        </Button>
+        <Button type="submit" disabled={uploading}>
+          {uploading ? '正在上传...' : '上传并创建任务'}
+        </Button>
+      </div>
     </form>
   );
 }

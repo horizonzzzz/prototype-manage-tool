@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, test } from 'vitest';
@@ -6,6 +7,8 @@ import { VersionListContent } from '@/components/admin/version-list-content';
 import type { ProductVersionItem } from '@/lib/types';
 
 (globalThis as { React?: typeof React }).React = React;
+
+const versionListContentSource = readFileSync(new URL('../components/admin/version-list-content.tsx', import.meta.url), 'utf8');
 
 function createVersion(overrides: Partial<ProductVersionItem> = {}): ProductVersionItem {
   return {
@@ -41,7 +44,7 @@ describe('VersionListContent', () => {
     expect(markup).not.toContain('2026-03-27T01:00:00.000Z');
   });
 
-  test('renders the actions column with wrapped compact buttons without forcing page overflow', () => {
+  test('renders a compact history action plus overflow menu without forcing page overflow', () => {
     const version = createVersion();
     const markup = renderToStaticMarkup(
       React.createElement(VersionListContent, {
@@ -57,14 +60,15 @@ describe('VersionListContent', () => {
     expect(markup).not.toContain('overflow-x-auto');
     expect(markup).not.toContain('min-w-[1120px]');
     expect(markup).toContain('table-fixed');
-    expect(markup).toContain('w-[48%]');
+    expect(markup).toContain('w-[18%]');
     expect(markup).toContain('whitespace-normal break-all text-[11px] leading-4');
-    expect(markup).toContain('flex flex-wrap gap-2');
+    expect(markup).toContain('flex items-center gap-1');
     expect(markup).toContain('h-8 rounded-md px-2 text-[11px] gap-1');
-    expect(markup).not.toContain('预览');
+    expect(markup).not.toContain('设默认');
+    expect(markup).not.toContain('下线');
   });
 
-  test('keeps the download button enabled when the original zip is available', () => {
+  test('moves secondary version actions into the overflow menu', () => {
     const version = createVersion({ downloadable: true });
     const markup = renderToStaticMarkup(
       React.createElement(VersionListContent, {
@@ -77,24 +81,14 @@ describe('VersionListContent', () => {
       }),
     );
 
-    expect(markup).toContain('下载');
-    expect(markup).toMatch(/<button[^>]*>.*下载/s);
-    expect(markup).not.toMatch(/<button[^>]*disabled=""[^>]*>.*下载/s);
+    expect(markup).toContain('aria-haspopup="menu"');
+    expect(versionListContentSource).toContain('disabled={!item.downloadable}');
+    expect(versionListContentSource).toContain('下载源码');
   });
 
-  test('disables the download button when the original zip is unavailable', () => {
-    const version = createVersion({ downloadable: false });
-    const markup = renderToStaticMarkup(
-      React.createElement(VersionListContent, {
-        versions: [version],
-        onHistory: () => undefined,
-        onDownload: () => undefined,
-        onSetDefault: () => undefined,
-        onOffline: () => undefined,
-        onDelete: () => undefined,
-      }),
-    );
-
-    expect(markup).toMatch(/<button[^>]*disabled=""[^>]*>.*下载/s);
+  test('keeps default and offline mutations inside the overflow menu source', () => {
+    expect(versionListContentSource).toContain('设为默认');
+    expect(versionListContentSource).toContain('下线版本');
+    expect(versionListContentSource).toContain('删除版本');
   });
 });

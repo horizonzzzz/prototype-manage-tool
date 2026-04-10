@@ -1,5 +1,3 @@
-import { FeaturePlaceholder } from '@/components/placeholders/feature-placeholder';
-
 export default function UsersPage() {
   return (
     <div className="space-y-6">
@@ -8,12 +6,12 @@ export default function UsersPage() {
         <p className="text-muted-foreground">管理用户账户和权限。</p>
       </div>
 
-      <FeaturePlaceholder
-        title="即将推出"
-        description="用户管理功能将在此提供。"
-        tagLabel="预留功能"
-        demoActionLabel="演示入口"
-      />
+      <div className="flex min-h-[400px] items-center justify-center rounded-xl border border-dashed bg-card">
+        <div className="text-center">
+          <h3 className="text-lg font-medium">即将推出</h3>
+          <p className="mt-1 text-sm text-muted-foreground">用户管理功能将在此提供。</p>
+        </div>
+      </div>
     </div>
   );
 }

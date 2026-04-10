@@ -1,20 +1,21 @@
 'use client';
 
-import { useDeferredValue, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, CircleDashed, Download, History, Package2, Power, Star, Trash2, Upload } from 'lucide-react';
+import { useDeferredValue, useEffect, useMemo, useState } from 'react';
+import { ArrowLeft, ChevronLeft, ChevronRight, CircleDashed, Package2, Upload } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
+import { BuildProgressDialog } from '@/components/admin/build-progress-dialog';
 import { BuildHistoryDrawer } from '@/components/admin/build-history-drawer';
 import { UploadVersionDialog } from '@/components/admin/upload-version-dialog';
+import { VersionListContent } from '@/components/admin/version-list-content';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { StatusChip } from '@/components/status-chip';
 import { StandardTablePage } from '@/components/standard-table-page';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { type UploadFormValues, uploadFormSchema } from '@/components/admin/form-schemas';
 import { getErrorMessage } from '@/lib/domain/error-message';
 import type {
@@ -27,7 +28,7 @@ import type {
   ProductVersionItem,
 } from '@/lib/types';
 import { formatDateTime } from '@/lib/ui/format';
-import { getVersionStatusLabel, isVersionActionEnabled, selectActiveBuildJob } from '@/lib/ui/product-detail-view';
+import { getVersionStatusLabel, selectActiveBuildJob } from '@/lib/ui/product-detail-view';
 import {
   applyBuildJobLogStreamEvent,
   buildBuildJobLogStreamUrl,
@@ -81,8 +82,8 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const [versionPage, setVersionPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
+  const [buildProgressDialogOpen, setBuildProgressDialogOpen] = useState(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [historyVersion, setHistoryVersion] = useState<ProductVersionItem | null>(null);
   const [historyStepKey, setHistoryStepKey] = useState<BuildJobStepKey | null>(null);
@@ -92,36 +93,25 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const [versionToDelete, setVersionToDelete] = useState<ProductVersionItem | null>(null);
   const [confirmingAction, setConfirmingAction] = useState<'version' | null>(null);
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
-  const uploadDialogOpenRef = useRef(uploadDialogOpen);
-  const uploadDialogSessionRef = useRef(0);
 
   const uploadForm = useForm<UploadFormValues>({
     resolver: zodResolver(uploadFormSchema),
     defaultValues: { version: '', title: '', remark: '' },
   });
 
-  useEffect(() => {
-    uploadDialogOpenRef.current = uploadDialogOpen;
-  }, [uploadDialogOpen]);
-
-  const resetUploadDialogState = () => {
-    uploadDialogSessionRef.current += 1;
+  const resetUploadFormState = () => {
     uploadForm.reset();
     setSelectedUploadFile(null);
     setUploadError(undefined);
     setUploading(false);
-    setUploadProgress(0);
-    setActiveJobId(undefined);
-    setActiveJob(null);
-    setActiveJobLog(null);
-    setSelectedLogStepKey(null);
-    setIsLogStepPinned(false);
   };
 
   const clearProductContext = () => {
     setProductDetail(null);
     setJobs([]);
     setVersionPage(1);
+    setUploadDialogOpen(false);
+    setBuildProgressDialogOpen(false);
     setActiveJobId(undefined);
     setActiveJob(null);
     setActiveJobLog(null);
@@ -407,8 +397,6 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   };
 
   const uploadVersion = uploadForm.handleSubmit(async (values) => {
-    const dialogSessionId = uploadDialogSessionRef.current;
-
     try {
       setUploadError(undefined);
       if (!productKey) {
@@ -431,11 +419,6 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
       await new Promise<void>((resolve, reject) => {
         const xhr = new XMLHttpRequest();
         xhr.open('POST', '/api/versions/upload');
-        xhr.upload.onprogress = (event) => {
-          if (event.lengthComputable && uploadDialogOpenRef.current && uploadDialogSessionRef.current === dialogSessionId) {
-            setUploadProgress(Math.round((event.loaded / event.total) * 100));
-          }
-        };
         xhr.onload = async () => {
           const payload = JSON.parse(xhr.responseText) as ApiResponse<BuildJobItem>;
           if (xhr.status >= 400 || !payload.success || !payload.data) {
@@ -444,15 +427,14 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
           }
 
           toast.success('源码包上传成功，后台任务已开始');
-          await loadProductDetail(productKey);
-          if (uploadDialogOpenRef.current && uploadDialogSessionRef.current === dialogSessionId) {
-            uploadForm.reset();
-            setSelectedUploadFile(null);
-            setActiveJobId(payload.data.id);
-            setActiveJob(payload.data);
-            setSelectedLogStepKey(getBuildJobLogStep(payload.data.currentStep));
-            setIsLogStepPinned(false);
-          }
+          setActiveJobId(payload.data.id);
+          setActiveJob(payload.data);
+          setSelectedLogStepKey(getBuildJobLogStep(payload.data.currentStep));
+          setIsLogStepPinned(false);
+          setUploadDialogOpen(false);
+          setBuildProgressDialogOpen(true);
+          resetUploadFormState();
+          void loadProductDetail(productKey).catch((error) => toast.error(getErrorMessage(error, '刷新产品详情失败')));
           resolve();
         };
         xhr.onerror = () => reject(new Error('上传失败'));
@@ -460,15 +442,10 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
       });
     } catch (error) {
       const message = getErrorMessage(error, '上传失败');
-      if (uploadDialogOpenRef.current && uploadDialogSessionRef.current === dialogSessionId) {
-        setUploadError(message);
-      }
+      setUploadError(message);
       toast.error(message);
     } finally {
-      if (uploadDialogSessionRef.current === dialogSessionId) {
-        setUploading(false);
-        setUploadProgress(0);
-      }
+      setUploading(false);
     }
   });
 
@@ -549,7 +526,12 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
                     {activeJob.version}
                   </span>
                 </div>
-                <span className="text-xs text-slate-500">{formatDateTime(activeJob.createdAt)}</span>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs text-slate-500">{formatDateTime(activeJob.createdAt)}</span>
+                  <Button type="button" size="sm" variant="secondary" onClick={() => setBuildProgressDialogOpen(true)}>
+                    查看进度
+                  </Button>
+                </div>
               </div>
               {activeJobProgress !== null ? (
                 <div className="mt-3 space-y-1.5">
@@ -570,116 +552,20 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
         </div>
 
         <div className="space-y-4 px-6 py-5">
-          <div className="overflow-hidden rounded-[16px] border border-[color:var(--border)]">
-            <Table className="table-fixed">
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="w-[18%] px-3">版本号</TableHead>
-                  <TableHead className="w-[16%] px-3">状态</TableHead>
-                  <TableHead className="px-3">标题 / 备注</TableHead>
-                  <TableHead className="w-[14%] px-3">创建时间</TableHead>
-                  <TableHead className="w-[36%] px-3">操作</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedVersions.length ? (
-                  paginatedVersions.map((item) => {
-                    const setDefaultEnabled = isVersionActionEnabled('setDefault', {
-                      status: item.status,
-                      isDefault: item.isDefault,
-                    });
-                    const offlineEnabled = isVersionActionEnabled('offline', {
-                      status: item.status,
-                      isDefault: item.isDefault,
-                    });
-
-                    return (
-                      <TableRow key={item.id} className={['queued', 'running'].includes(item.status) ? 'bg-sky-50/60' : undefined}>
-                        <TableCell className="px-3 py-4">
-                          <div className="flex min-w-0 items-center gap-2">
-                            <span className="max-w-[220px] truncate font-mono text-[13px] font-semibold text-slate-900" title={item.version}>
-                              {item.version}
-                            </span>
-                            {item.isDefault ? <StatusChip status="offline" label="默认版本" showDot={false} /> : null}
-                            {item.isLatest ? <StatusChip status="running" label="最新记录" showDot={false} /> : null}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-3 py-4">
-                          <div className="flex flex-wrap items-center gap-2">
-                            <StatusChip
-                              status={item.status === 'queued' ? 'running' : item.status}
-                              label={getVersionStatusLabel(item.status)}
-                              className={['queued', 'running'].includes(item.status) ? 'ring-1 ring-sky-300/70' : undefined}
-                            />
-                            {['queued', 'running'].includes(item.status) ? (
-                              <CircleDashed className="size-3.5 animate-spin text-sky-500" />
-                            ) : null}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-3 py-4">
-                          <div className="truncate text-slate-800" title={item.title ?? undefined}>
-                            {item.title || '—'}
-                          </div>
-                          <div className="mt-1 truncate text-sm text-slate-500" title={item.remark ?? undefined}>
-                            {item.remark || '无备注'}
-                          </div>
-                        </TableCell>
-                        <TableCell className="px-3 py-4 text-[11px] leading-4 text-slate-500">{formatDateTime(item.createdAt)}</TableCell>
-                        <TableCell className="px-3 py-4">
-                          <div className="flex flex-wrap gap-2">
-                            <Button type="button" size="sm" variant="secondary" onClick={() => openBuildHistory(item)}>
-                              <History />
-                              历史
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="secondary"
-                              disabled={!item.downloadable}
-                              onClick={() => triggerVersionDownload(item.id)}
-                            >
-                              <Download />
-                              下载
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="secondary"
-                              disabled={!setDefaultEnabled}
-                              onClick={() => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
-                            >
-                              <Star />
-                              设默认
-                            </Button>
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="secondary"
-                              disabled={!offlineEnabled}
-                              onClick={() => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
-                            >
-                              <Power />
-                              下线
-                            </Button>
-                            <Button type="button" size="sm" variant="destructive" onClick={() => setVersionToDelete(item)}>
-                              <Trash2 />
-                              删除
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                ) : (
-                  <TableRow>
-                    <TableCell colSpan={5} className="h-32 text-center text-sm text-slate-500">
-                      暂无匹配版本记录
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </div>
+          {loading && !productDetail ? (
+            <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-[color:var(--border)] bg-slate-50/80 px-4 text-sm text-slate-500">
+              正在加载版本列表...
+            </div>
+          ) : (
+            <VersionListContent
+              versions={paginatedVersions}
+              onHistory={openBuildHistory}
+              onDownload={(item) => triggerVersionDownload(item.id)}
+              onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
+              onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
+              onDelete={setVersionToDelete}
+            />
+          )}
 
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm text-slate-500">
@@ -714,9 +600,12 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
       <UploadVersionDialog
         open={uploadDialogOpen}
         onOpenChange={(open) => {
+          if (!open && uploading) {
+            return;
+          }
           setUploadDialogOpen(open);
           if (!open) {
-            resetUploadDialogState();
+            resetUploadFormState();
           }
         }}
         form={uploadForm}
@@ -725,23 +614,33 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
         selectedUploadFile={selectedUploadFile}
         uploadError={uploadError}
         uploading={uploading}
-        uploadProgress={uploadProgress}
-        activeJob={activeJob}
-        selectedLogStepKey={selectedLogStepKey}
-        terminalBadge={terminalBadge}
-        terminalContent={terminalContent}
-        terminalEmptyText={getTerminalEmptyText(activeJob)}
+        onCancel={() => {
+          if (!uploading) {
+            setUploadDialogOpen(false);
+            resetUploadFormState();
+          }
+        }}
         onFileChange={(file) => {
           setSelectedUploadFile(file);
           if (uploadError) {
             setUploadError(undefined);
           }
         }}
+        onSubmit={uploadVersion}
+      />
+
+      <BuildProgressDialog
+        open={buildProgressDialogOpen}
+        onOpenChange={setBuildProgressDialogOpen}
+        activeJob={activeJob}
+        selectedLogStepKey={selectedLogStepKey}
+        terminalBadge={terminalBadge}
+        terminalContent={terminalContent}
+        terminalEmptyText={getTerminalEmptyText(activeJob)}
         onSelectStep={(stepKey) => {
           setSelectedLogStepKey(stepKey);
           setIsLogStepPinned(true);
         }}
-        onSubmit={uploadVersion}
       />
 
       <BuildHistoryDrawer

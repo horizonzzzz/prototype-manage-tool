@@ -15,7 +15,6 @@ vi.mock('@/lib/server/manifest-service', () => ({
   getManifest: getManifestMock,
 }));
 
-import PreviewPage from '@/app/preview/page';
 import PreviewProductRoutePage from '@/app/preview/[productKey]/page';
 import PreviewVersionRoutePage from '@/app/preview/[productKey]/[version]/page';
 
@@ -24,12 +23,17 @@ describe('preview route redirects', () => {
     vi.clearAllMocks();
   });
 
-  test('redirects legacy preview query params to the new segment route', async () => {
+  test('redirects preview product routes into preview list query state', async () => {
+    getManifestMock.mockResolvedValue({
+      products: [],
+      resolved: { productKey: 'crm', version: 'v1.2.0' },
+    });
+
     await expect(
-      PreviewPage({
-        searchParams: Promise.resolve({ product: 'crm', version: 'v1.2.0' }),
+      PreviewProductRoutePage({
+        params: Promise.resolve({ productKey: 'crm' }),
       }),
-    ).rejects.toThrow('REDIRECT:/preview/crm/v1.2.0');
+    ).rejects.toThrow('REDIRECT:/preview?product=crm&version=v1.2.0');
   });
 
   test('redirects invalid preview version routes to the canonical resolved route', async () => {
@@ -42,7 +46,7 @@ describe('preview route redirects', () => {
       PreviewVersionRoutePage({
         params: Promise.resolve({ productKey: 'crm', version: 'broken-version' }),
       }),
-    ).rejects.toThrow('REDIRECT:/preview/crm/v1.2.0');
+    ).rejects.toThrow('REDIRECT:/preview?product=crm&version=v1.2.0');
 
     expect(getManifestMock).toHaveBeenCalledWith('crm', 'broken-version');
   });

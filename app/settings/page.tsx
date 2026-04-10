@@ -1,4 +1,3 @@
-import { FeaturePlaceholder } from '@/components/placeholders/feature-placeholder';
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
 
 export default function SettingsPage() {
@@ -17,12 +16,6 @@ export default function SettingsPage() {
           </div>
           <LanguageSwitcher />
         </div>
-        <FeaturePlaceholder
-          title="更多设置即将接入"
-          description="通知、偏好和访问策略将在此提供。"
-          tagLabel="预留功能"
-          demoActionLabel="演示入口"
-        />
       </div>
     </div>
   );

@@ -1,7 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import { PreviewBrowser } from '@/components/preview-browser';
-import { buildPreviewHref } from '@/lib/ui/navigation';
+import { buildPreviewStateHref } from '@/lib/ui/preview-viewer-state';
 import { getManifest } from '@/lib/server/manifest-service';
 
 type PreviewVersionRouteProps = {
@@ -16,18 +15,12 @@ export default async function PreviewVersionRoutePage({ params }: PreviewVersion
     redirect('/preview');
   }
 
-  const canonicalHref = buildPreviewHref(manifest.resolved.productKey, manifest.resolved.version);
-  const currentHref = buildPreviewHref(productKey, version);
+  const canonicalHref = buildPreviewStateHref(manifest.resolved.productKey, manifest.resolved.version);
+  const currentHref = buildPreviewStateHref(productKey, version);
 
   if (canonicalHref !== currentHref) {
     redirect(canonicalHref);
   }
 
-  return (
-    <PreviewBrowser
-      products={manifest.products}
-      selectedProductKey={manifest.resolved.productKey}
-      selectedVersion={manifest.resolved.version}
-    />
-  );
+  redirect(canonicalHref);
 }
