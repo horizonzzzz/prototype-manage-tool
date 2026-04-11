@@ -55,19 +55,27 @@ function createVersion(overrides: Partial<ProductVersionItem> = {}): ProductVers
   };
 }
 
-describe('VersionListContent', () => {
-  test('formats created time as YYYY-MM-DD HH:mm:ss', () => {
-    const version = createVersion({ createdAt: '2026-03-27T01:00:00.000Z' });
-    const markup = renderToStaticMarkup(
-      React.createElement(NextIntlClientProvider, { locale: 'zh', messages }, React.createElement(VersionListContent, {
+function renderVersionListContent(version: ProductVersionItem) {
+  return renderToStaticMarkup(
+    React.createElement(NextIntlClientProvider, {
+      locale: 'zh',
+      messages,
+      children: React.createElement(VersionListContent, {
         versions: [version],
         onHistory: () => undefined,
         onDownload: () => undefined,
         onSetDefault: () => undefined,
         onOffline: () => undefined,
         onDelete: () => undefined,
-      })),
-    );
+      }),
+    }),
+  );
+}
+
+describe('VersionListContent', () => {
+  test('formats created time as YYYY-MM-DD HH:mm:ss', () => {
+    const version = createVersion({ createdAt: '2026-03-27T01:00:00.000Z' });
+    const markup = renderVersionListContent(version);
 
     expect(markup).toContain('2026-03-27');
     expect(markup).toContain(':00:00');
@@ -76,16 +84,7 @@ describe('VersionListContent', () => {
 
   test('renders the prototype-aligned version table without the title-remark compound column', () => {
     const version = createVersion();
-    const markup = renderToStaticMarkup(
-      React.createElement(NextIntlClientProvider, { locale: 'zh', messages }, React.createElement(VersionListContent, {
-        versions: [version],
-        onHistory: () => undefined,
-        onDownload: () => undefined,
-        onSetDefault: () => undefined,
-        onOffline: () => undefined,
-        onDelete: () => undefined,
-      })),
-    );
+    const markup = renderVersionListContent(version);
 
     expect(markup).not.toContain('overflow-x-auto');
     expect(markup).not.toContain('min-w-[1120px]');
@@ -99,16 +98,7 @@ describe('VersionListContent', () => {
 
   test('moves secondary version actions into the overflow menu', () => {
     const version = createVersion({ downloadable: true });
-    const markup = renderToStaticMarkup(
-      React.createElement(NextIntlClientProvider, { locale: 'zh', messages }, React.createElement(VersionListContent, {
-        versions: [version],
-        onHistory: () => undefined,
-        onDownload: () => undefined,
-        onSetDefault: () => undefined,
-        onOffline: () => undefined,
-        onDelete: () => undefined,
-      })),
-    );
+    const markup = renderVersionListContent(version);
 
     expect(markup).toContain('aria-haspopup="menu"');
     expect(versionListContentSource).toContain('disabled={!item.downloadable}');

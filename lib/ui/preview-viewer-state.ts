@@ -1,3 +1,4 @@
+import { routing, type AppLocale } from '@/i18n/routing';
 import type { ManifestProduct } from '@/lib/types';
 import { resolveInitialPreviewVersion } from '@/lib/ui/preview-product-list-view';
 
@@ -19,6 +20,16 @@ export function buildPreviewStateHref(productKey?: string, version?: string) {
 
   const query = searchParams.toString();
   return query ? `/preview/${productKey}?${query}` : `/preview/${productKey}`;
+}
+
+export function buildLocalizedPreviewStateHref(locale: AppLocale, productKey?: string, version?: string) {
+  const href = buildPreviewStateHref(productKey, version);
+
+  if (locale === routing.defaultLocale) {
+    return href;
+  }
+
+  return `/${locale}${href}`;
 }
 
 export function resolvePreviewViewerState(

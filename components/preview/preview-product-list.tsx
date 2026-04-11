@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { PreviewEmptyState } from '@/components/preview/preview-empty-state';
@@ -10,6 +10,7 @@ import { PreviewProductCard } from '@/components/preview/preview-product-card';
 import { PreviewViewerDialog } from '@/components/preview/preview-viewer-dialog';
 import { Input } from '@/components/ui/input';
 import { useRouter } from '@/i18n/navigation';
+import type { AppLocale } from '@/i18n/routing';
 import type { ManifestProduct, ProductVersionManifest } from '@/lib/types';
 import { copyText, resolvePreviewEntryUrl } from '@/lib/ui/preview-link';
 import {
@@ -18,7 +19,7 @@ import {
   findPreviewVersion,
   syncPreviewVersionSelections,
 } from '@/lib/ui/preview-product-list-view';
-import { buildPreviewStateHref, resolvePreviewViewerState } from '@/lib/ui/preview-viewer-state';
+import { buildLocalizedPreviewStateHref, buildPreviewStateHref, resolvePreviewViewerState } from '@/lib/ui/preview-viewer-state';
 
 type PreviewProductListProps = {
   products: ManifestProduct[];
@@ -27,6 +28,7 @@ type PreviewProductListProps = {
 };
 
 export function PreviewProductList({ products, selectedProductKey, selectedVersion }: PreviewProductListProps) {
+  const locale = useLocale() as AppLocale;
   const t = useTranslations('preview.list');
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -52,6 +54,9 @@ export function PreviewProductList({ products, selectedProductKey, selectedVersi
       ? resolvePreviewEntryUrl(version.entryUrl, window.location.origin)
       : undefined;
 
+  const resolvePreviewStateUrl = (productKey: string, version: ProductVersionManifest | undefined) =>
+    buildLocalizedPreviewStateHref(locale, productKey, version?.version);
+
   const openViewer = (productKey: string, version: ProductVersionManifest | undefined) => {
     if (!version) return;
     router.push(buildPreviewStateHref(productKey, version.version), { scroll: false });
@@ -59,13 +64,13 @@ export function PreviewProductList({ products, selectedProductKey, selectedVersi
 
   const openPreviewInNewWindow = (productKey: string, version: ProductVersionManifest | undefined) => {
     if (!version || typeof window === 'undefined') return;
-    const target = new URL(buildPreviewStateHref(productKey, version.version), window.location.origin).toString();
+    const target = new URL(resolvePreviewStateUrl(productKey, version), window.location.origin).toString();
     window.open(target, '_blank', 'noopener,noreferrer');
   };
 
   const copyPreviewLink = async (productKey: string, version: ProductVersionManifest | undefined) => {
     if (!version || typeof window === 'undefined') return;
-    const copied = await copyText(new URL(buildPreviewStateHref(productKey, version.version), window.location.origin).toString());
+    const copied = await copyText(new URL(resolvePreviewStateUrl(productKey, version), window.location.origin).toString());
     copied ? toast.success(t('copied')) : toast.error(t('copyFailed'));
   };
 

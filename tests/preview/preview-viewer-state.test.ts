@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
-import { buildPreviewStateHref, resolvePreviewViewerState } from '@/lib/ui/preview-viewer-state';
+import { buildLocalizedPreviewStateHref, buildPreviewStateHref, resolvePreviewViewerState } from '@/lib/ui/preview-viewer-state';
 import type { ManifestProduct } from '@/lib/types';
 
 function createManifestProduct(overrides: Partial<ManifestProduct> = {}): ManifestProduct {
@@ -45,6 +45,16 @@ describe('preview viewer state helpers', () => {
 
   test('builds preview viewer href with product path when version is omitted', () => {
     expect(buildPreviewStateHref('crm')).toBe('/preview/crm');
+  });
+
+  test('builds localized preview href without a locale prefix for the default zh locale', () => {
+    expect(buildLocalizedPreviewStateHref('zh')).toBe('/preview');
+    expect(buildLocalizedPreviewStateHref('zh', 'crm', 'v1.2.0-beta_1')).toBe('/preview/crm?v=v1.2.0-beta_1');
+  });
+
+  test('builds localized preview href with an /en prefix for the english locale', () => {
+    expect(buildLocalizedPreviewStateHref('en')).toBe('/en/preview');
+    expect(buildLocalizedPreviewStateHref('en', 'crm', 'v1.2.0-beta_1')).toBe('/en/preview/crm?v=v1.2.0-beta_1');
   });
 
   test('resolves an exact viewer target when both product and version are valid', () => {
