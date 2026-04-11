@@ -17,7 +17,7 @@ describe('app frame layout migration', () => {
   test('adds next-intl routing infrastructure and locale request handling', () => {
     expect(projectFileExists('i18n/routing.ts')).toBe(true);
     expect(projectFileExists('i18n/request.ts')).toBe(true);
-    expect(projectFileExists('middleware.ts')).toBe(true);
+    expect(projectFileExists('proxy.ts')).toBe(true);
     expect(projectFileExists('messages/zh.json')).toBe(true);
     expect(projectFileExists('messages/en.json')).toBe(true);
     expect(localeLayoutSource).toContain('setRequestLocale');
