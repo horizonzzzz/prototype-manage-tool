@@ -28,8 +28,8 @@ vi.mock('@/components/admin/pages/admin-product-list-page', () => ({
   AdminProductListPage: () => null,
 }));
 
-import AdminPage from '@/app/admin/page';
-import AdminProductPage from '@/app/admin/[productKey]/page';
+import AdminPage from '@/app/[locale]/(workspace)/admin/page';
+import AdminProductPage from '@/app/[locale]/(workspace)/admin/[productKey]/page';
 
 describe('admin route redirects', () => {
   beforeEach(() => {

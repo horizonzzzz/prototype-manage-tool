@@ -47,9 +47,9 @@ describe('preview viewer state helpers', () => {
     expect(buildPreviewStateHref('crm')).toBe('/preview/crm');
   });
 
-  test('builds localized preview href without a locale prefix for the default zh locale', () => {
-    expect(buildLocalizedPreviewStateHref('zh')).toBe('/preview');
-    expect(buildLocalizedPreviewStateHref('zh', 'crm', 'v1.2.0-beta_1')).toBe('/preview/crm?v=v1.2.0-beta_1');
+  test('builds localized preview href with a /zh prefix for the zh locale', () => {
+    expect(buildLocalizedPreviewStateHref('zh')).toBe('/zh/preview');
+    expect(buildLocalizedPreviewStateHref('zh', 'crm', 'v1.2.0-beta_1')).toBe('/zh/preview/crm?v=v1.2.0-beta_1');
   });
 
   test('builds localized preview href with an /en prefix for the english locale', () => {

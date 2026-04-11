@@ -7,8 +7,8 @@ const packageJson = JSON.parse(readProjectSource('package.json')) as {
 };
 
 const layoutSource = readProjectSource('app/layout.tsx');
-const adminPageSource = readProjectSource('app/admin/page.tsx');
-const previewPageSource = readProjectSource('app/preview/page.tsx');
+const adminPageSource = readProjectSource('app/[locale]/(workspace)/admin/page.tsx');
+const previewPageSource = readProjectSource('app/[locale]/(preview)/preview/page.tsx');
 const adminDashboardSource = readProjectSource('components/admin-dashboard.tsx');
 const previewProductListSource = readProjectSource('components/preview/preview-product-list.tsx');
 const adminProductListSource = readProjectSource('components/admin/panels/admin-product-list.tsx');

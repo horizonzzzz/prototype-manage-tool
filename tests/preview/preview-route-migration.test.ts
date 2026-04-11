@@ -1,15 +1,18 @@
 import { projectFileExists, readProjectSource } from '@/tests/support/project-source';
 import { describe, expect, test } from 'vitest';
 
-const previewPageSource = readProjectSource('app/preview/page.tsx');
-const previewProductRouteSource = readProjectSource('app/preview/[productKey]/page.tsx');
-const previewVersionRouteSource = readProjectSource('app/preview/[productKey]/[version]/page.tsx');
+const previewPageSource = readProjectSource('app/[locale]/(preview)/preview/page.tsx');
+const previewProductRouteSource = readProjectSource('app/[locale]/(preview)/preview/[productKey]/page.tsx');
+const previewVersionRouteSource = readProjectSource('app/[locale]/(preview)/preview/[productKey]/[version]/page.tsx');
 
 describe('preview route migration', () => {
-  test('creates nested preview routes and a dedicated preview product list component', () => {
-    expect(projectFileExists('app/preview/[productKey]/page.tsx')).toBe(true);
-    expect(projectFileExists('app/preview/[productKey]/[version]/page.tsx')).toBe(true);
+  test('creates locale-scoped preview routes under the preview route group and a dedicated preview product list component', () => {
+    expect(projectFileExists('app/[locale]/(preview)/preview/[productKey]/page.tsx')).toBe(true);
+    expect(projectFileExists('app/[locale]/(preview)/preview/[productKey]/[version]/page.tsx')).toBe(true);
     expect(projectFileExists('components/preview/preview-product-list.tsx')).toBe(true);
+    expect(projectFileExists('app/preview/page.tsx')).toBe(false);
+    expect(projectFileExists('app/preview/[productKey]/page.tsx')).toBe(false);
+    expect(projectFileExists('app/preview/[productKey]/[version]/page.tsx')).toBe(false);
   });
 
   test('turns the preview entry page into a product list surface instead of mounting the old browser directly', () => {

@@ -1,5 +1,5 @@
-import { redirect } from 'next/navigation';
+import { redirect } from '@/i18n/navigation';
 
 export default function HomePage() {
-  redirect('/admin');
+  redirect({ href: '/admin', locale: 'zh' });
 }

@@ -25,10 +25,6 @@ export function buildPreviewStateHref(productKey?: string, version?: string) {
 export function buildLocalizedPreviewStateHref(locale: AppLocale, productKey?: string, version?: string) {
   const href = buildPreviewStateHref(productKey, version);
 
-  if (locale === routing.defaultLocale) {
-    return href;
-  }
-
   return `/${locale}${href}`;
 }
 

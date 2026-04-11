@@ -2,16 +2,20 @@ import { projectFileExists, readProjectSource } from '@/tests/support/project-so
 import { describe, expect, test } from 'vitest';
 
 describe('placeholder routes', () => {
-  test('moves login, register, users, and settings pages under the locale segment', () => {
-    expect(projectFileExists('app/[locale]/login/page.tsx')).toBe(true);
-    expect(projectFileExists('app/[locale]/register/page.tsx')).toBe(true);
-    expect(projectFileExists('app/[locale]/users/page.tsx')).toBe(true);
-    expect(projectFileExists('app/[locale]/settings/page.tsx')).toBe(true);
+  test('keeps auth and secondary pages only inside locale route groups', () => {
+    expect(projectFileExists('app/[locale]/(auth)/login/page.tsx')).toBe(true);
+    expect(projectFileExists('app/[locale]/(auth)/register/page.tsx')).toBe(true);
+    expect(projectFileExists('app/[locale]/(workspace)/users/page.tsx')).toBe(true);
+    expect(projectFileExists('app/[locale]/(workspace)/settings/page.tsx')).toBe(true);
+    expect(projectFileExists('app/login/page.tsx')).toBe(false);
+    expect(projectFileExists('app/register/page.tsx')).toBe(false);
+    expect(projectFileExists('app/users/page.tsx')).toBe(false);
+    expect(projectFileExists('app/settings/page.tsx')).toBe(false);
   });
 
   test('renders users and settings pages through next-intl server translations', () => {
-    const usersPageSource = readProjectSource('app/users/page.tsx');
-    const settingsPageSource = readProjectSource('app/settings/page.tsx');
+    const usersPageSource = readProjectSource('app/[locale]/(workspace)/users/page.tsx');
+    const settingsPageSource = readProjectSource('app/[locale]/(workspace)/settings/page.tsx');
 
     expect(usersPageSource).toContain("from 'next-intl/server'");
     expect(usersPageSource).toContain('getTranslations');
@@ -25,8 +29,8 @@ describe('placeholder routes', () => {
   });
 
   test('auth placeholders stay server-driven and locale-aware', () => {
-    const loginPageSource = readProjectSource('app/login/page.tsx');
-    const registerPageSource = readProjectSource('app/register/page.tsx');
+    const loginPageSource = readProjectSource('app/[locale]/(auth)/login/page.tsx');
+    const registerPageSource = readProjectSource('app/[locale]/(auth)/register/page.tsx');
 
     expect(loginPageSource).toContain("'use server'");
     expect(loginPageSource).toContain("from '@/i18n/navigation'");
@@ -41,10 +45,10 @@ describe('placeholder routes', () => {
   });
 
   test('auth and secondary pages no longer depend on language preference cookies or local storage keys', () => {
-    const loginPageSource = readProjectSource('app/login/page.tsx');
-    const registerPageSource = readProjectSource('app/register/page.tsx');
-    const settingsPageSource = readProjectSource('app/settings/page.tsx');
-    const usersPageSource = readProjectSource('app/users/page.tsx');
+    const loginPageSource = readProjectSource('app/[locale]/(auth)/login/page.tsx');
+    const registerPageSource = readProjectSource('app/[locale]/(auth)/register/page.tsx');
+    const settingsPageSource = readProjectSource('app/[locale]/(workspace)/settings/page.tsx');
+    const usersPageSource = readProjectSource('app/[locale]/(workspace)/users/page.tsx');
     const languageSwitcherSource = readProjectSource('components/layout/language-switcher.tsx');
 
     expect(loginPageSource).not.toContain('APP_LANGUAGE_STORAGE_KEY');

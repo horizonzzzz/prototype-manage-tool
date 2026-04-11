@@ -29,8 +29,8 @@ vi.mock('next-intl/server', () => ({
   }),
 }));
 
-import PreviewProductRoutePage from '@/app/preview/[productKey]/page';
-import PreviewVersionRoutePage from '@/app/preview/[productKey]/[version]/page';
+import PreviewProductRoutePage from '@/app/[locale]/(preview)/preview/[productKey]/page';
+import PreviewVersionRoutePage from '@/app/[locale]/(preview)/preview/[productKey]/[version]/page';
 
 describe('preview route redirects', () => {
   beforeEach(() => {
