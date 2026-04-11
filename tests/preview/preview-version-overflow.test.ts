@@ -88,7 +88,7 @@ describe('preview selector overflow guards', () => {
 
   test('marks the default version explicitly in selector options', () => {
     expect(previewListSource).toContain('version.isDefault');
-    expect(previewListSource).toContain('默认');
+    expect(previewListSource).toContain("t('defaultSuffix')");
   });
 
   test('renders stored version labels without forcing an extra v prefix', () => {

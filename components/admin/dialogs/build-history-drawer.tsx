@@ -1,6 +1,7 @@
 'use client';
 
 import { AlertCircle } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { BuildJobStepList } from '@/components/build-job-step-list';
 import { BuildJobTerminal } from '@/components/build-job-terminal';
@@ -30,21 +31,22 @@ export function BuildHistoryDrawer({
   terminalContent,
   onSelectStep,
 }: BuildHistoryDrawerProps) {
+  const t = useTranslations('buildHistory');
   const shouldShowProgress = activeJob ? ['queued', 'running', 'building'].includes(activeJob.status) : false;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{versionLabel ? `构建日志 - ${versionLabel}` : '构建日志'}</DialogTitle>
-          <DialogDescription>{versionLabel ? '查看该版本的构建和部署进度' : '请选择一个版本后查看其构建过程。'}</DialogDescription>
+          <DialogTitle>{versionLabel ? t('titleWithVersion', { version: versionLabel }) : t('title')}</DialogTitle>
+          <DialogDescription>{versionLabel ? t('description') : t('emptyDescription')}</DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4">
           {shouldShowProgress ? (
             <div className="space-y-2">
               <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">构建进度</span>
+                <span className="text-muted-foreground">{t('progress')}</span>
                 <span className="font-medium">{activeJob?.progressPercent ?? 0}%</span>
               </div>
               <Progress value={activeJob?.progressPercent ?? 0} />
@@ -57,13 +59,13 @@ export function BuildHistoryDrawer({
                 <BuildJobStepList steps={activeJob.steps} selectedStepKey={selectedLogStepKey} onSelect={onSelectStep} />
               </div>
               <TerminalShell badge={terminalBadge}>
-                <BuildJobTerminal content={terminalContent} emptyText="选择步骤后查看摘要" />
+                <BuildJobTerminal content={terminalContent} emptyText={t('selectStep')} />
               </TerminalShell>
             </div>
           ) : (
             <div className="flex min-h-[320px] flex-col items-center justify-center gap-3 rounded-[16px] border border-dashed border-[color:var(--border)] bg-slate-50/70 px-6 text-center text-sm text-slate-500">
               <AlertCircle className="size-5 text-slate-400" />
-              {versionLabel ? '该版本暂无可展示的构建过程' : '暂无可展示的构建过程'}
+              {versionLabel ? t('noHistoryForVersion') : t('noHistory')}
             </div>
           )}
         </div>

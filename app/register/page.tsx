@@ -1,71 +1,46 @@
-import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
+import { getTranslations } from 'next-intl/server';
 
 import { AuthCard } from '@/components/auth/auth-card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { APP_LANGUAGE_STORAGE_KEY, normalizeLanguagePreference } from '@/lib/ui/app-preferences';
+import { getLocale } from 'next-intl/server';
 
-const registerCopyMap = {
-  en: {
-    brandTitle: 'Prototype Management System',
-    title: 'Create an account',
-    description: 'Enter your details below to create your account',
-    footerText: 'Already have an account?',
-    footerActionLabel: 'Sign in',
-    emailLabel: 'Email',
-    passwordLabel: 'Password',
-    confirmPasswordLabel: 'Confirm Password',
-    submitLabel: 'Register',
-  },
-  zh: {
-    brandTitle: '原型管理系统',
-    title: '创建账号',
-    description: '请输入您的信息以创建账号',
-    footerText: '已有账号？',
-    footerActionLabel: '去登录',
-    emailLabel: '邮箱',
-    passwordLabel: '密码',
-    confirmPasswordLabel: '确认密码',
-    submitLabel: '注册',
-  },
-} as const;
+import { redirect } from '@/i18n/navigation';
 
 export default async function RegisterPage() {
-  const cookieStore = await cookies();
-  const language = normalizeLanguagePreference(cookieStore.get(APP_LANGUAGE_STORAGE_KEY)?.value);
-  const copy = registerCopyMap[language];
+  const t = await getTranslations('auth.register');
 
   async function enterWorkspace() {
     'use server';
-    redirect('/admin');
+    const locale = await getLocale();
+    redirect({ href: '/admin', locale });
   }
 
   return (
     <AuthCard
-      brandTitle={copy.brandTitle}
-      title={copy.title}
-      description={copy.description}
-      footerText={copy.footerText}
-      footerActionLabel={copy.footerActionLabel}
+      brandTitle={t('brandTitle')}
+      title={t('title')}
+      description={t('description')}
+      footerText={t('footerText')}
+      footerActionLabel={t('footerActionLabel')}
       footerActionHref="/login"
     >
       <form action={enterWorkspace} className="grid gap-4">
         <div className="grid gap-2">
-          <Label htmlFor="register-email">{copy.emailLabel}</Label>
+          <Label htmlFor="register-email">{t('emailLabel')}</Label>
           <Input id="register-email" type="email" placeholder="m@example.com" autoComplete="email" required />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="register-password">{copy.passwordLabel}</Label>
+          <Label htmlFor="register-password">{t('passwordLabel')}</Label>
           <Input id="register-password" type="password" autoComplete="new-password" required />
         </div>
         <div className="grid gap-2">
-          <Label htmlFor="register-confirm-password">{copy.confirmPasswordLabel}</Label>
+          <Label htmlFor="register-confirm-password">{t('confirmPasswordLabel')}</Label>
           <Input id="register-confirm-password" type="password" autoComplete="new-password" required />
         </div>
         <Button type="submit" className="w-full">
-          {copy.submitLabel}
+          {t('submitLabel')}
         </Button>
       </form>
     </AuthCard>

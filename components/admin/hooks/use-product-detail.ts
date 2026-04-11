@@ -20,7 +20,7 @@ type UseProductDetailStateResult = {
   refreshCurrent: () => Promise<void>;
 };
 
-export function useProductDetailState(productKey: string): UseProductDetailStateResult {
+export function useProductDetailState(productKey: string, loadErrorFallback = 'Failed to load product detail'): UseProductDetailStateResult {
   const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
   const [jobs, setJobs] = useState<BuildJobItem[]>([]);
   const [activeJobId, setActiveJobId] = useState<number>();
@@ -46,20 +46,20 @@ export function useProductDetailState(productKey: string): UseProductDetailState
     setActiveJob(nextActive ?? null);
   }
 
-  function handleLoadFailure(error: unknown): string {
-    const { message, productMissing } = resolveProductDetailLoadFailure(error, '加载产品详情失败');
+  function handleLoadFailure(error: unknown) {
+    const { message, productMissing } = resolveProductDetailLoadFailure(error, loadErrorFallback);
 
     if (productMissing) {
       setProductDetail(null);
       syncJobs([]);
       setLoadError(null);
       setProductMissing(true);
-      return message;
+      return { message, productMissing };
     }
 
     setLoadError(message);
     setProductMissing(false);
-    return message;
+    return { message, productMissing };
   }
 
   async function loadProductDetail(targetProductKey: string): Promise<void> {
@@ -103,12 +103,12 @@ export function useProductDetailState(productKey: string): UseProductDetailState
     }
 
     void loadProductDetail(productKey).catch((error) => {
-      const message = handleLoadFailure(error);
-      if (message !== 'Product not found') {
-        toast.error(message);
+      const failure = handleLoadFailure(error);
+      if (!failure.productMissing) {
+        toast.error(failure.message);
       }
     });
-  }, [productKey]);
+  }, [loadErrorFallback, productKey]);
 
   useEffect(() => {
     if (!activeJobId) {

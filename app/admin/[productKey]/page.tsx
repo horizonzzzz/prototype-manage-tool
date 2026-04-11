@@ -1,6 +1,7 @@
-import { redirect } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
 
 import { AdminDashboard } from '@/components/admin-dashboard';
+import { redirect } from '@/i18n/navigation';
 import { resolveAdminProductKey } from '@/lib/ui/navigation';
 import { prisma } from '@/lib/prisma';
 
@@ -9,6 +10,7 @@ type AdminProductRouteProps = {
 };
 
 export default async function AdminProductPage({ params }: AdminProductRouteProps) {
+  const locale = await getLocale();
   const { productKey } = await params;
   const products = await prisma.product.findMany({
     select: { key: true },
@@ -21,12 +23,12 @@ export default async function AdminProductPage({ params }: AdminProductRouteProp
   );
 
   if (!resolvedProductKey) {
-    redirect('/admin');
+    redirect({ href: '/admin', locale });
   }
 
   if (resolvedProductKey !== productKey) {
-    redirect(`/admin/${resolvedProductKey}`);
+    redirect({ href: `/admin/${resolvedProductKey}`, locale });
   }
 
-  return <AdminDashboard productKey={resolvedProductKey} />;
+  return <AdminDashboard productKey={resolvedProductKey!} />;
 }

@@ -4,11 +4,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { BuildHistoryDrawer } from '@/components/admin/dialogs/build-history-drawer';
-import { type UploadFormValues, uploadFormSchema } from '@/components/admin/forms/form-schemas';
+import { createUploadFormSchema, type UploadFormValues } from '@/components/admin/forms/form-schemas';
 import { useActiveBuildJobLog, useHistoryBuildJobLog } from '@/components/admin/hooks/use-build-job-log';
 import { useProductDetailState } from '@/components/admin/hooks/use-product-detail';
 import { UploadVersionDialog } from '@/components/admin/dialogs/upload-version-dialog';
@@ -16,7 +16,7 @@ import { VersionManagementPanel } from '@/components/admin/panels/version-manage
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
-import { getErrorMessage } from '@/lib/domain/error-message';
+import { useRouter } from '@/i18n/navigation';
 import type { ApiResponse, BuildJobItem, BuildJobStepKey, ProductVersionItem } from '@/lib/types';
 import { fetchJson } from '@/lib/ui/api-client';
 import { getBuildJobLogStep, resolveBuildJobTerminalContent } from '@/lib/ui/build-job-log';
@@ -38,9 +38,11 @@ function triggerVersionDownload(versionId: number): void {
 }
 
 export function AdminDashboard({ productKey }: { productKey: string }) {
+  const t = useTranslations('admin.dashboard');
+  const tValidation = useTranslations('admin.validation');
   const router = useRouter();
   const { activeJob, activeJobId, activateJob, jobs, loadError, loading, productDetail, productMissing, refreshCurrent } =
-    useProductDetailState(productKey);
+    useProductDetailState(productKey, t('errors.loadFailed'));
   const [selectedLogStepKey, setSelectedLogStepKey] = useState<BuildJobStepKey | null>(null);
   const [isLogStepPinned, setIsLogStepPinned] = useState(false);
   const [versionPage, setVersionPage] = useState(1);
@@ -56,7 +58,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const [confirmingAction, setConfirmingAction] = useState<'version' | null>(null);
 
   const uploadForm = useForm<UploadFormValues>({
-    resolver: zodResolver(uploadFormSchema),
+    resolver: zodResolver(createUploadFormSchema((key) => tValidation(key))),
     defaultValues: { version: '', title: '', remark: '' },
   });
 
@@ -163,11 +165,11 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     try {
       setUploadError(undefined);
       if (!productKey) {
-        setUploadError('请先选择产品');
+        setUploadError(t('errors.selectProduct'));
         return;
       }
       if (!selectedUploadFile) {
-        setUploadError('请上传源码压缩包');
+        setUploadError(t('errors.selectFile'));
         return;
       }
 
@@ -185,25 +187,25 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
         xhr.onload = async () => {
           const payload = JSON.parse(xhr.responseText) as ApiResponse<BuildJobItem>;
           if (xhr.status >= 400 || !payload.success || !payload.data) {
-            reject(new Error(payload.message || '上传失败'));
+            reject(new Error(payload.message || t('errors.uploadFailed')));
             return;
           }
 
-          toast.success('源码包上传成功，后台任务已开始');
+          toast.success(t('uploadStarted'));
           activateJob(payload.data);
           setSelectedLogStepKey(getBuildJobLogStep(payload.data.currentStep));
           setIsLogStepPinned(false);
           setUploadDialogOpen(false);
           setBuildProgressDialogOpen(true);
           resetUploadFormState();
-          void refreshCurrent().catch((error) => toast.error(getErrorMessage(error, '刷新产品详情失败')));
+          void refreshCurrent().catch(() => toast.error(t('errors.refreshFailed')));
           resolve();
         };
-        xhr.onerror = () => reject(new Error('上传失败'));
+        xhr.onerror = () => reject(new Error(t('errors.uploadFailed')));
         xhr.send(formData);
       });
     } catch (error) {
-      const message = getErrorMessage(error, '上传失败');
+      const message = error instanceof Error && error.message ? error.message : t('errors.uploadFailed');
       setUploadError(message);
       toast.error(message);
     } finally {
@@ -227,9 +229,9 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   if (productMissing && !loading) {
     return (
       <div className="flex min-h-[60vh] flex-col items-center justify-center text-center">
-        <h2 className="text-2xl font-bold">产品不存在</h2>
+        <h2 className="text-2xl font-bold">{t('missingTitle')}</h2>
         <Button type="button" variant="link" onClick={() => router.push('/admin')}>
-          返回列表
+          {t('backToList')}
         </Button>
       </div>
     );
@@ -250,7 +252,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
 
         {loadError ? (
           <Alert variant="destructive">
-            <AlertTitle>加载失败</AlertTitle>
+            <AlertTitle>{t('loadFailed')}</AlertTitle>
             <AlertDescription className="flex items-center justify-between gap-4">
               <span>{loadError}</span>
               <Button
@@ -258,9 +260,9 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
                 variant="outline"
                 size="sm"
                 disabled={loading}
-                onClick={() => void refreshCurrent().catch((error) => toast.error(getErrorMessage(error, '刷新产品详情失败')))}
+                onClick={() => void refreshCurrent().catch(() => toast.error(t('errors.refreshFailed')))}
               >
-                重试
+                {t('retry')}
               </Button>
             </AlertDescription>
           </Alert>
@@ -277,9 +279,9 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
           onDownload={(item) => triggerVersionDownload(item.id)}
           onHistory={openBuildHistory}
           onNextPage={() => setVersionPage((current) => Math.min(totalVersionPages, current + 1))}
-          onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
+          onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, t('offlineSuccess'))}
           onPreviousPage={() => setVersionPage((current) => Math.max(1, current - 1))}
-          onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
+          onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, t('defaultUpdated'))}
           onUploadVersion={() => setUploadDialogOpen(true)}
         />
       </div>
@@ -342,9 +344,9 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
       <ConfirmDialog
         open={Boolean(versionToDelete)}
         onOpenChange={(open) => !open && setVersionToDelete(null)}
-        title={versionToDelete ? `删除版本 ${versionToDelete.version}` : '删除版本'}
-        description="删除后会同步移除已发布目录，请确认。"
-        confirmLabel="删除"
+        title={versionToDelete ? t('deleteVersionTitleWithName', { version: versionToDelete.version }) : t('deleteVersionTitle')}
+        description={t('deleteVersionDescription')}
+        confirmLabel={t('deleteConfirm')}
         confirmVariant="destructive"
         pending={confirmingAction === 'version'}
         onConfirm={async () => {
@@ -354,10 +356,10 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
 
           try {
             setConfirmingAction('version');
-            await requestAction(`/api/versions/${versionToDelete.id}`, '版本已删除');
+            await requestAction(`/api/versions/${versionToDelete.id}`, t('deleteSuccess'));
             setVersionToDelete(null);
           } catch (error) {
-            toast.error(getErrorMessage(error, '版本删除失败'));
+            toast.error(t('errors.deleteFailed'));
           } finally {
             setConfirmingAction(null);
           }

@@ -3,18 +3,30 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const { redirectMock, getManifestMock } = vi.hoisted(() => ({
-  redirectMock: vi.fn((target: string) => {
-    throw new Error(`REDIRECT:${target}`);
+  redirectMock: vi.fn((target: string | { href: string; locale?: string }) => {
+    const href = typeof target === 'string' ? target : target.href;
+    throw new Error(`REDIRECT:${href}`);
   }),
   getManifestMock: vi.fn(),
 }));
 
-vi.mock('next/navigation', () => ({
+vi.mock('@/i18n/navigation', () => ({
   redirect: redirectMock,
+  Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 
 vi.mock('@/lib/server/manifest-service', () => ({
   getManifest: getManifestMock,
+}));
+
+vi.mock('next-intl/server', () => ({
+  getLocale: vi.fn().mockResolvedValue('zh'),
+  getTranslations: vi.fn().mockResolvedValue((key: string, values?: Record<string, string>) => {
+    if (key === 'title') return '产品不存在';
+    if (key === 'back') return '返回预览列表';
+    if (key === 'description') return `无法找到标识为 ${values?.productKey} 的产品`;
+    return key;
+  }),
 }));
 
 import PreviewProductRoutePage from '@/app/preview/[productKey]/page';

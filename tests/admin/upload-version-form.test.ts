@@ -5,7 +5,7 @@ const uploadVersionFormSource = readProjectSource('components/admin/forms/upload
 
 describe('upload version form', () => {
   test('keeps the optional title field available for new uploads', () => {
-    expect(uploadVersionFormSource).toContain('label="版本标题 (可选)"');
+    expect(uploadVersionFormSource).toContain("useTranslations('admin.uploadVersionForm')");
     expect(uploadVersionFormSource).toContain("form.register('title')");
   });
 });

@@ -2,6 +2,7 @@
 
 import type { FormEventHandler } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -18,6 +19,8 @@ type ProductCreateDialogProps = {
 };
 
 export function ProductCreateDialog({ open, onOpenChange, form, onSubmit }: ProductCreateDialogProps) {
+  const t = useTranslations('admin.productCreateDialog');
+
   return (
     <Dialog
       open={open}
@@ -30,25 +33,25 @@ export function ProductCreateDialog({ open, onOpenChange, form, onSubmit }: Prod
     >
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>创建产品</DialogTitle>
-          <DialogDescription>创建一个新的产品，用于管理其原型版本。</DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <form className="space-y-5" onSubmit={onSubmit}>
-          <FormField label="产品名称" required error={form.formState.errors.name?.message}>
-            <Input placeholder="例如 CRM 系统" {...form.register('name')} />
+          <FormField label={t('nameLabel')} required error={form.formState.errors.name?.message}>
+            <Input placeholder={t('namePlaceholder')} {...form.register('name')} />
           </FormField>
-          <FormField label="产品 Key" required error={form.formState.errors.key?.message}>
-            <Input placeholder="例如 crm" {...form.register('key')} />
+          <FormField label={t('keyLabel')} required error={form.formState.errors.key?.message}>
+            <Input placeholder={t('keyPlaceholder')} {...form.register('key')} />
           </FormField>
-          <FormField label="描述" error={form.formState.errors.description?.message}>
-            <Input placeholder="可选" {...form.register('description')} />
+          <FormField label={t('descriptionLabel')} error={form.formState.errors.description?.message}>
+            <Input placeholder={t('descriptionPlaceholder')} {...form.register('description')} />
           </FormField>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              取消
+              {t('cancel')}
             </Button>
             <Button type="submit">
-              创建
+              {t('submit')}
             </Button>
           </DialogFooter>
         </form>

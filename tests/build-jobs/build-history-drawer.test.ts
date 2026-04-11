@@ -8,8 +8,9 @@ describe('BuildHistoryDrawer source', () => {
     expect(historyDrawerSource).not.toContain('构建记录');
     expect(historyDrawerSource).not.toContain('jobs.map');
     expect(historyDrawerSource).not.toContain('onSelectJob');
-    expect(historyDrawerSource).toContain('构建日志');
-    expect(historyDrawerSource).toContain('构建进度');
+    expect(historyDrawerSource).toContain("useTranslations('buildHistory')");
+    expect(historyDrawerSource).toContain("t('title')");
+    expect(historyDrawerSource).toContain("t('progress')");
     expect(historyDrawerSource).toContain('BuildJobStepList');
     expect(historyDrawerSource).toContain('BuildJobTerminal');
     expect(historyDrawerSource).not.toContain("from '@/components/ui/alert'");

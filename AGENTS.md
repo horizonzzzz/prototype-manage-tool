@@ -20,6 +20,7 @@ There is also a remote MCP surface:
 
 - Next.js App Router
 - React 19
+- next-intl
 - TypeScript
 - Prisma with SQLite
 - Filesystem-backed storage under `data/`
@@ -45,7 +46,10 @@ Do not assume `prisma/migrations/` is part of the committed source of truth.
 ## Important Directories
 
 - [app](/D:/Work/prototype-manage-tool/app): Next.js routes and pages
+- [app/[locale]](/D:/Work/prototype-manage-tool/app/[locale]): locale-aware route segment for `zh` and `en`
 - [components](/D:/Work/prototype-manage-tool/components): admin and preview UI
+- [i18n](/D:/Work/prototype-manage-tool/i18n): next-intl routing, navigation, and request config
+- [messages](/D:/Work/prototype-manage-tool/messages): translation catalogs
 - [components/admin/hooks](/D:/Work/prototype-manage-tool/components/admin/hooks): admin-only data loading and build-log coordination hooks
 - [components/admin/panels](/D:/Work/prototype-manage-tool/components/admin/panels): admin list and version-management presentation blocks
 - [components/admin/dialogs](/D:/Work/prototype-manage-tool/components/admin/dialogs): admin modal and drawer surfaces
@@ -62,6 +66,14 @@ Do not assume `prisma/migrations/` is part of the committed source of truth.
 
 When investigating behavior, start here:
 
+- [middleware.ts](/D:/Work/prototype-manage-tool/middleware.ts)
+  Owns locale negotiation and route matching for internationalized pages.
+- [i18n/routing.ts](/D:/Work/prototype-manage-tool/i18n/routing.ts)
+  Defines supported locales, default locale, and prefix strategy.
+- [i18n/request.ts](/D:/Work/prototype-manage-tool/i18n/request.ts)
+  Loads locale messages for the current request.
+- [app/[locale]/layout.tsx](/D:/Work/prototype-manage-tool/app/[locale]/layout.tsx)
+  Validates locale params and binds request locale for nested pages.
 - [lib/server/build-job-service.ts](/D:/Work/prototype-manage-tool/lib/server/build-job-service.ts)
   Handles upload ingestion, extraction, dependency install, build, output validation, publishing, and source snapshot creation.
 - [lib/server/upload-service.ts](/D:/Work/prototype-manage-tool/lib/server/upload-service.ts)
@@ -152,6 +164,12 @@ Relevant files:
 - [app/prototypes/[...slug]/route.ts](/D:/Work/prototype-manage-tool/app/prototypes/[...slug]/route.ts)
 
 The preview UI does not build prototypes itself. It reads metadata, picks a version, and serves already-published static files.
+
+Locale behavior:
+
+- unprefixed app routes default to `zh`
+- English app routes live under `/en/*`
+- locale switching is route-based via `next-intl`, not browser-local storage
 
 ## MCP Model
 
@@ -272,6 +290,7 @@ If the task is about:
 - upload/build failures: start in [lib/server/build-job-service.ts](/D:/Work/prototype-manage-tool/lib/server/build-job-service.ts)
 - publish/default/offline/delete behavior: start in [lib/server/upload-service.ts](/D:/Work/prototype-manage-tool/lib/server/upload-service.ts)
 - preview selection or broken preview routing: start in [lib/server/manifest-service.ts](/D:/Work/prototype-manage-tool/lib/server/manifest-service.ts) and [app/prototypes/[...slug]/route.ts](/D:/Work/prototype-manage-tool/app/prototypes/[...slug]/route.ts)
+- locale-aware page routing or translation issues: start in [middleware.ts](/D:/Work/prototype-manage-tool/middleware.ts), [i18n/routing.ts](/D:/Work/prototype-manage-tool/i18n/routing.ts), [i18n/request.ts](/D:/Work/prototype-manage-tool/i18n/request.ts), and [app/[locale]/layout.tsx](/D:/Work/prototype-manage-tool/app/[locale]/layout.tsx)
 - MCP connectivity or tool behavior: start in [app/api/mcp/route.ts](/D:/Work/prototype-manage-tool/app/api/mcp/route.ts) and [lib/server/prototype-mcp-server.ts](/D:/Work/prototype-manage-tool/lib/server/prototype-mcp-server.ts)
 - source read/search correctness: start in [lib/server/source-snapshot-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-snapshot-service.ts)
 - admin UI bugs: start in [components/admin-dashboard.tsx](/D:/Work/prototype-manage-tool/components/admin-dashboard.tsx), then inspect `components/admin/hooks/*`, `components/admin/panels/*`, and `components/admin/dialogs/*` as needed

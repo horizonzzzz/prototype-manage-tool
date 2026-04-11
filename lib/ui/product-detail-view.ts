@@ -10,12 +10,27 @@ type ActiveBuildJob = {
   status: string;
 };
 
-export function getVersionStatusLabel(status: string): string {
+export function getVersionStatusMessageKey(status: string): string {
   switch (status) {
     case 'published':
-      return '已发布';
+      return 'published';
     case 'queued':
     case 'running':
+    case 'building':
+      return 'building';
+    case 'failed':
+      return 'failed';
+    case 'offline':
+      return 'offline';
+    default:
+      return status;
+  }
+}
+
+export function getVersionStatusLabel(status: string): string {
+  switch (getVersionStatusMessageKey(status)) {
+    case 'published':
+      return '已发布';
     case 'building':
       return '构建中';
     case 'failed':

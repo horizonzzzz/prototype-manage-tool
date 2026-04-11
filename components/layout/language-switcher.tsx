@@ -1,57 +1,38 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useParams } from 'next/navigation';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import {
-  APP_LANGUAGE_STORAGE_KEY,
-  getBrowserStorage,
-  type AppLanguage,
-  normalizeLanguagePreference,
-  readLanguagePreference,
-  writeLanguagePreference,
-} from '@/lib/ui/app-preferences';
-
-const languageLabelMap: Record<AppLanguage, string> = {
-  zh: '中文',
-  en: 'English',
-};
-
-function applyLanguageToDocument(language: AppLanguage) {
-  document.documentElement.lang = language === 'zh' ? 'zh-CN' : 'en';
-}
+import type { AppLocale } from '@/i18n/routing';
+import { usePathname, useRouter } from '@/i18n/navigation';
 
 export function LanguageSwitcher() {
-  const [language, setLanguage] = useState<AppLanguage>('zh');
-
-  useEffect(() => {
-    const storedLanguage = readLanguagePreference(getBrowserStorage());
-    setLanguage(storedLanguage);
-    applyLanguageToDocument(storedLanguage);
-  }, []);
+  const t = useTranslations('languageSwitcher');
+  const locale = useLocale() as AppLocale;
+  const pathname = usePathname();
+  const router = useRouter();
+  const params = useParams();
 
   const onLanguageChange = (nextValue: string) => {
-    const nextLanguage = normalizeLanguagePreference(nextValue);
-    setLanguage(nextLanguage);
-    writeLanguagePreference(getBrowserStorage(), nextLanguage);
-    if (typeof document !== 'undefined') {
-      document.cookie = `${APP_LANGUAGE_STORAGE_KEY}=${nextLanguage}; path=/; max-age=31536000`;
-    }
-    applyLanguageToDocument(nextLanguage);
+    const nextLocale = nextValue as AppLocale;
+    router.replace(
+      // @ts-expect-error Current route params are already bound to the active pathname.
+      { pathname, params },
+      { locale: nextLocale },
+    );
   };
 
   return (
-    <Select value={language} onValueChange={onLanguageChange}>
+    <Select value={locale} onValueChange={onLanguageChange}>
       <SelectTrigger className="w-[120px]">
-        <SelectValue placeholder="Language">{languageLabelMap[language]}</SelectValue>
+        <SelectValue placeholder={t('label')}>
+          {locale === 'zh' ? t('zh') : t('en')}
+        </SelectValue>
       </SelectTrigger>
       <SelectContent>
-        <SelectItem value="zh">
-          {languageLabelMap.zh}
-        </SelectItem>
-        <SelectItem value="en">
-          {languageLabelMap.en}
-        </SelectItem>
+        <SelectItem value="zh">{t('zh')}</SelectItem>
+        <SelectItem value="en">{t('en')}</SelectItem>
       </SelectContent>
     </Select>
   );

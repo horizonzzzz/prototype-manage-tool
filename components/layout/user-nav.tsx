@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -13,8 +13,10 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useRouter } from '@/i18n/navigation';
 
 export function UserNav() {
+  const t = useTranslations('userNav');
   const router = useRouter();
 
   return (
@@ -38,11 +40,11 @@ export function UserNav() {
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuGroup>
-          <DropdownMenuItem>Profile</DropdownMenuItem>
-          <DropdownMenuItem onSelect={() => router.push('/settings')}>Settings</DropdownMenuItem>
+          <DropdownMenuItem>{t('profile')}</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => router.push('/settings')}>{t('settings')}</DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => router.push('/login')}>Log out</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => router.push('/login')}>{t('logout')}</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

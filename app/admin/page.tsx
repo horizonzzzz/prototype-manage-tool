@@ -1,6 +1,7 @@
-import { redirect } from 'next/navigation';
+import { getLocale } from 'next-intl/server';
 
 import { AdminProductListPage } from '@/components/admin/pages/admin-product-list-page';
+import { redirect } from '@/i18n/navigation';
 import { isSafeRouteSegment } from '@/lib/domain/route-segment';
 import { buildAdminHref } from '@/lib/ui/navigation';
 import { prisma } from '@/lib/prisma';
@@ -15,11 +16,12 @@ function takeFirst(value: string | string[] | undefined) {
 }
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
+  const locale = await getLocale();
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const product = takeFirst(resolvedSearchParams?.product);
 
   if (product && isSafeRouteSegment(product)) {
-    redirect(buildAdminHref(product));
+    redirect({ href: buildAdminHref(product), locale });
   }
 
   const products = await prisma.product.findMany({

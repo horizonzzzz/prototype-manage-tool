@@ -1,8 +1,8 @@
 import type { ReactNode } from 'react';
-import Link from 'next/link';
 import { Layers3 } from 'lucide-react';
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Link } from '@/i18n/navigation';
 
 interface AuthCardProps {
   title: string;

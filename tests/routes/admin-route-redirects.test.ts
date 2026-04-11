@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const { redirectMock, findManyMock } = vi.hoisted(() => ({
-  redirectMock: vi.fn((target: string) => {
-    throw new Error(`REDIRECT:${target}`);
+  redirectMock: vi.fn((target: string | { href: string; locale?: string }) => {
+    const href = typeof target === 'string' ? target : target.href;
+    throw new Error(`REDIRECT:${href}`);
   }),
   findManyMock: vi.fn(),
 }));
 
-vi.mock('next/navigation', () => ({
+vi.mock('@/i18n/navigation', () => ({
   redirect: redirectMock,
+}));
+
+vi.mock('next-intl/server', () => ({
+  getLocale: vi.fn().mockResolvedValue('zh'),
 }));
 
 vi.mock('@/lib/prisma', () => ({

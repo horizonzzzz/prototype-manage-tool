@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { ExternalLink, Monitor, Smartphone, Tablet, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { Dialog, DialogContent, DialogDescription, DialogTitle } from '@/components/ui/dialog';
@@ -35,15 +36,16 @@ export function PreviewViewerDialog({
   onOpenChange,
   onOpenInNewWindow,
 }: PreviewViewerDialogProps) {
+  const t = useTranslations('preview.viewer');
   const [device, setDevice] = useState<PreviewDevice>('desktop');
 
   const title = useMemo(() => {
     if (!productName) {
-      return '原型预览';
+      return t('fallbackTitle');
     }
 
     return productName;
-  }, [productName]);
+  }, [productName, t]);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -53,19 +55,19 @@ export function PreviewViewerDialog({
       >
         <DialogTitle className="sr-only">{title}</DialogTitle>
         <DialogDescription className="sr-only">
-          {version ? `预览 ${title} 的 ${version.version} 版本。` : '预览当前产品的已发布原型。'}
+          {version ? t('descriptionWithVersion', { title, version: version.version }) : t('description')}
         </DialogDescription>
         <div className="flex h-full w-full flex-col bg-slate-100 overflow-hidden">
           <div className="flex h-14 items-center justify-between border-b bg-white px-4 shadow-sm shrink-0 z-10">
             <div className="flex min-w-0 items-center gap-3">
               <Button type="button" variant="ghost" size="icon" onClick={() => onOpenChange(false)}>
                 <X />
-                <span className="sr-only">关闭预览</span>
+                <span className="sr-only">{t('close')}</span>
               </Button>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-slate-900">{title}</div>
                 <div className="truncate text-xs text-slate-500">
-                  {version ? `版本 ${version.version}` : '无可用版本'}
+                  {version ? t('versionLabel', { version: version.version }) : t('noVersion')}
                 </div>
               </div>
             </div>
@@ -80,7 +82,7 @@ export function PreviewViewerDialog({
                   onClick={() => setDevice('desktop')}
                 >
                   <Monitor />
-                  <span className="sr-only">桌面端视图</span>
+                  <span className="sr-only">{t('desktop')}</span>
                 </Button>
                 <Button
                   type="button"
@@ -90,7 +92,7 @@ export function PreviewViewerDialog({
                   onClick={() => setDevice('tablet')}
                 >
                   <Tablet />
-                  <span className="sr-only">平板端视图</span>
+                  <span className="sr-only">{t('tablet')}</span>
                 </Button>
                 <Button
                   type="button"
@@ -100,13 +102,13 @@ export function PreviewViewerDialog({
                   onClick={() => setDevice('mobile')}
                 >
                   <Smartphone />
-                  <span className="sr-only">移动端视图</span>
+                  <span className="sr-only">{t('mobile')}</span>
                 </Button>
               </div>
 
               <Button type="button" variant="outline" size="sm" onClick={onOpenInNewWindow} disabled={!targetUrl}>
                 <ExternalLink />
-                新窗口打开
+                {t('openInNewWindow')}
               </Button>
             </div>
           </div>
@@ -122,7 +124,7 @@ export function PreviewViewerDialog({
                 />
               ) : (
                 <div className="flex h-full items-center justify-center bg-white p-8 text-center text-sm text-slate-500">
-                  当前版本没有可加载的预览入口。
+                  {t('missingEntry')}
                 </div>
               )}
             </div>

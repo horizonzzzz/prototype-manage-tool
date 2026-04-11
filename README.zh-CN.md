@@ -6,13 +6,15 @@
 
 ## 核心能力
 
-- 提供原型风格的工作区外壳，在预览与管理页面统一使用侧边导航和顶部主题/语言切换控件
+- 提供原型风格的工作区外壳，在预览与管理页面统一使用侧边导航和顶部主题切换控件
 - 统一使用当前工作台风格的 shadcn 卡片、表格、弹窗、认证页与占位页基础组件
 - 在 `/preview` 提供卡片式预览中心，支持按产品和已发布版本切换
 - 提供全屏预览弹层，支持桌面 / 平板 / 手机视图切换，以及 `/preview/:product?v=:version` 深链接状态
 - 在 `/admin` 提供分页化的产品/版本管理界面，支持上传、构建任务监控、默认版本设置、下线和删除操作
-- 预留 `/login`、`/register`、`/users`、`/settings` 占位路由，用于后续接入认证与账号管理能力
-- 当前阶段提供 `light` / `dark` / `system` 三档本地主题切换，不改变真实认证和多语言路由约定
+- 提供 `/login`、`/register`、`/users`、`/settings` 认证与账号占位页面，并统一接入当前多语言工作区外壳
+- 使用 `next-intl` 实现国际化路由，默认语言为中文，英文页面位于 `/en/*`
+- 语言切换入口位于认证页与 `/settings`，通过切换当前路由 locale 生效，不再依赖浏览器本地语言存储
+- 当前阶段提供 `light` / `dark` / `system` 三档本地主题切换
 - 提供产品、版本、manifest 解析、构建任务状态和预览路由等 API
 - 通过 `/prototypes/*` 提供基于文件系统的静态原型访问
 - 提供远程 `POST /api/mcp` MCP 接口，便于 agent 直接读取已发布版本的源码快照
@@ -22,6 +24,7 @@
 ## 技术栈
 
 - Next.js App Router
+- next-intl
 - TypeScript
 - Tailwind CSS v4
 - shadcn/ui 基础组件
@@ -69,10 +72,22 @@ pnpm dev
 
 - 预览页：`http://localhost:3000/preview`
 - 管理台：`http://localhost:3000/admin`
+- 英文预览页：`http://localhost:3000/en/preview`
+- 英文管理台：`http://localhost:3000/en/admin`
 
 种子数据会创建 CRM 和 ERP 示例原型。
 
 ## 配置
+
+## 路由与多语言
+
+- 多语言路由由 `next-intl` 提供
+- 当前支持 `zh`、`en`
+- 默认语言是 `zh`
+- `localePrefix` 模式为 `as-needed`
+- `/admin`、`/preview`、`/login`、`/settings` 等无前缀路径默认渲染中文
+- 英文页面位于 `/en/*`，例如 `/en/admin`、`/en/preview`、`/en/login`
+- 语言切换会切换当前路由 locale，不再使用 `localStorage` 或自定义语言 cookie
 
 ### 本地
 
@@ -210,6 +225,8 @@ docker compose --env-file .env.docker up -d
 
 - `http://<server>:3000/preview`
 - `http://<server>:3000/admin`
+- `http://<server>:3000/en/preview`
+- `http://<server>:3000/en/admin`
 
 仓库里的 `compose.yml` 已设置 `ulimits.nofile=65535`。如果你用其他方式运行容器，请保持相同限制。
 
@@ -217,6 +234,8 @@ docker compose --env-file .env.docker up -d
 
 ```text
 app/                    Next.js 页面、路由与 API 处理器
+i18n/                   next-intl 路由、导航与请求配置
+messages/               zh / en 文案消息目录
 components/             管理台和预览页 UI 组件
 components/admin/       按 dialogs、forms、hooks、pages、panels 分层的管理台组件
 components/preview/     预览列表、产品卡片与全屏预览弹层

@@ -2,13 +2,14 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { PreviewEmptyState } from '@/components/preview/preview-empty-state';
 import { PreviewProductCard } from '@/components/preview/preview-product-card';
 import { PreviewViewerDialog } from '@/components/preview/preview-viewer-dialog';
 import { Input } from '@/components/ui/input';
+import { useRouter } from '@/i18n/navigation';
 import type { ManifestProduct, ProductVersionManifest } from '@/lib/types';
 import { copyText, resolvePreviewEntryUrl } from '@/lib/ui/preview-link';
 import {
@@ -26,6 +27,7 @@ type PreviewProductListProps = {
 };
 
 export function PreviewProductList({ products, selectedProductKey, selectedVersion }: PreviewProductListProps) {
+  const t = useTranslations('preview.list');
   const router = useRouter();
   const [search, setSearch] = useState('');
   const [versionSelections, setVersionSelections] = useState<Record<string, string | undefined>>(() =>
@@ -64,21 +66,21 @@ export function PreviewProductList({ products, selectedProductKey, selectedVersi
   const copyPreviewLink = async (productKey: string, version: ProductVersionManifest | undefined) => {
     if (!version || typeof window === 'undefined') return;
     const copied = await copyText(new URL(buildPreviewStateHref(productKey, version.version), window.location.origin).toString());
-    copied ? toast.success('预览链接已复制') : toast.error('当前环境不支持自动复制，请手动复制');
+    copied ? toast.success(t('copied')) : toast.error(t('copyFailed'));
   };
 
   return (
     <>
       <div className="space-y-6">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight">产品预览</h2>
-          <p className="text-muted-foreground">查看和分享已发布的原型版本。</p>
+          <h2 className="text-2xl font-bold tracking-tight">{t('title')}</h2>
+          <p className="text-muted-foreground">{t('description')}</p>
         </div>
 
         <div className="flex items-center">
           <div className="relative w-full max-w-sm">
             <Search className="pointer-events-none absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-            <Input placeholder="搜索产品名称或 Key" className="pl-8" value={search} onChange={(event) => setSearch(event.target.value)} />
+            <Input placeholder={t('searchPlaceholder')} className="pl-8" value={search} onChange={(event) => setSearch(event.target.value)} />
           </div>
         </div>
 

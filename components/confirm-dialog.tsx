@@ -1,3 +1,5 @@
+import { useTranslations } from 'next-intl';
+
 import { AlertDialog, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 
@@ -17,11 +19,13 @@ export function ConfirmDialog({
   onOpenChange,
   title,
   description,
-  confirmLabel = '确认',
+  confirmLabel,
   confirmVariant = 'default',
   pending = false,
   onConfirm,
 }: ConfirmDialogProps) {
+  const t = useTranslations('common');
+
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
       <AlertDialogContent>
@@ -32,7 +36,7 @@ export function ConfirmDialog({
         <AlertDialogFooter>
           <AlertDialogCancel asChild>
             <Button type="button" variant="secondary">
-              取消
+              {t('cancel')}
             </Button>
           </AlertDialogCancel>
           <Button
@@ -43,7 +47,7 @@ export function ConfirmDialog({
               await onConfirm();
             }}
           >
-            {pending ? '处理中...' : confirmLabel}
+            {pending ? t('processing') : confirmLabel ?? t('confirm')}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>

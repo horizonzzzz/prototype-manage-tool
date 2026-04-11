@@ -2,6 +2,7 @@
 
 import type { FormEventHandler } from 'react';
 import type { UseFormReturn } from 'react-hook-form';
+import { useTranslations } from 'next-intl';
 
 import { UploadVersionForm } from '@/components/admin/forms/upload-version-form';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -34,12 +35,14 @@ export function UploadVersionDialog({
   onFileChange,
   onSubmit,
 }: UploadVersionDialogProps) {
+  const t = useTranslations('admin.uploadVersionDialog');
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent onInteractOutside={(event) => uploading && event.preventDefault()} onEscapeKeyDown={(event) => uploading && event.preventDefault()}>
         <DialogHeader>
-          <DialogTitle>上传新版本</DialogTitle>
-          <DialogDescription>填写版本信息并上传源码压缩包。创建成功后会在单独的弹窗中展示任务状态和日志。</DialogDescription>
+          <DialogTitle>{t('title')}</DialogTitle>
+          <DialogDescription>{t('description')}</DialogDescription>
         </DialogHeader>
         <div className="min-h-0 overflow-y-auto pr-1">
           <UploadVersionForm

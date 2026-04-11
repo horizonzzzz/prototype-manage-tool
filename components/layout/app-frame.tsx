@@ -1,8 +1,8 @@
 'use client';
 
 import type { ReactNode } from 'react';
-import { usePathname } from 'next/navigation';
 
+import { usePathname } from '@/i18n/navigation';
 import { AuthShell } from '@/components/layout/auth-shell';
 import { WorkspaceShell } from '@/components/layout/workspace-shell';
 import { isAuthRoute, isWorkspaceRoute } from '@/lib/ui/app-preferences';

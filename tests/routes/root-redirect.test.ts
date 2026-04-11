@@ -1,10 +1,11 @@
 import { readProjectSource } from '@/tests/support/project-source';
 import { describe, expect, test } from 'vitest';
 
-const rootPageSource = readProjectSource('app/page.tsx');
+const localeRootPageSource = readProjectSource('app/[locale]/page.tsx');
 
 describe('root redirect contract', () => {
-  test('keeps root route redirecting to /admin', () => {
-    expect(rootPageSource).toContain("redirect('/admin')");
+  test('redirects the locale root route to the locale-aware admin entry', () => {
+    expect(localeRootPageSource).toContain("from '@/i18n/navigation'");
+    expect(localeRootPageSource).toContain("href: '/admin'");
   });
 });

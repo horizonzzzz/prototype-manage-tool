@@ -22,24 +22,26 @@ describe('table page standardization', () => {
     expect(previewListSource).not.toContain('StatusChip');
     expect(previewListSource).not.toContain('复制链接');
     expect(previewListSource).not.toContain('打开');
-    expect(previewListSource).toContain('搜索产品名称或 Key');
+    expect(previewListSource).toContain("useTranslations('preview.list')");
+    expect(previewListSource).toContain("t('searchPlaceholder')");
     expect(previewCardSource).toContain('<SelectTrigger');
-    expect(previewEmptyStateSource).toContain('前往发布管理');
-    expect(previewEmptyStateSource).toContain('暂无产品');
+    expect(previewEmptyStateSource).toContain("useTranslations('preview.empty')");
     expect(previewListSource).not.toContain('<Table');
   });
 
   test('turns the admin product list into a standard table page with detail and delete actions', () => {
     expect(adminListSource).toContain('<Table');
-    expect(adminListSource).toContain('搜索产品名称或 Key');
-    expect(adminListSource).toContain('详情');
-    expect(adminListSource).toContain('删除');
-    expect(adminListSource).toContain('创建产品');
+    expect(adminListSource).toContain("useTranslations('admin.productList')");
+    expect(adminListSource).toContain("t('searchPlaceholder')");
+    expect(adminListSource).toContain("t('detail')");
+    expect(adminListSource).toContain("t('delete')");
+    expect(adminListSource).toContain("t('create')");
     expect(adminListSource).not.toContain('<StandardTablePage');
   });
 
   test('moves product detail management to a version table with upload dialog and history drawer', () => {
-    expect(versionManagementPanelSource).toContain('上传新版本');
+    expect(versionManagementPanelSource).toContain("useTranslations('admin.versionManagement')");
+    expect(versionManagementPanelSource).toContain("t('upload')");
     expect(adminDashboardSource).toContain('UploadVersionDialog');
     expect(adminDashboardSource).toContain('BuildHistoryDrawer');
     expect(adminDashboardSource).not.toContain('<BuildProgressDialog');
@@ -50,11 +52,11 @@ describe('table page standardization', () => {
   });
 
   test('adds version history to each version row and scopes the drawer to a single version', () => {
-    expect(versionListSource).toContain('查看构建日志');
+    expect(versionListSource).toContain("t('history')");
     expect(versionListSource).toContain('onHistory');
     expect(historyDrawerSource).toContain('versionLabel');
-    expect(historyDrawerSource).toContain('构建日志 -');
-    expect(historyDrawerSource).toContain('该版本暂无可展示的构建过程');
+    expect(historyDrawerSource).toContain("t('titleWithVersion'");
+    expect(historyDrawerSource).toContain("t('noHistoryForVersion')");
     expect(versionListSource).toContain('DropdownMenu');
   });
 });

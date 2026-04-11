@@ -1,10 +1,8 @@
 import { isWorkspaceNavigationRoute } from '@/lib/ui/navigation';
 
 export const APP_THEME_STORAGE_KEY = 'prototype-manage-tool.theme';
-export const APP_LANGUAGE_STORAGE_KEY = 'prototype-manage-tool.language';
 
 export type AppTheme = 'light' | 'dark' | 'system';
-export type AppLanguage = 'zh' | 'en';
 export type StorageProvider = Pick<Storage, 'getItem' | 'setItem'>;
 
 const authRoutePrefixes = ['/login', '/register'] as const;
@@ -24,15 +22,6 @@ export function normalizeThemePreference(preference: string | null | undefined):
   }
 
   return 'system';
-}
-
-export function normalizeLanguagePreference(preference: string | null | undefined): AppLanguage {
-  if (typeof preference !== 'string') {
-    return 'zh';
-  }
-
-  const value = preference.trim().toLowerCase();
-  return value === 'en' ? 'en' : 'zh';
 }
 
 function safeGetStorageValue(storage: StorageProvider | null | undefined, key: string): string | null {
@@ -80,14 +69,6 @@ export function readThemePreference(storage?: StorageProvider | null) {
 
 export function writeThemePreference(storage: StorageProvider | null | undefined, theme: AppTheme) {
   return safeSetStorageValue(storage, APP_THEME_STORAGE_KEY, theme);
-}
-
-export function readLanguagePreference(storage?: StorageProvider | null) {
-  return normalizeLanguagePreference(safeGetStorageValue(storage, APP_LANGUAGE_STORAGE_KEY));
-}
-
-export function writeLanguagePreference(storage: StorageProvider | null | undefined, language: AppLanguage) {
-  return safeSetStorageValue(storage, APP_LANGUAGE_STORAGE_KEY, language);
 }
 
 export function isAuthRoute(pathname: string) {

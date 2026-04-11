@@ -1,0 +1,247 @@
+{
+  "common": {
+    "cancel": "取消",
+    "confirm": "确认",
+    "processing": "处理中..."
+  },
+  "languageSwitcher": {
+    "label": "语言",
+    "zh": "中文",
+    "en": "English"
+  },
+  "workspaceShell": {
+    "toggleMenu": "切换菜单",
+    "nav": {
+      "admin": "原型管理",
+      "preview": "原型预览",
+      "users": "用户",
+      "settings": "设置"
+    }
+  },
+  "userNav": {
+    "profile": "个人资料",
+    "settings": "设置",
+    "logout": "退出登录"
+  },
+  "auth": {
+    "login": {
+      "brandTitle": "原型管理系统",
+      "title": "登录",
+      "description": "请输入您的邮箱以登录账号",
+      "footerText": "还没有账号？",
+      "footerActionLabel": "去注册",
+      "emailLabel": "邮箱",
+      "passwordLabel": "密码",
+      "submitLabel": "登录"
+    },
+    "register": {
+      "brandTitle": "原型管理系统",
+      "title": "创建账号",
+      "description": "请输入您的信息以创建账号",
+      "footerText": "已有账号？",
+      "footerActionLabel": "去登录",
+      "emailLabel": "邮箱",
+      "passwordLabel": "密码",
+      "confirmPasswordLabel": "确认密码",
+      "submitLabel": "注册"
+    }
+  },
+  "users": {
+    "title": "用户管理",
+    "description": "管理用户账户和权限。",
+    "emptyTitle": "敬请期待",
+    "emptyDescription": "用户管理功能将在此提供。"
+  },
+  "settings": {
+    "title": "设置",
+    "description": "管理应用程序设置和偏好。",
+    "languageTitle": "语言",
+    "languageDescription": "选择您喜欢的界面语言。"
+  },
+  "preview": {
+    "missingProduct": {
+      "title": "产品不存在",
+      "description": "无法找到标识为 {productKey} 的产品",
+      "back": "返回预览列表"
+    },
+    "empty": {
+      "title": "暂无产品",
+      "description": "请先在发布管理台中创建产品并发布版本。",
+      "action": "前往发布管理"
+    },
+    "card": {
+      "noDescription": "暂无描述",
+      "selectVersion": "选择版本",
+      "defaultSuffix": "（默认）",
+      "noVersions": "无可用版本",
+      "publishedCount": "已发布 {count} 个版本",
+      "currentVersion": "当前选中: {version}",
+      "preview": "预览",
+      "copyLink": "复制预览链接",
+      "openInNewWindow": "新窗口预览"
+    },
+    "list": {
+      "title": "产品预览",
+      "description": "查看和分享已发布的原型版本。",
+      "searchPlaceholder": "搜索产品名称或 Key",
+      "copied": "预览链接已复制",
+      "copyFailed": "当前环境不支持自动复制，请手动复制"
+    },
+    "viewer": {
+      "fallbackTitle": "原型预览",
+      "description": "预览当前产品的已发布原型。",
+      "descriptionWithVersion": "预览 {title} 的 {version} 版本。",
+      "close": "关闭预览",
+      "versionLabel": "版本 {version}",
+      "noVersion": "无可用版本",
+      "desktop": "桌面端视图",
+      "tablet": "平板端视图",
+      "mobile": "移动端视图",
+      "openInNewWindow": "新窗口打开",
+      "missingEntry": "当前版本没有可加载的预览入口。"
+    }
+  },
+  "fileDropzone": {
+    "helperText": "压缩包内需包含 package.json 和 build 脚本，构建产物固定输出到 dist/",
+    "prompt": "拖拽或点击上传源码 zip",
+    "remove": "移除文件"
+  },
+  "buildHistory": {
+    "title": "构建日志",
+    "titleWithVersion": "构建日志 - {version}",
+    "description": "查看该版本的构建和部署进度",
+    "emptyDescription": "请选择一个版本后查看其构建过程。",
+    "progress": "构建进度",
+    "selectStep": "选择步骤后查看摘要",
+    "noHistoryForVersion": "该版本暂无可展示的构建过程",
+    "noHistory": "暂无可展示的构建过程",
+    "terminalAriaLabel": "构建日志终端"
+  },
+  "admin": {
+    "validation": {
+      "versionRequired": "请输入版本号",
+      "versionPattern": "版本号只能包含字母、数字、点、下划线和中划线",
+      "keyRequired": "请输入产品 Key",
+      "nameRequired": "请输入产品名称"
+    },
+    "productCreateDialog": {
+      "title": "创建产品",
+      "description": "创建一个新的产品，用于管理其原型版本。",
+      "nameLabel": "产品名称",
+      "namePlaceholder": "例如 CRM 系统",
+      "keyLabel": "产品 Key",
+      "keyPlaceholder": "例如 crm",
+      "descriptionLabel": "描述",
+      "descriptionPlaceholder": "可选",
+      "cancel": "取消",
+      "submit": "创建"
+    },
+    "uploadVersionDialog": {
+      "title": "上传新版本",
+      "description": "填写版本信息并上传源码压缩包。创建成功后会在单独的弹窗中展示任务状态和日志。"
+    },
+    "uploadVersionForm": {
+      "versionLabel": "版本号",
+      "versionPlaceholder": "例如 v1.0.0",
+      "titleLabel": "版本标题 (可选)",
+      "titlePlaceholder": "例如 CRM 首版",
+      "remarkLabel": "更新说明 (可选)",
+      "remarkPlaceholder": "可选",
+      "fileLabel": "源码压缩包",
+      "uploadFailed": "上传失败",
+      "cancel": "取消",
+      "uploading": "正在上传...",
+      "submit": "开始上传"
+    },
+    "productListPage": {
+      "createSuccess": "产品创建成功",
+      "createError": "产品创建失败",
+      "deleteSuccess": "产品已删除",
+      "deleteError": "产品删除失败",
+      "deleteTitle": "删除产品",
+      "deleteTitleWithName": "删除产品 {name}",
+      "deleteDescription": "删除后会移除该产品下的所有版本、任务记录和已发布文件，请确认。",
+      "deleteConfirm": "删除"
+    },
+    "productList": {
+      "title": "原型发布管理台",
+      "description": "按产品维度管理原型版本，进入详情页后处理上传、版本发布和历史记录。",
+      "create": "创建产品",
+      "tableTitle": "产品列表",
+      "tableDescription": "列表仅展示产品，所有版本级操作统一在产品详情页处理。",
+      "searchPlaceholder": "搜索产品名称或 Key",
+      "columns": {
+        "name": "产品名称",
+        "key": "产品 Key",
+        "description": "描述",
+        "publishedCount": "已发布版本",
+        "createdAt": "创建时间",
+        "actions": "操作"
+      },
+      "loading": "正在加载产品列表…",
+      "emptySearch": "未找到匹配的产品",
+      "empty": "暂无产品",
+      "noDescription": "暂无描述",
+      "detail": "详情",
+      "delete": "删除",
+      "total": "共 {count} 条记录",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "versionManagement": {
+      "title": "版本列表",
+      "description": "管理该产品的所有原型版本",
+      "upload": "上传新版本",
+      "loading": "正在加载版本列表...",
+      "total": "共 {count} 个版本",
+      "previous": "上一页",
+      "next": "下一页"
+    },
+    "versionStatus": {
+      "published": "已发布",
+      "building": "构建中",
+      "failed": "构建失败",
+      "offline": "已下线"
+    },
+    "versionList": {
+      "columns": {
+        "version": "版本号",
+        "status": "状态",
+        "description": "描述",
+        "createdAt": "上传时间",
+        "actions": "操作"
+      },
+      "default": "默认版本",
+      "notAvailable": "—",
+      "history": "查看构建日志",
+      "moreActions": "更多操作 {version}",
+      "download": "下载源码",
+      "setDefault": "设为默认",
+      "offline": "下线版本",
+      "delete": "删除版本",
+      "empty": "暂无版本"
+    },
+    "dashboard": {
+      "missingTitle": "产品不存在",
+      "backToList": "返回列表",
+      "loadFailed": "加载失败",
+      "retry": "重试",
+      "uploadStarted": "源码包上传成功，后台任务已开始",
+      "offlineSuccess": "版本已下线",
+      "defaultUpdated": "默认版本已更新",
+      "deleteVersionTitle": "删除版本",
+      "deleteVersionTitleWithName": "删除版本 {version}",
+      "deleteVersionDescription": "删除后会同步移除已发布目录，请确认。",
+      "deleteConfirm": "删除",
+      "deleteSuccess": "版本已删除",
+      "errors": {
+        "selectProduct": "请先选择产品",
+        "selectFile": "请上传源码压缩包",
+        "uploadFailed": "上传失败",
+        "refreshFailed": "刷新产品详情失败",
+        "deleteFailed": "版本删除失败",
+        "loadFailed": "加载产品详情失败"
+      }
+    }
+  }
+}

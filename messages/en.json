@@ -1,0 +1,247 @@
+{
+  "common": {
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "processing": "Processing..."
+  },
+  "languageSwitcher": {
+    "label": "Language",
+    "zh": "中文",
+    "en": "English"
+  },
+  "workspaceShell": {
+    "toggleMenu": "Toggle menu",
+    "nav": {
+      "admin": "Prototypes",
+      "preview": "Previews",
+      "users": "Users",
+      "settings": "Settings"
+    }
+  },
+  "userNav": {
+    "profile": "Profile",
+    "settings": "Settings",
+    "logout": "Log out"
+  },
+  "auth": {
+    "login": {
+      "brandTitle": "Prototype Management System",
+      "title": "Login",
+      "description": "Enter your email below to log in to your account",
+      "footerText": "Don't have an account?",
+      "footerActionLabel": "Sign up",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "submitLabel": "Login"
+    },
+    "register": {
+      "brandTitle": "Prototype Management System",
+      "title": "Create an account",
+      "description": "Enter your details below to create your account",
+      "footerText": "Already have an account?",
+      "footerActionLabel": "Sign in",
+      "emailLabel": "Email",
+      "passwordLabel": "Password",
+      "confirmPasswordLabel": "Confirm Password",
+      "submitLabel": "Register"
+    }
+  },
+  "users": {
+    "title": "User Management",
+    "description": "Manage user accounts and permissions.",
+    "emptyTitle": "Coming Soon",
+    "emptyDescription": "User management features will be available here."
+  },
+  "settings": {
+    "title": "Settings",
+    "description": "Manage application settings and preferences.",
+    "languageTitle": "Language",
+    "languageDescription": "Select your preferred language for the interface."
+  },
+  "preview": {
+    "missingProduct": {
+      "title": "Product not found",
+      "description": "No product with the key {productKey} could be found.",
+      "back": "Back to previews"
+    },
+    "empty": {
+      "title": "No products yet",
+      "description": "Create a product and publish a version from the admin workspace first.",
+      "action": "Go to admin"
+    },
+    "card": {
+      "noDescription": "No description",
+      "selectVersion": "Select version",
+      "defaultSuffix": " (Default)",
+      "noVersions": "No versions",
+      "publishedCount": "{count} published versions",
+      "currentVersion": "Selected: {version}",
+      "preview": "Preview",
+      "copyLink": "Copy preview link",
+      "openInNewWindow": "Open in new window"
+    },
+    "list": {
+      "title": "Prototype Previews",
+      "description": "Browse and share published prototype versions.",
+      "searchPlaceholder": "Search by product name or key",
+      "copied": "Preview link copied",
+      "copyFailed": "Automatic copy is unavailable here. Please copy the link manually."
+    },
+    "viewer": {
+      "fallbackTitle": "Prototype Preview",
+      "description": "Preview the currently published prototype.",
+      "descriptionWithVersion": "Previewing version {version} of {title}.",
+      "close": "Close preview",
+      "versionLabel": "Version {version}",
+      "noVersion": "No version available",
+      "desktop": "Desktop view",
+      "tablet": "Tablet view",
+      "mobile": "Mobile view",
+      "openInNewWindow": "Open in new window",
+      "missingEntry": "This version does not have a loadable preview entry."
+    }
+  },
+  "fileDropzone": {
+    "helperText": "The archive must include package.json and a build script, and the output must be written to dist/.",
+    "prompt": "Drag a source zip here or click to upload",
+    "remove": "Remove file"
+  },
+  "buildHistory": {
+    "title": "Build log",
+    "titleWithVersion": "Build log - {version}",
+    "description": "Review the build and deployment progress for this version.",
+    "emptyDescription": "Select a version to inspect its build process.",
+    "progress": "Build progress",
+    "selectStep": "Select a step to view its summary",
+    "noHistoryForVersion": "No build history is available for this version yet.",
+    "noHistory": "No build history is available yet.",
+    "terminalAriaLabel": "Build log terminal"
+  },
+  "admin": {
+    "validation": {
+      "versionRequired": "Enter a version number",
+      "versionPattern": "Version may contain only letters, numbers, dots, underscores, and hyphens",
+      "keyRequired": "Enter a product key",
+      "nameRequired": "Enter a product name"
+    },
+    "productCreateDialog": {
+      "title": "Create product",
+      "description": "Create a new product to manage its prototype versions.",
+      "nameLabel": "Product name",
+      "namePlaceholder": "For example: CRM Suite",
+      "keyLabel": "Product key",
+      "keyPlaceholder": "For example: crm",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "Optional",
+      "cancel": "Cancel",
+      "submit": "Create"
+    },
+    "uploadVersionDialog": {
+      "title": "Upload new version",
+      "description": "Enter version details and upload the source archive. A separate dialog will show the task status and logs after creation."
+    },
+    "uploadVersionForm": {
+      "versionLabel": "Version",
+      "versionPlaceholder": "For example: v1.0.0",
+      "titleLabel": "Version title (Optional)",
+      "titlePlaceholder": "For example: CRM first release",
+      "remarkLabel": "Release notes (Optional)",
+      "remarkPlaceholder": "Optional",
+      "fileLabel": "Source archive",
+      "uploadFailed": "Upload failed",
+      "cancel": "Cancel",
+      "uploading": "Uploading...",
+      "submit": "Start upload"
+    },
+    "productListPage": {
+      "createSuccess": "Product created",
+      "createError": "Failed to create product",
+      "deleteSuccess": "Product deleted",
+      "deleteError": "Failed to delete product",
+      "deleteTitle": "Delete product",
+      "deleteTitleWithName": "Delete product {name}",
+      "deleteDescription": "Deleting this will remove all versions, task history, and published files for the product. Continue?",
+      "deleteConfirm": "Delete"
+    },
+    "productList": {
+      "title": "Prototype Admin",
+      "description": "Manage prototype versions by product, then handle uploads, publishing, and history from the detail page.",
+      "create": "Create product",
+      "tableTitle": "Products",
+      "tableDescription": "This list only shows products. All version-level actions happen on the product detail page.",
+      "searchPlaceholder": "Search by product name or key",
+      "columns": {
+        "name": "Product name",
+        "key": "Product key",
+        "description": "Description",
+        "publishedCount": "Published versions",
+        "createdAt": "Created at",
+        "actions": "Actions"
+      },
+      "loading": "Loading products…",
+      "emptySearch": "No matching products found",
+      "empty": "No products yet",
+      "noDescription": "No description",
+      "detail": "Details",
+      "delete": "Delete",
+      "total": "{count} records",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "versionManagement": {
+      "title": "Versions",
+      "description": "Manage every prototype version for this product.",
+      "upload": "Upload version",
+      "loading": "Loading versions...",
+      "total": "{count} versions",
+      "previous": "Previous",
+      "next": "Next"
+    },
+    "versionStatus": {
+      "published": "Published",
+      "building": "Building",
+      "failed": "Build failed",
+      "offline": "Offline"
+    },
+    "versionList": {
+      "columns": {
+        "version": "Version",
+        "status": "Status",
+        "description": "Description",
+        "createdAt": "Uploaded at",
+        "actions": "Actions"
+      },
+      "default": "Default",
+      "notAvailable": "—",
+      "history": "View build log",
+      "moreActions": "More actions for {version}",
+      "download": "Download source",
+      "setDefault": "Set as default",
+      "offline": "Take offline",
+      "delete": "Delete version",
+      "empty": "No versions yet"
+    },
+    "dashboard": {
+      "missingTitle": "Product not found",
+      "backToList": "Back to list",
+      "loadFailed": "Load failed",
+      "retry": "Retry",
+      "uploadStarted": "Source upload succeeded and the background job has started",
+      "offlineSuccess": "Version taken offline",
+      "defaultUpdated": "Default version updated",
+      "deleteVersionTitle": "Delete version",
+      "deleteVersionTitleWithName": "Delete version {version}",
+      "deleteVersionDescription": "Deleting this will also remove the published directory. Continue?",
+      "deleteConfirm": "Delete",
+      "deleteSuccess": "Version deleted",
+      "errors": {
+        "selectProduct": "Select a product first",
+        "selectFile": "Upload a source archive first",
+        "uploadFailed": "Upload failed",
+        "refreshFailed": "Failed to refresh product details",
+        "deleteFailed": "Failed to delete version",
+        "loadFailed": "Failed to load product details"
+      }
+    }
+  }
+}

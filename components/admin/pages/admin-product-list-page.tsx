@@ -3,14 +3,14 @@
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { ProductCreateDialog } from '@/components/admin/dialogs/product-create-dialog';
 import { createProductSchema, type CreateProductFormValues } from '@/components/admin/forms/form-schemas';
 import { AdminProductList } from '@/components/admin/panels/admin-product-list';
-import { getErrorMessage } from '@/lib/domain/error-message';
+import { useRouter } from '@/i18n/navigation';
 import { fetchJson } from '@/lib/ui/api-client';
 import { buildAdminHref } from '@/lib/ui/navigation';
 import { filterProductsBySearch, paginateProducts } from '@/lib/ui/admin-product-list-view';
@@ -23,6 +23,8 @@ interface AdminProductListPageProps {
 }
 
 export function AdminProductListPage({ initialProducts }: AdminProductListPageProps) {
+  const t = useTranslations('admin.productListPage');
+  const tValidation = useTranslations('admin.validation');
   const router = useRouter();
   const [products, setProducts] = useState(initialProducts);
   const [search, setSearch] = useState('');
@@ -33,7 +35,7 @@ export function AdminProductListPage({ initialProducts }: AdminProductListPagePr
   const deferredSearch = useDeferredValue(search);
 
   const form = useForm<CreateProductFormValues>({
-    resolver: zodResolver(createProductSchema),
+    resolver: zodResolver(createProductSchema((key) => tValidation(key))),
     defaultValues: { key: '', name: '', description: '' },
   });
 
@@ -68,10 +70,10 @@ export function AdminProductListPage({ initialProducts }: AdminProductListPagePr
       setProducts((current) => [created, ...current]);
       setCreateOpen(false);
       form.reset();
-      toast.success('产品创建成功');
+      toast.success(t('createSuccess'));
       router.push(buildAdminHref(created.key));
     } catch (error) {
-      toast.error(getErrorMessage(error, '产品创建失败'));
+      toast.error(t('createError'));
     }
   });
 
@@ -84,10 +86,10 @@ export function AdminProductListPage({ initialProducts }: AdminProductListPagePr
       setDeleting(true);
       await fetchJson(`/api/products/${productToDelete.key}`, { method: 'DELETE' });
       setProducts((current) => current.filter((item) => item.key !== productToDelete.key));
-      toast.success('产品已删除');
+      toast.success(t('deleteSuccess'));
       setProductToDelete(null);
     } catch (error) {
-      toast.error(getErrorMessage(error, '产品删除失败'));
+      toast.error(t('deleteError'));
     } finally {
       setDeleting(false);
     }
@@ -114,9 +116,9 @@ export function AdminProductListPage({ initialProducts }: AdminProductListPagePr
       <ConfirmDialog
         open={Boolean(productToDelete)}
         onOpenChange={(open) => !open && setProductToDelete(null)}
-        title={productToDelete ? `删除产品 ${productToDelete.name}` : '删除产品'}
-        description="删除后会移除该产品下的所有版本、任务记录和已发布文件，请确认。"
-        confirmLabel="删除"
+        title={productToDelete ? t('deleteTitleWithName', { name: productToDelete.name }) : t('deleteTitle')}
+        description={t('deleteDescription')}
+        confirmLabel={t('deleteConfirm')}
         confirmVariant="destructive"
         pending={deleting}
         onConfirm={deleteProduct}

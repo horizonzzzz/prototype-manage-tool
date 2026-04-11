@@ -2,6 +2,7 @@
 
 import { useId, useState } from 'react';
 import { FileArchive, UploadCloud, X } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -18,11 +19,13 @@ export function FileDropzone({
   file,
   onFileChange,
   accept = '.zip',
-  helperText = '压缩包内需包含 package.json 和 build 脚本，构建产物固定输出到 dist/',
+  helperText,
   disabled = false,
 }: FileDropzoneProps) {
+  const t = useTranslations('fileDropzone');
   const inputId = useId();
   const [isDragging, setIsDragging] = useState(false);
+  const resolvedHelperText = helperText ?? t('helperText');
 
   return (
     <div className="space-y-3">
@@ -59,8 +62,8 @@ export function FileDropzone({
         <div className="mb-4 inline-flex size-14 items-center justify-center rounded-2xl bg-white/80 text-[var(--primary)] shadow-[var(--shadow-soft)]">
           <UploadCloud className="size-7" />
         </div>
-        <div className="text-sm font-semibold text-slate-800">拖拽或点击上传源码 zip</div>
-        <div className="mt-2 max-w-xl text-sm leading-6 text-slate-500">{helperText}</div>
+        <div className="text-sm font-semibold text-slate-800">{t('prompt')}</div>
+        <div className="mt-2 max-w-xl text-sm leading-6 text-slate-500">{resolvedHelperText}</div>
       </label>
 
       {file ? (
@@ -76,7 +79,7 @@ export function FileDropzone({
           </div>
           <Button type="button" variant="ghost" size="icon" onClick={() => onFileChange(null)}>
             <X />
-            <span className="sr-only">移除文件</span>
+            <span className="sr-only">{t('remove')}</span>
           </Button>
         </div>
       ) : null}

@@ -1,44 +1,24 @@
 'use client';
 
-import { useEffect, useState, type ReactNode } from 'react';
-import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import type { ReactNode } from 'react';
 import { Layers3, Menu } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 
 import { ThemeToggle } from '@/components/layout/theme-toggle';
 import { UserNav } from '@/components/layout/user-nav';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
-import { getBrowserStorage, readLanguagePreference, type AppLanguage } from '@/lib/ui/app-preferences';
 import { appNavigationItems } from '@/lib/ui/navigation';
+import { Link, usePathname } from '@/i18n/navigation';
 import { cn } from '@/lib/utils';
 
 interface WorkspaceShellProps {
   children: ReactNode;
 }
 
-const navigationLabelMap: Record<AppLanguage, Record<(typeof appNavigationItems)[number]['href'], string>> = {
-  zh: {
-    '/admin': '原型管理',
-    '/preview': '原型预览',
-    '/users': '用户',
-    '/settings': '设置',
-  },
-  en: {
-    '/admin': 'Prototypes',
-    '/preview': 'Previews',
-    '/users': 'Users',
-    '/settings': 'Settings',
-  },
-};
-
 export function WorkspaceShell({ children }: WorkspaceShellProps) {
+  const t = useTranslations('workspaceShell');
   const pathname = usePathname();
-  const [language, setLanguage] = useState<AppLanguage>('zh');
-
-  useEffect(() => {
-    setLanguage(readLanguagePreference(getBrowserStorage()));
-  }, []);
 
   const renderNav = () => (
     <>
@@ -55,7 +35,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
           {appNavigationItems.map((item) => {
             const Icon = item.icon;
             const isActive = item.match(pathname);
-            const resolvedNavigationLabel = navigationLabelMap[language][item.href] ?? item.label;
+            const resolvedNavigationLabel = t(`nav.${item.href.slice(1)}`);
 
             return (
               <Link
@@ -85,7 +65,7 @@ export function WorkspaceShell({ children }: WorkspaceShellProps) {
             <SheetTrigger asChild>
               <Button size="icon" variant="outline" className="sm:hidden">
                 <Menu className="h-5 w-5" />
-                <span className="sr-only">Toggle Menu</span>
+                <span className="sr-only">{t('toggleMenu')}</span>
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="p-0 sm:max-w-xs">

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useTranslations } from 'next-intl';
 
 import { getBuildJobTerminalWrite } from '@/lib/ui/build-job-log';
 
@@ -13,6 +14,7 @@ type BuildJobTerminalProps = {
 };
 
 export function BuildJobTerminal({ content, emptyText }: BuildJobTerminalProps) {
+  const t = useTranslations('buildHistory');
   const hostRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<import('xterm').Terminal | null>(null);
   const fitAddonRef = useRef<import('xterm-addon-fit').FitAddon | null>(null);
@@ -118,5 +120,5 @@ export function BuildJobTerminal({ content, emptyText }: BuildJobTerminalProps) 
     fitAddonRef.current?.fit();
   }, [content, emptyText]);
 
-  return <div ref={hostRef} className="build-job-terminal" aria-label="构建日志终端" />;
+  return <div ref={hostRef} className="build-job-terminal" aria-label={t('terminalAriaLabel')} />;
 }
