@@ -1,9 +1,5 @@
 import type { Metadata } from 'next';
 import { Toaster } from 'sonner';
-import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages } from 'next-intl/server';
-
-import { AppFrame } from '@/components/layout/app-frame';
 import { ThemeScript } from '@/components/layout/theme-script';
 
 import './globals.css';
@@ -13,22 +9,13 @@ export const metadata: Metadata = {
   description: 'Front-end prototype publishing and preview tool',
 };
 
-function resolveHtmlLang(locale: string) {
-  return locale === 'zh' ? 'zh-CN' : 'en';
-}
-
-export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const locale = await getLocale();
-  const messages = await getMessages();
-
+export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang={resolveHtmlLang(locale)} suppressHydrationWarning>
+    <html lang="zh-CN" suppressHydrationWarning>
       <body>
         <ThemeScript />
-        <NextIntlClientProvider locale={locale} messages={messages}>
-          <AppFrame>{children}</AppFrame>
-          <Toaster position="top-right" richColors />
-        </NextIntlClientProvider>
+        {children}
+        <Toaster position="top-right" richColors />
       </body>
     </html>
   );

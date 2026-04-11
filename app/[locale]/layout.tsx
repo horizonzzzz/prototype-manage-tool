@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react';
-import { hasLocale } from 'next-intl';
-import { setRequestLocale } from 'next-intl/server';
+import { NextIntlClientProvider, hasLocale } from 'next-intl';
+import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 
+import { AppFrame } from '@/components/layout/app-frame';
 import { routing } from '@/i18n/routing';
 
 type LocaleLayoutProps = {
@@ -22,6 +23,11 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   }
 
   setRequestLocale(locale);
+  const messages = await getMessages();
 
-  return children;
+  return (
+    <NextIntlClientProvider locale={locale} messages={messages}>
+      <AppFrame>{children}</AppFrame>
+    </NextIntlClientProvider>
+  );
 }

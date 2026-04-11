@@ -8,21 +8,23 @@ const authShellSource = readProjectSource('components/layout/auth-shell.tsx');
 const userNavSource = readProjectSource('components/layout/user-nav.tsx');
 
 describe('app frame layout migration', () => {
-  test('keeps app frame composition in the root layout while adding next-intl locale handling', () => {
-    expect(rootLayoutSource).toContain("import { AppFrame } from '@/components/layout/app-frame';");
-    expect(rootLayoutSource).toContain('<AppFrame>{children}</AppFrame>');
-    expect(rootLayoutSource).toContain('NextIntlClientProvider');
+  test('keeps the root layout locale-agnostic so client locale switches can remount the localized shell', () => {
+    expect(rootLayoutSource).not.toContain("import { AppFrame } from '@/components/layout/app-frame';");
+    expect(rootLayoutSource).not.toContain('NextIntlClientProvider');
+    expect(rootLayoutSource).not.toContain('getLocale');
+    expect(rootLayoutSource).not.toContain('getMessages');
   });
 
-  test('adds next-intl routing infrastructure and locale request handling', () => {
+  test('binds next-intl request state and the app frame to the locale layout', () => {
     expect(projectFileExists('i18n/routing.ts')).toBe(true);
     expect(projectFileExists('i18n/request.ts')).toBe(true);
     expect(projectFileExists('proxy.ts')).toBe(true);
     expect(projectFileExists('messages/zh.json')).toBe(true);
     expect(projectFileExists('messages/en.json')).toBe(true);
     expect(localeLayoutSource).toContain('setRequestLocale');
-    expect(rootLayoutSource).toContain('getLocale');
-    expect(rootLayoutSource).toContain('getMessages');
+    expect(localeLayoutSource).toContain('NextIntlClientProvider');
+    expect(localeLayoutSource).toContain("import { AppFrame } from '@/components/layout/app-frame';");
+    expect(localeLayoutSource).toContain('<AppFrame>{children}</AppFrame>');
     expect(rootLayoutSource).toContain('<ThemeScript />');
   });
 
