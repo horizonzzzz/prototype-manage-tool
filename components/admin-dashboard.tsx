@@ -13,6 +13,7 @@ import { useActiveBuildJobLog, useHistoryBuildJobLog } from '@/components/admin/
 import { useProductDetailState } from '@/components/admin/hooks/use-product-detail';
 import { UploadVersionDialog } from '@/components/admin/dialogs/upload-version-dialog';
 import { VersionManagementPanel } from '@/components/admin/panels/version-management-panel';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
 import { getErrorMessage } from '@/lib/domain/error-message';
@@ -38,7 +39,7 @@ function triggerVersionDownload(versionId: number): void {
 
 export function AdminDashboard({ productKey }: { productKey: string }) {
   const router = useRouter();
-  const { activeJob, activeJobId, activateJob, jobs, loading, productDetail, productMissing, refreshCurrent } =
+  const { activeJob, activeJobId, activateJob, jobs, loadError, loading, productDetail, productMissing, refreshCurrent } =
     useProductDetailState(productKey);
   const [selectedLogStepKey, setSelectedLogStepKey] = useState<BuildJobStepKey | null>(null);
   const [isLogStepPinned, setIsLogStepPinned] = useState(false);
@@ -246,6 +247,24 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
             <p className="text-muted-foreground">Key: {productDetail?.key ?? productKey}</p>
           </div>
         </div>
+
+        {loadError ? (
+          <Alert variant="destructive">
+            <AlertTitle>加载失败</AlertTitle>
+            <AlertDescription className="flex items-center justify-between gap-4">
+              <span>{loadError}</span>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={loading}
+                onClick={() => void refreshCurrent().catch((error) => toast.error(getErrorMessage(error, '刷新产品详情失败')))}
+              >
+                重试
+              </Button>
+            </AlertDescription>
+          </Alert>
+        ) : null}
 
         <VersionManagementPanel
           currentPage={currentVersionPage}

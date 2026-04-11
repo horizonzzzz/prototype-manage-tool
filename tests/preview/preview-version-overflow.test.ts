@@ -90,4 +90,9 @@ describe('preview selector overflow guards', () => {
     expect(previewListSource).toContain('version.isDefault');
     expect(previewListSource).toContain('默认');
   });
+
+  test('renders stored version labels without forcing an extra v prefix', () => {
+    expect(previewListSource).not.toContain('v{version.version}');
+    expect(previewListSource).not.toContain('当前选中: v{selectedVersion.version}');
+  });
 });

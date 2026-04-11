@@ -43,7 +43,7 @@ export function PreviewProductCard({
               <SelectContent>
                 {product.versions.map((version) => (
                   <SelectItem key={version.version} value={version.version}>
-                    v{version.version}
+                    {version.version}
                     {version.isDefault ? '（默认）' : ''}
                   </SelectItem>
                 ))}
@@ -62,7 +62,7 @@ export function PreviewProductCard({
           {selectedVersion ? (
             <>
               <span className="h-1 w-1 rounded-full bg-slate-300" />
-              <span>当前选中: v{selectedVersion.version}</span>
+              <span>当前选中: {selectedVersion.version}</span>
             </>
           ) : null}
         </div>

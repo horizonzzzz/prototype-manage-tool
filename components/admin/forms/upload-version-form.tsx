@@ -40,6 +40,10 @@ export function UploadVersionForm({
         <Input placeholder="例如 v1.0.0" {...form.register('version')} />
       </FormField>
 
+      <FormField label="版本标题 (可选)" error={form.formState.errors.title?.message}>
+        <Input placeholder="例如 CRM 首版" {...form.register('title')} />
+      </FormField>
+
       <FormField label="更新说明 (可选)" error={form.formState.errors.remark?.message}>
         <Input placeholder="可选" {...form.register('remark')} />
       </FormField>

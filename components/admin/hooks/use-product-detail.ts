@@ -3,15 +3,16 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 
-import { getErrorMessage } from '@/lib/domain/error-message';
 import type { BuildJobItem, ProductDetail } from '@/lib/types';
 import { fetchJson } from '@/lib/ui/api-client';
+import { resolveProductDetailLoadFailure } from '@/lib/ui/product-detail-load-state';
 import { selectActiveBuildJob } from '@/lib/ui/product-detail-view';
 
 type UseProductDetailStateResult = {
   activeJob: BuildJobItem | null;
   activeJobId: number | undefined;
   jobs: BuildJobItem[];
+  loadError: string | null;
   loading: boolean;
   productDetail: ProductDetail | null;
   productMissing: boolean;
@@ -25,6 +26,7 @@ export function useProductDetailState(productKey: string): UseProductDetailState
   const [activeJobId, setActiveJobId] = useState<number>();
   const [activeJob, setActiveJob] = useState<BuildJobItem | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [productMissing, setProductMissing] = useState(false);
 
   function clearProductContext(): void {
@@ -32,6 +34,7 @@ export function useProductDetailState(productKey: string): UseProductDetailState
     setJobs([]);
     setActiveJobId(undefined);
     setActiveJob(null);
+    setLoadError(null);
     setProductMissing(false);
   }
 
@@ -43,14 +46,29 @@ export function useProductDetailState(productKey: string): UseProductDetailState
     setActiveJob(nextActive ?? null);
   }
 
+  function handleLoadFailure(error: unknown): string {
+    const { message, productMissing } = resolveProductDetailLoadFailure(error, '加载产品详情失败');
+
+    if (productMissing) {
+      setProductDetail(null);
+      syncJobs([]);
+      setLoadError(null);
+      setProductMissing(true);
+      return message;
+    }
+
+    setLoadError(message);
+    setProductMissing(false);
+    return message;
+  }
+
   async function loadProductDetail(targetProductKey: string): Promise<void> {
     setLoading(true);
+    setLoadError(null);
 
     try {
-      const [detail, buildJobs] = await Promise.all([
-        fetchJson<ProductDetail>(`/api/products/${targetProductKey}`),
-        fetchJson<BuildJobItem[]>(`/api/products/${targetProductKey}/build-jobs`),
-      ]);
+      const detail = await fetchJson<ProductDetail>(`/api/products/${targetProductKey}`);
+      const buildJobs = await fetchJson<BuildJobItem[]>(`/api/products/${targetProductKey}/build-jobs`);
 
       setProductDetail(detail);
       syncJobs(buildJobs);
@@ -65,7 +83,12 @@ export function useProductDetailState(productKey: string): UseProductDetailState
       return;
     }
 
-    await loadProductDetail(productKey);
+    try {
+      await loadProductDetail(productKey);
+    } catch (error) {
+      handleLoadFailure(error);
+      throw error;
+    }
   }
 
   function activateJob(job: BuildJobItem): void {
@@ -80,10 +103,7 @@ export function useProductDetailState(productKey: string): UseProductDetailState
     }
 
     void loadProductDetail(productKey).catch((error) => {
-      const message = getErrorMessage(error, '加载产品详情失败');
-      setProductDetail(null);
-      syncJobs([]);
-      setProductMissing(true);
+      const message = handleLoadFailure(error);
       if (message !== 'Product not found') {
         toast.error(message);
       }
@@ -127,6 +147,7 @@ export function useProductDetailState(productKey: string): UseProductDetailState
     activeJob,
     activeJobId,
     jobs,
+    loadError,
     loading,
     productDetail,
     productMissing,
