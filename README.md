@@ -167,7 +167,9 @@ pnpm backfill:source-snapshots
 | `pnpm dev` | Start the local development server |
 | `pnpm build` | Build the Next.js app |
 | `pnpm start` | Start the production server |
-| `pnpm test` | Run the Vitest suite |
+| `pnpm test` | Run the Vitest suite with coverage output |
+| `pnpm test:run` | Run the Vitest suite without coverage |
+| `pnpm test:coverage` | Run the Vitest suite with coverage output |
 | `pnpm test:watch` | Run Vitest in watch mode |
 | `pnpm typecheck` | Run TypeScript type checking |
 | `pnpm prisma:generate` | Generate the Prisma client |

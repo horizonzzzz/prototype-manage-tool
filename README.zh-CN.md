@@ -166,7 +166,9 @@ pnpm backfill:source-snapshots
 | `pnpm dev` | 启动本地开发服务器 |
 | `pnpm build` | 构建 Next.js 应用 |
 | `pnpm start` | 启动生产服务器 |
-| `pnpm test` | 运行 Vitest 测试 |
+| `pnpm test` | 运行带 coverage 输出的 Vitest 测试 |
+| `pnpm test:run` | 运行不带 coverage 的 Vitest 测试 |
+| `pnpm test:coverage` | 运行带 coverage 输出的 Vitest 测试 |
 | `pnpm test:watch` | 以 watch 模式运行 Vitest |
 | `pnpm typecheck` | 运行 TypeScript 类型检查 |
 | `pnpm prisma:generate` | 生成 Prisma Client |
