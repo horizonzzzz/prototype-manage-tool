@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation';
 
-import { AdminProductListPage } from '@/components/admin/admin-product-list-page';
+import { AdminProductListPage } from '@/components/admin/pages/admin-product-list-page';
 import { isSafeRouteSegment } from '@/lib/domain/route-segment';
 import { buildAdminHref } from '@/lib/ui/navigation';
 import { prisma } from '@/lib/prisma';

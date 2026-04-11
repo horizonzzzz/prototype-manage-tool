@@ -218,10 +218,12 @@ The provided `compose.yml` sets `ulimits.nofile=65535`. Keep the same limit if y
 ```text
 app/                    Next.js pages, routes, and API handlers
 components/             Admin and preview UI components
+components/admin/       Admin UI grouped into dialogs, forms, hooks, pages, and panels
+components/preview/     Preview list, product cards, and fullscreen viewer dialog
 lib/                    Configuration, domain logic, and server utilities
 prisma/                 Prisma schema
 scripts/                Seed and supporting scripts
-tests/                  Unit tests for core behaviors
+tests/                  Tests grouped by domain, for example admin, preview, build-jobs, routes, and upload
 data/                   Local SQLite database, uploads, and published prototypes
 docker/                 Container entrypoint and Docker-related files
 public/                 Static assets
@@ -244,7 +246,7 @@ On Windows, `pnpm build` uses Next.js `output: 'standalone'` and may require Dev
 Contributions are welcome.
 
 - keep behavior changes scoped and documented
-- add or update tests in `tests/` when logic changes
+- add or update tests in the matching `tests/<domain>/` folder when logic changes
 - describe operational impact clearly in your pull request
 - verify local setup or Docker behavior when deployment-related files are touched
 

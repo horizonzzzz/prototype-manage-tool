@@ -1,50 +1,28 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, ChevronLeft, ChevronRight, Upload } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 
-import { BuildHistoryDrawer } from '@/components/admin/build-history-drawer';
-import { UploadVersionDialog } from '@/components/admin/upload-version-dialog';
-import { VersionListContent } from '@/components/admin/version-list-content';
+import { BuildHistoryDrawer } from '@/components/admin/dialogs/build-history-drawer';
+import { type UploadFormValues, uploadFormSchema } from '@/components/admin/forms/form-schemas';
+import { useActiveBuildJobLog, useHistoryBuildJobLog } from '@/components/admin/hooks/use-build-job-log';
+import { useProductDetailState } from '@/components/admin/hooks/use-product-detail';
+import { UploadVersionDialog } from '@/components/admin/dialogs/upload-version-dialog';
+import { VersionManagementPanel } from '@/components/admin/panels/version-management-panel';
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Button } from '@/components/ui/button';
-import { type UploadFormValues, uploadFormSchema } from '@/components/admin/form-schemas';
 import { getErrorMessage } from '@/lib/domain/error-message';
-import type {
-  ApiResponse,
-  BuildJobItem,
-  BuildJobLogItem,
-  BuildJobLogStreamEvent,
-  BuildJobStepKey,
-  ProductDetail,
-  ProductVersionItem,
-} from '@/lib/types';
-import { selectActiveBuildJob } from '@/lib/ui/product-detail-view';
-import {
-  applyBuildJobLogStreamEvent,
-  buildBuildJobLogStreamUrl,
-  getBuildJobLogStep,
-  isBuildJobLogStreamStep,
-  resolveBuildJobTerminalContent,
-  shouldStreamBuildJobLog,
-} from '@/lib/ui/build-job-log';
+import type { ApiResponse, BuildJobItem, BuildJobStepKey, ProductVersionItem } from '@/lib/types';
+import { fetchJson } from '@/lib/ui/api-client';
+import { getBuildJobLogStep, resolveBuildJobTerminalContent } from '@/lib/ui/build-job-log';
 
-async function fetchJson<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
-  const response = await fetch(input, init);
-  const payload = (await response.json()) as ApiResponse<T>;
+const ITEMS_PER_PAGE = 10;
 
-  if (!response.ok || !payload.success) {
-    throw new Error(payload.message || 'Request failed');
-  }
-
-  return payload.data as T;
-}
-
-function triggerVersionDownload(versionId: number) {
+function triggerVersionDownload(versionId: number): void {
   if (typeof document === 'undefined') {
     return;
   }
@@ -58,27 +36,19 @@ function triggerVersionDownload(versionId: number) {
   link.remove();
 }
 
-const ITEMS_PER_PAGE = 10;
-
 export function AdminDashboard({ productKey }: { productKey: string }) {
   const router = useRouter();
-  const [productDetail, setProductDetail] = useState<ProductDetail | null>(null);
-  const [jobs, setJobs] = useState<BuildJobItem[]>([]);
-  const [activeJobId, setActiveJobId] = useState<number>();
-  const [activeJob, setActiveJob] = useState<BuildJobItem | null>(null);
-  const [activeJobLog, setActiveJobLog] = useState<BuildJobLogItem | null>(null);
+  const { activeJob, activeJobId, activateJob, jobs, loading, productDetail, productMissing, refreshCurrent } =
+    useProductDetailState(productKey);
   const [selectedLogStepKey, setSelectedLogStepKey] = useState<BuildJobStepKey | null>(null);
   const [isLogStepPinned, setIsLogStepPinned] = useState(false);
   const [versionPage, setVersionPage] = useState(1);
-  const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [buildProgressDialogOpen, setBuildProgressDialogOpen] = useState(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [historyVersion, setHistoryVersion] = useState<ProductVersionItem | null>(null);
   const [historyStepKey, setHistoryStepKey] = useState<BuildJobStepKey | null>(null);
-  const [historyJobLog, setHistoryJobLog] = useState<BuildJobLogItem | null>(null);
-  const [productMissing, setProductMissing] = useState(false);
   const [uploadError, setUploadError] = useState<string>();
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
   const [versionToDelete, setVersionToDelete] = useState<ProductVersionItem | null>(null);
@@ -89,102 +59,28 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     defaultValues: { version: '', title: '', remark: '' },
   });
 
-  const resetUploadFormState = () => {
+  function resetUploadFormState(): void {
     uploadForm.reset();
     setSelectedUploadFile(null);
     setUploadError(undefined);
     setUploading(false);
-  };
+  }
 
-  const clearProductContext = () => {
-    setProductDetail(null);
-    setJobs([]);
-    setVersionPage(1);
-    setUploadDialogOpen(false);
+  function closeBuildLogDialog(): void {
     setBuildProgressDialogOpen(false);
-    setActiveJobId(undefined);
-    setActiveJob(null);
-    setActiveJobLog(null);
-    setSelectedLogStepKey(null);
-    setIsLogStepPinned(false);
     setHistoryDrawerOpen(false);
     setHistoryVersion(null);
     setHistoryStepKey(null);
-    setHistoryJobLog(null);
-    setProductMissing(false);
-  };
-
-  const syncJobs = (nextJobs: BuildJobItem[]) => {
-    setJobs(nextJobs);
-    const nextActive = selectActiveBuildJob(nextJobs, activeJobId);
-
-    setActiveJobId(nextActive?.id);
-    setActiveJob(nextActive ?? null);
-  };
-
-  const loadProductDetail = async (targetProductKey: string) => {
-    setLoading(true);
-    try {
-      const [detail, buildJobs] = await Promise.all([
-        fetchJson<ProductDetail>(`/api/products/${targetProductKey}`),
-        fetchJson<BuildJobItem[]>(`/api/products/${targetProductKey}/build-jobs`),
-      ]);
-      setProductDetail(detail);
-      syncJobs(buildJobs);
-      setProductMissing(false);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }
 
   useEffect(() => {
-    if (!productKey) {
-      clearProductContext();
-      return;
-    }
-
-    void loadProductDetail(productKey).catch((error) => {
-      const message = getErrorMessage(error, '加载产品详情失败');
-      setProductDetail(null);
-      syncJobs([]);
-      setProductMissing(true);
-      if (message !== 'Product not found') {
-        toast.error(message);
-      }
-    });
+    setVersionPage(1);
+    setSelectedLogStepKey(null);
+    setIsLogStepPinned(false);
+    setUploadDialogOpen(false);
+    closeBuildLogDialog();
+    resetUploadFormState();
   }, [productKey]);
-
-  useEffect(() => {
-    if (!activeJobId) {
-      return;
-    }
-
-    let cancelled = false;
-    const timer = window.setInterval(async () => {
-      try {
-        const job = await fetchJson<BuildJobItem>(`/api/build-jobs/${activeJobId}`);
-        if (cancelled) {
-          return;
-        }
-
-        setActiveJob(job);
-        setJobs((current) => current.map((item) => (item.id === job.id ? job : item)));
-        if (!['queued', 'running'].includes(job.status)) {
-          window.clearInterval(timer);
-          if (productKey === job.productKey) {
-            await loadProductDetail(job.productKey);
-          }
-        }
-      } catch {
-        window.clearInterval(timer);
-      }
-    }, 1500);
-
-    return () => {
-      cancelled = true;
-      window.clearInterval(timer);
-    };
-  }, [activeJobId, productKey]);
 
   useEffect(() => {
     if (!activeJob) {
@@ -205,103 +101,17 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     }
   }, [activeJob, isLogStepPinned, selectedLogStepKey]);
 
-  useEffect(() => {
-    if (!activeJobId || !activeJob) {
-      setActiveJobLog(null);
-      return;
-    }
-
-    const logStep = selectedLogStepKey ? getBuildJobLogStep(selectedLogStepKey) : getBuildJobLogStep(activeJob.currentStep);
-    if (!logStep) {
-      setActiveJobLog(null);
-      return;
-    }
-
-    let cancelled = false;
-    let timer: number | null = null;
-    let eventSource: EventSource | null = null;
-    const loadLog = async () => {
-      try {
-        const payload = await fetchJson<BuildJobLogItem>(`/api/build-jobs/${activeJobId}/logs?step=${logStep}`);
-        if (!cancelled) {
-          setActiveJobLog(payload);
-        }
-      } catch {
-        if (!cancelled) {
-          setActiveJobLog({ step: logStep, content: '', exists: false, updatedAt: null });
-        }
-      }
-    };
-
-    if (shouldStreamBuildJobLog(activeJob, logStep) && isBuildJobLogStreamStep(logStep) && typeof EventSource !== 'undefined') {
-      const connectStream = async () => {
-        await loadLog();
-        if (cancelled) {
-          return;
-        }
-
-        eventSource = new EventSource(buildBuildJobLogStreamUrl(activeJobId, logStep));
-        const handleStreamEvent = (messageEvent: MessageEvent<string>) => {
-          if (cancelled) {
-            return;
-          }
-
-          const event = JSON.parse(messageEvent.data) as BuildJobLogStreamEvent;
-          setActiveJobLog((current) => applyBuildJobLogStreamEvent(current, event));
-          if (event.type === 'status' && event.done) {
-            eventSource?.close();
-            eventSource = null;
-          }
-        };
-
-        eventSource.addEventListener('snapshot', handleStreamEvent as EventListener);
-        eventSource.addEventListener('chunk', handleStreamEvent as EventListener);
-        eventSource.addEventListener('status', handleStreamEvent as EventListener);
-        eventSource.addEventListener('heartbeat', handleStreamEvent as EventListener);
-        eventSource.onerror = () => {
-          eventSource?.close();
-          eventSource = null;
-        };
-      };
-
-      void connectStream();
-      return () => {
-        cancelled = true;
-        eventSource?.close();
-      };
-    }
-
-    void loadLog();
-    if (['queued', 'running'].includes(activeJob.status)) {
-      timer = window.setInterval(() => void loadLog(), 1500);
-    }
-
-    return () => {
-      cancelled = true;
-      if (timer) {
-        window.clearInterval(timer);
-      }
-      eventSource?.close();
-    };
-  }, [activeJob, activeJobId, selectedLogStepKey]);
-
   const filteredVersions = useMemo(() => productDetail?.versions ?? [], [productDetail]);
+  const totalVersionPages = Math.max(1, Math.ceil(filteredVersions.length / ITEMS_PER_PAGE));
 
   useEffect(() => {
-    setVersionPage(1);
-  }, [productKey]);
-
-  const totalVersionPages = Math.ceil(filteredVersions.length / ITEMS_PER_PAGE);
-
-  useEffect(() => {
-    setVersionPage((current) => (totalVersionPages > 0 ? Math.min(current, totalVersionPages) : 1));
+    setVersionPage((current) => Math.min(current, totalVersionPages));
   }, [totalVersionPages]);
 
-  const currentVersionPage = totalVersionPages > 0 ? Math.min(versionPage, totalVersionPages) : 1;
+  const currentVersionPage = Math.min(versionPage, totalVersionPages);
   const paginatedVersions = useMemo(() => {
     const startIndex = (currentVersionPage - 1) * ITEMS_PER_PAGE;
-    const paginatedVersions = filteredVersions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
-    return paginatedVersions;
+    return filteredVersions.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [currentVersionPage, filteredVersions]);
 
   const historyActiveJob = useMemo(() => {
@@ -325,59 +135,20 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     return historyActiveJob.steps.find((step) => step.key === historyStepKey) ?? historyActiveJob.steps[0] ?? null;
   }, [historyActiveJob, historyStepKey]);
 
-  useEffect(() => {
-    if (!historyDrawerOpen || !historyActiveJob || !historySelectedStep) {
-      setHistoryJobLog(null);
-      return;
-    }
+  const activeJobLog = useActiveBuildJobLog(activeJobId, activeJob, selectedLogStepKey);
+  const historyJobLog = useHistoryBuildJobLog(historyDrawerOpen, historyActiveJob, historySelectedStep);
 
-    const logStep = getBuildJobLogStep(historySelectedStep.key);
-    if (!logStep) {
-      setHistoryJobLog(null);
-      return;
-    }
-
-    let cancelled = false;
-    setHistoryJobLog(null);
-
-    const loadHistoryLog = async () => {
-      try {
-        const payload = await fetchJson<BuildJobLogItem>(`/api/build-jobs/${historyActiveJob.id}/logs?step=${logStep}`);
-        if (!cancelled) {
-          setHistoryJobLog(payload);
-        }
-      } catch {
-        if (!cancelled) {
-          setHistoryJobLog({ step: logStep, content: '', exists: false, updatedAt: null });
-        }
-      }
-    };
-
-    void loadHistoryLog();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [historyActiveJob, historyDrawerOpen, historySelectedStep]);
-
-  const refreshCurrent = async () => {
-    if (!productKey) {
-      return;
-    }
-
-    await loadProductDetail(productKey);
-  };
-
-  const requestAction = async (url: string, successText: string) => {
+  async function requestAction(url: string, successText: string): Promise<void> {
     await fetchJson(url, { method: url.includes('/default') || url.includes('/offline') ? 'PATCH' : 'DELETE' });
     toast.success(successText);
     await refreshCurrent();
-  };
+  }
 
-  const openBuildHistory = (item: ProductVersionItem) => {
+  function openBuildHistory(item: ProductVersionItem): void {
     const scopedJobs = jobs.filter((job) => job.version === item.version);
     setHistoryVersion(item);
     setHistoryDrawerOpen(true);
+
     if (scopedJobs.length) {
       const nextActive = scopedJobs.find((job) => job.id === activeJobId) ?? scopedJobs[0];
       setHistoryStepKey(getBuildJobLogStep(nextActive.currentStep));
@@ -385,7 +156,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     }
 
     setHistoryStepKey(null);
-  };
+  }
 
   const uploadVersion = uploadForm.handleSubmit(async (values) => {
     try {
@@ -418,14 +189,13 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
           }
 
           toast.success('源码包上传成功，后台任务已开始');
-          setActiveJobId(payload.data.id);
-          setActiveJob(payload.data);
+          activateJob(payload.data);
           setSelectedLogStepKey(getBuildJobLogStep(payload.data.currentStep));
           setIsLogStepPinned(false);
           setUploadDialogOpen(false);
           setBuildProgressDialogOpen(true);
           resetUploadFormState();
-          void loadProductDetail(productKey).catch((error) => toast.error(getErrorMessage(error, '刷新产品详情失败')));
+          void refreshCurrent().catch((error) => toast.error(getErrorMessage(error, '刷新产品详情失败')));
           resolve();
         };
         xhr.onerror = () => reject(new Error('上传失败'));
@@ -477,65 +247,22 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
           </div>
         </div>
 
-        <div className="rounded-xl border bg-card text-card-foreground shadow-sm">
-          <div className="flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
-            <div className="flex flex-col space-y-1.5">
-              <h3 className="font-semibold leading-none tracking-tight">版本列表</h3>
-              <p className="text-sm text-muted-foreground">管理该产品的所有原型版本</p>
-            </div>
-            <Button type="button" onClick={() => setUploadDialogOpen(true)}>
-              <Upload className="mr-2 h-4 w-4" />
-              上传新版本
-            </Button>
-          </div>
-          <div className="p-6 pt-0">
-            {loading && !productDetail ? (
-              <div className="flex min-h-56 items-center justify-center rounded-[16px] border border-[color:var(--border)] bg-slate-50/80 px-4 text-sm text-slate-500">
-                正在加载版本列表...
-              </div>
-            ) : (
-              <VersionListContent
-                versions={paginatedVersions}
-                onHistory={openBuildHistory}
-                onDownload={(item) => triggerVersionDownload(item.id)}
-                onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
-                onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
-                onDelete={setVersionToDelete}
-              />
-            )}
-
-            {filteredVersions.length ? (
-              <div className="flex items-center justify-end space-x-2 py-4">
-                <div className="flex-1 text-sm text-muted-foreground">共 {filteredVersions.length} 个版本</div>
-                <div className="space-x-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setVersionPage((current) => Math.max(1, current - 1))}
-                    disabled={currentVersionPage === 1}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                    上一页
-                  </Button>
-                  <div className="inline-flex items-center justify-center px-2 text-sm font-medium">
-                    {currentVersionPage} / {totalVersionPages}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setVersionPage((current) => Math.min(totalVersionPages, current + 1))}
-                    disabled={currentVersionPage >= totalVersionPages}
-                  >
-                    下一页
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
+        <VersionManagementPanel
+          currentPage={currentVersionPage}
+          loading={loading}
+          showLoadingState={loading && !productDetail}
+          totalPages={totalVersionPages}
+          totalVersions={filteredVersions.length}
+          versions={paginatedVersions}
+          onDelete={setVersionToDelete}
+          onDownload={(item) => triggerVersionDownload(item.id)}
+          onHistory={openBuildHistory}
+          onNextPage={() => setVersionPage((current) => Math.min(totalVersionPages, current + 1))}
+          onOffline={(item) => void requestAction(`/api/versions/${item.id}/offline`, '版本已下线')}
+          onPreviousPage={() => setVersionPage((current) => Math.max(1, current - 1))}
+          onSetDefault={(item) => void requestAction(`/api/versions/${item.id}/default`, '默认版本已更新')}
+          onUploadVersion={() => setUploadDialogOpen(true)}
+        />
       </div>
 
       <UploadVersionDialog
@@ -574,11 +301,7 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
         open={buildLogDialogOpen}
         onOpenChange={(open) => {
           if (!open) {
-            setBuildProgressDialogOpen(false);
-            setHistoryDrawerOpen(false);
-            setHistoryVersion(null);
-            setHistoryStepKey(null);
-            setHistoryJobLog(null);
+            closeBuildLogDialog();
           }
         }}
         versionLabel={buildLogVersionLabel}

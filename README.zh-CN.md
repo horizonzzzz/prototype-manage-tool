@@ -216,10 +216,12 @@ docker compose --env-file .env.docker up -d
 ```text
 app/                    Next.js 页面、路由与 API 处理器
 components/             管理台和预览页 UI 组件
+components/admin/       按 dialogs、forms、hooks、pages、panels 分层的管理台组件
+components/preview/     预览列表、产品卡片与全屏预览弹层
 lib/                    配置、领域逻辑与服务端工具
 prisma/                 Prisma schema
 scripts/                种子与辅助脚本
-tests/                  核心行为单元测试
+tests/                  按 admin、preview、build-jobs、routes、upload 等领域划分的测试
 data/                   本地 SQLite、上传文件和发布产物
 docker/                 容器入口脚本与 Docker 相关文件
 public/                 静态资源
@@ -242,7 +244,7 @@ pnpm build
 欢迎贡献。
 
 - 将行为变化控制在清晰可说明的范围内
-- 逻辑有变更时同步补充或更新 `tests/` 下的测试
+- 逻辑有变更时同步补充或更新对应 `tests/<领域>/` 目录下的测试
 - 在 Pull Request 中明确说明运行和部署层面的影响
 - 如果修改了部署相关文件，补充验证本地或 Docker 行为
 

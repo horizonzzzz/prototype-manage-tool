@@ -46,11 +46,16 @@ Do not assume `prisma/migrations/` is part of the committed source of truth.
 
 - [app](/D:/Work/prototype-manage-tool/app): Next.js routes and pages
 - [components](/D:/Work/prototype-manage-tool/components): admin and preview UI
+- [components/admin/hooks](/D:/Work/prototype-manage-tool/components/admin/hooks): admin-only data loading and build-log coordination hooks
+- [components/admin/panels](/D:/Work/prototype-manage-tool/components/admin/panels): admin list and version-management presentation blocks
+- [components/admin/dialogs](/D:/Work/prototype-manage-tool/components/admin/dialogs): admin modal and drawer surfaces
+- [components/admin/forms](/D:/Work/prototype-manage-tool/components/admin/forms): admin form fields and zod/react-hook-form schemas
 - [lib/domain](/D:/Work/prototype-manage-tool/lib/domain): business rules and validation helpers
 - [lib/server](/D:/Work/prototype-manage-tool/lib/server): build, upload, manifest, MCP, snapshot, and filesystem services
+- [lib/ui](/D:/Work/prototype-manage-tool/lib/ui): client-side view helpers, navigation, and lightweight API utilities
 - [prisma/schema.prisma](/D:/Work/prototype-manage-tool/prisma/schema.prisma): database schema
 - [scripts](/D:/Work/prototype-manage-tool/scripts): seed and source-snapshot backfill scripts
-- [tests](/D:/Work/prototype-manage-tool/tests): unit and service-level tests
+- [tests](/D:/Work/prototype-manage-tool/tests): tests grouped by domain such as `admin/`, `preview/`, `build-jobs/`, `routes/`, and `upload/`
 - [data](/D:/Work/prototype-manage-tool/data): local runtime data, not source code
 
 ## High-Value Entry Points
@@ -72,9 +77,17 @@ When investigating behavior, start here:
 - [app/api/manifest/route.ts](/D:/Work/prototype-manage-tool/app/api/manifest/route.ts)
   Preview manifest endpoint.
 - [components/admin-dashboard.tsx](/D:/Work/prototype-manage-tool/components/admin-dashboard.tsx)
-  Main admin client surface.
+  Main admin client surface and orchestration entry.
+- [components/admin/hooks/use-product-detail.ts](/D:/Work/prototype-manage-tool/components/admin/hooks/use-product-detail.ts)
+  Loads product detail and build jobs, tracks active job selection, and refreshes product state.
+- [components/admin/hooks/use-build-job-log.ts](/D:/Work/prototype-manage-tool/components/admin/hooks/use-build-job-log.ts)
+  Owns active/history build log fetching and stream subscriptions.
+- [components/admin/panels/version-management-panel.tsx](/D:/Work/prototype-manage-tool/components/admin/panels/version-management-panel.tsx)
+  Wraps the version table, pagination, and upload trigger in the admin detail page.
 - [components/preview/preview-product-list.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-product-list.tsx)
   Main preview client surface.
+- [components/preview/preview-product-card.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-product-card.tsx)
+  Owns per-product version selection and preview/share actions.
 - [components/preview/preview-viewer-dialog.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-viewer-dialog.tsx)
   Owns the fullscreen preview dialog and device viewport switching.
 
@@ -209,9 +222,9 @@ pnpm build
 
 There are targeted tests for the most important backend flows. If you change one of these areas, run the nearest targeted tests first:
 
-- source snapshots and MCP: `tests/source-snapshot-service.test.ts`, `tests/mcp-route.test.ts`
-- upload/build flow: `tests/upload-service.test.ts`, `tests/build-job-service-source-snapshot.test.ts`
-- backfill: `tests/backfill-source-snapshots.test.ts`
+- source snapshots and MCP: `tests/source-snapshots/source-snapshot-service.test.ts`, `tests/mcp/mcp-route.test.ts`
+- upload/build flow: `tests/upload/upload-service.test.ts`, `tests/build-jobs/build-job-service-source-snapshot.test.ts`
+- backfill: `tests/source-snapshots/backfill-source-snapshots.test.ts`
 
 ## Release Rules
 
@@ -261,7 +274,7 @@ If the task is about:
 - preview selection or broken preview routing: start in [lib/server/manifest-service.ts](/D:/Work/prototype-manage-tool/lib/server/manifest-service.ts) and [app/prototypes/[...slug]/route.ts](/D:/Work/prototype-manage-tool/app/prototypes/[...slug]/route.ts)
 - MCP connectivity or tool behavior: start in [app/api/mcp/route.ts](/D:/Work/prototype-manage-tool/app/api/mcp/route.ts) and [lib/server/prototype-mcp-server.ts](/D:/Work/prototype-manage-tool/lib/server/prototype-mcp-server.ts)
 - source read/search correctness: start in [lib/server/source-snapshot-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-snapshot-service.ts)
-- admin UI bugs: start in [components/admin-dashboard.tsx](/D:/Work/prototype-manage-tool/components/admin-dashboard.tsx) and `components/admin/*`
+- admin UI bugs: start in [components/admin-dashboard.tsx](/D:/Work/prototype-manage-tool/components/admin-dashboard.tsx), then inspect `components/admin/hooks/*`, `components/admin/panels/*`, and `components/admin/dialogs/*` as needed
 - preview UI bugs: start in [components/preview/preview-product-list.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-product-list.tsx) and [components/preview/preview-viewer-dialog.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-viewer-dialog.tsx)
 
 ## Known Non-Goals
