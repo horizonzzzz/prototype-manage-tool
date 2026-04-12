@@ -5,8 +5,8 @@ import { useTranslations } from 'next-intl';
 
 import { getBuildJobTerminalWrite } from '@/lib/ui/build-job-log';
 
-type TerminalModule = typeof import('xterm');
-type FitAddonModule = typeof import('xterm-addon-fit');
+type TerminalModule = typeof import('@xterm/xterm');
+type FitAddonModule = typeof import('@xterm/addon-fit');
 
 type BuildJobTerminalProps = {
   content: string;
@@ -16,8 +16,8 @@ type BuildJobTerminalProps = {
 export function BuildJobTerminal({ content, emptyText }: BuildJobTerminalProps) {
   const t = useTranslations('buildHistory');
   const hostRef = useRef<HTMLDivElement | null>(null);
-  const terminalRef = useRef<import('xterm').Terminal | null>(null);
-  const fitAddonRef = useRef<import('xterm-addon-fit').FitAddon | null>(null);
+  const terminalRef = useRef<import('@xterm/xterm').Terminal | null>(null);
+  const fitAddonRef = useRef<import('@xterm/addon-fit').FitAddon | null>(null);
   const renderedContentRef = useRef('');
 
   useEffect(() => {
@@ -29,8 +29,8 @@ export function BuildJobTerminal({ content, emptyText }: BuildJobTerminalProps) 
     let removeResizeListener: (() => void) | null = null;
 
     void Promise.all([
-      import('xterm') as Promise<TerminalModule>,
-      import('xterm-addon-fit') as Promise<FitAddonModule>,
+      import('@xterm/xterm') as Promise<TerminalModule>,
+      import('@xterm/addon-fit') as Promise<FitAddonModule>,
     ]).then(([xtermModule, fitAddonModule]) => {
       if (!active || !hostRef.current) {
         return;
