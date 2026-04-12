@@ -22,7 +22,7 @@ There is also a remote MCP surface:
 - React 19
 - next-intl
 - TypeScript
-- Prisma with SQLite
+- Prisma 7 with SQLite via `@prisma/adapter-better-sqlite3`
 - Filesystem-backed storage under `data/`
 - Vitest for tests
 
@@ -42,6 +42,7 @@ Uploads are processed as build jobs. A successful job produces:
 
 The application currently initializes schema with `pnpm db:push`, not a checked-in migration workflow.
 Do not assume `prisma/migrations/` is part of the committed source of truth.
+Prisma CLI datasource resolution now also depends on `prisma.config.ts`, and runtime database access is configured in `lib/prisma.ts`.
 
 ## Important Directories
 
@@ -58,6 +59,8 @@ Do not assume `prisma/migrations/` is part of the committed source of truth.
 - [lib/server](/D:/Work/prototype-manage-tool/lib/server): build, upload, manifest, MCP, snapshot, and filesystem services
 - [lib/ui](/D:/Work/prototype-manage-tool/lib/ui): client-side view helpers, navigation, and lightweight API utilities
 - [prisma/schema.prisma](/D:/Work/prototype-manage-tool/prisma/schema.prisma): database schema
+- [prisma.config.ts](/D:/Work/prototype-manage-tool/prisma.config.ts): Prisma 7 CLI datasource configuration
+- [pnpm-workspace.yaml](/D:/Work/prototype-manage-tool/pnpm-workspace.yaml): pnpm workspace settings, including approved native build scripts
 - [scripts](/D:/Work/prototype-manage-tool/scripts): seed and source-snapshot backfill scripts
 - [tests](/D:/Work/prototype-manage-tool/tests): tests grouped by domain such as `admin/`, `preview/`, `build-jobs/`, `routes/`, and `upload/`
 - [data](/D:/Work/prototype-manage-tool/data): local runtime data, not source code
@@ -74,6 +77,8 @@ When investigating behavior, start here:
   Loads locale messages for the current request.
 - [app/[locale]/layout.tsx](/D:/Work/prototype-manage-tool/app/[locale]/layout.tsx)
   Validates locale params and binds request locale for nested pages.
+- [lib/prisma.ts](/D:/Work/prototype-manage-tool/lib/prisma.ts)
+  Owns Prisma client initialization, SQLite adapter wiring, and runtime database-path normalization.
 - [lib/server/build-job-service.ts](/D:/Work/prototype-manage-tool/lib/server/build-job-service.ts)
   Handles upload ingestion, extraction, dependency install, build, output validation, publishing, and source snapshot creation.
 - [lib/server/upload-service.ts](/D:/Work/prototype-manage-tool/lib/server/upload-service.ts)
@@ -106,6 +111,7 @@ When investigating behavior, start here:
 ## Data Model
 
 See [prisma/schema.prisma](/D:/Work/prototype-manage-tool/prisma/schema.prisma).
+Prisma CLI datasource configuration lives in [prisma.config.ts](/D:/Work/prototype-manage-tool/prisma.config.ts).
 
 Main models:
 
@@ -209,6 +215,8 @@ Current product decisions:
 
 Source of truth:
 - [lib/config.ts](/D:/Work/prototype-manage-tool/lib/config.ts)
+- [prisma.config.ts](/D:/Work/prototype-manage-tool/prisma.config.ts)
+- [lib/prisma.ts](/D:/Work/prototype-manage-tool/lib/prisma.ts)
 
 Important env vars:
 
@@ -217,6 +225,11 @@ Important env vars:
 - `DATABASE_URL`
 - `UPLOAD_MAX_MB`
 - `MCP_AUTH_TOKEN`
+
+Notes:
+
+- `DATABASE_URL` remains the Prisma-facing source of truth for both CLI commands and runtime access.
+- Relative local SQLite URLs such as `file:../data/sqlite/app.db` are resolved via `prisma.config.ts` for Prisma CLI commands and normalized in `lib/prisma.ts` for the runtime adapter.
 
 Resolved directories:
 
@@ -266,8 +279,10 @@ Rules:
 
 Practical guidance:
 
+- Commit messages should follow Conventional Commits style such as `feat:`, `fix:`, `docs:`, `refactor:`, or `chore:`.
 - If you change user-visible behavior, deployment flow, packaging, or operator workflow, update `CHANGELOG.md` in the same branch.
 - If you introduce a new release version, update `package.json#version` and add the matching changelog section together.
+- When preparing a release version, review the commits since the previous released tag and ensure the target `CHANGELOG.md` section covers all user-visible and operator-visible changes from that range before tagging.
 - Do not add changelog entries for versions that do not have a real git tag in repository history.
 - Do not create or move tags from inside routine code changes unless the user explicitly asks for release work.
 
@@ -275,6 +290,7 @@ Practical guidance:
 
 Prefer these rules when editing:
 
+- Before making code changes, re-read this `AGENTS.md` and update it in the same branch when the implementation or workflow conventions here become stale.
 - Keep business rules in `lib/domain` or `lib/server`, not inside route handlers.
 - Keep route handlers thin. Validate input, call service layer, serialize output.
 - Preserve path-safety checks. Filesystem writes should remain constrained to configured roots.

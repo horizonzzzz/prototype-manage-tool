@@ -24,12 +24,13 @@ An open-source, self-hosted platform for publishing and previewing frontend prot
 ## Tech Stack
 
 - Next.js App Router
+- React 19
 - next-intl
 - TypeScript
 - Tailwind CSS v4
 - shadcn/ui primitives
-- Prisma
-- SQLite
+- Prisma 7
+- SQLite via `@prisma/adapter-better-sqlite3`
 - Local filesystem storage for published artifacts
 
 ## Quick Start
@@ -37,7 +38,7 @@ An open-source, self-hosted platform for publishing and previewing frontend prot
 ### Prerequisites
 
 - Node.js 22 or newer
-- pnpm 10 or newer
+- pnpm 10.33 or newer
 - Docker, if you want to run the containerized setup
 
 ### Local Development
@@ -79,6 +80,9 @@ The seed data includes sample CRM and ERP prototypes.
 
 ## Configuration
 
+Prisma 7 CLI configuration lives in `prisma.config.ts`.
+The generated Prisma client is emitted to `generated/prisma/`, and pnpm build-script approvals for native dependencies are tracked in `pnpm-workspace.yaml`.
+
 ## Routing And Localization
 
 - Locale routing is implemented with `next-intl`
@@ -98,6 +102,9 @@ The seed data includes sample CRM and ERP prototypes.
 | `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
 | `APP_URL` | `http://localhost:3000` | Public application URL |
 | `MCP_AUTH_TOKEN` | _(empty)_ | Bearer token for `POST /api/mcp`; when empty, MCP endpoint is disabled |
+
+For local development, the default relative `DATABASE_URL` is resolved from the `prisma/` directory by Prisma CLI config.
+At runtime, the SQLite adapter normalizes that path before opening the database.
 
 ### Docker
 
@@ -243,6 +250,9 @@ components/admin/       Admin UI grouped into dialogs, forms, hooks, pages, and 
 components/preview/     Preview list, product cards, and fullscreen viewer dialog
 lib/                    Configuration, domain logic, and server utilities
 prisma/                 Prisma schema
+generated/              Generated Prisma client output (created by `pnpm prisma:generate`, ignored in git)
+prisma.config.ts        Prisma 7 CLI datasource configuration
+pnpm-workspace.yaml     pnpm workspace settings, including approved native build scripts
 scripts/                Seed and supporting scripts
 tests/                  Tests grouped by domain, for example admin, preview, build-jobs, routes, and upload
 data/                   Local SQLite database, uploads, and published prototypes
