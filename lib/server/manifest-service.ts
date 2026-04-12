@@ -1,8 +1,12 @@
+import { unstable_noStore as noStore } from 'next/cache';
+
 import { pickVersionForPreview } from '@/lib/domain/preview';
 import { prisma } from '@/lib/prisma';
 import { serializeManifestProduct } from '@/lib/server/serializers';
 
 export async function getManifest(selectedProduct?: string, selectedVersion?: string) {
+  noStore();
+
   const products = await prisma.product.findMany({
     include: {
       versions: {

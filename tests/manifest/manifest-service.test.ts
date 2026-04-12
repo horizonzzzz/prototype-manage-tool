@@ -1,8 +1,9 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const { productFindManyMock, serializeManifestProductMock } = vi.hoisted(() => ({
+const { productFindManyMock, serializeManifestProductMock, noStoreMock } = vi.hoisted(() => ({
   productFindManyMock: vi.fn(),
   serializeManifestProductMock: vi.fn(),
+  noStoreMock: vi.fn(),
 }));
 
 vi.mock('@/lib/prisma', () => ({
@@ -15,6 +16,10 @@ vi.mock('@/lib/prisma', () => ({
 
 vi.mock('@/lib/server/serializers', () => ({
   serializeManifestProduct: serializeManifestProductMock,
+}));
+
+vi.mock('next/cache', () => ({
+  unstable_noStore: noStoreMock,
 }));
 
 import { getManifest } from '@/lib/server/manifest-service';
@@ -97,5 +102,14 @@ describe('getManifest', () => {
       productKey: 'erp',
       version: 'v2.0.0',
     });
+  });
+
+  test('opts out of static caching so preview data reflects runtime uploads', async () => {
+    productFindManyMock.mockResolvedValue([]);
+    serializeManifestProductMock.mockImplementation((product: any) => product);
+
+    await getManifest();
+
+    expect(noStoreMock).toHaveBeenCalledTimes(1);
   });
 });

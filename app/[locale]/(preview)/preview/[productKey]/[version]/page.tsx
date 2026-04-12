@@ -5,6 +5,8 @@ import { isSafeRouteSegment } from '@/lib/domain/route-segment';
 import { buildPreviewStateHref } from '@/lib/ui/preview-viewer-state';
 import { getManifest } from '@/lib/server/manifest-service';
 
+export const dynamic = 'force-dynamic';
+
 type PreviewVersionRouteProps = {
   params: Promise<{ productKey: string; version: string }>;
 };

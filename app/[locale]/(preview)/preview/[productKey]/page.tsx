@@ -8,6 +8,8 @@ import { isSafeRouteSegment } from '@/lib/domain/route-segment';
 import { buildPreviewStateHref } from '@/lib/ui/preview-viewer-state';
 import { getManifest } from '@/lib/server/manifest-service';
 
+export const dynamic = 'force-dynamic';
+
 type PreviewProductRouteProps = {
   params: Promise<{ productKey: string }>;
   searchParams?: Promise<Record<string, string | string[] | undefined>>;

@@ -2,6 +2,12 @@
 
 All notable release changes for `Prototype Manage Tool` are tracked here. GitHub Release pages should reuse the matching version section from this file.
 
+## Unreleased
+
+### Fixes
+
+- Fixed Docker-deployed preview pages serving build-time empty-state snapshots so newly published products appear in `/preview` without rebuilding the image.
+
 ## 1.4.0
 
 ### Features
