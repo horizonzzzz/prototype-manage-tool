@@ -2,7 +2,7 @@
 
 import { useDeferredValue, useEffect, useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
-import { useLocale, useTranslations } from 'next-intl';
+import { useTranslations } from 'next-intl';
 import { toast } from 'sonner';
 
 import { PreviewEmptyState } from '@/components/preview/preview-empty-state';
@@ -10,7 +10,6 @@ import { PreviewProductCard } from '@/components/preview/preview-product-card';
 import { PreviewViewerDialog } from '@/components/preview/preview-viewer-dialog';
 import { Input } from '@/components/ui/input';
 import { useRouter } from '@/i18n/navigation';
-import type { AppLocale } from '@/i18n/routing';
 import type { ManifestProduct, ProductVersionManifest } from '@/lib/types';
 import { copyText, resolvePreviewEntryUrl } from '@/lib/ui/preview-link';
 import {
@@ -19,7 +18,7 @@ import {
   findPreviewVersion,
   syncPreviewVersionSelections,
 } from '@/lib/ui/preview-product-list-view';
-import { buildLocalizedPreviewStateHref, buildPreviewStateHref, resolvePreviewViewerState } from '@/lib/ui/preview-viewer-state';
+import { buildPreviewStateHref, resolvePreviewViewerState } from '@/lib/ui/preview-viewer-state';
 
 type PreviewProductListProps = {
   products: ManifestProduct[];
@@ -28,7 +27,6 @@ type PreviewProductListProps = {
 };
 
 export function PreviewProductList({ products, selectedProductKey, selectedVersion }: PreviewProductListProps) {
-  const locale = useLocale() as AppLocale;
   const t = useTranslations('preview.list');
   const router = useRouter();
   const [search, setSearch] = useState('');
@@ -54,23 +52,21 @@ export function PreviewProductList({ products, selectedProductKey, selectedVersi
       ? resolvePreviewEntryUrl(version.entryUrl, window.location.origin)
       : undefined;
 
-  const resolvePreviewStateUrl = (productKey: string, version: ProductVersionManifest | undefined) =>
-    buildLocalizedPreviewStateHref(locale, productKey, version?.version);
-
   const openViewer = (productKey: string, version: ProductVersionManifest | undefined) => {
     if (!version) return;
     router.push(buildPreviewStateHref(productKey, version.version), { scroll: false });
   };
 
-  const openPreviewInNewWindow = (productKey: string, version: ProductVersionManifest | undefined) => {
-    if (!version || typeof window === 'undefined') return;
-    const target = new URL(resolvePreviewStateUrl(productKey, version), window.location.origin).toString();
+  const openPreviewInNewWindow = (version: ProductVersionManifest | undefined) => {
+    const target = resolveTarget(version);
+    if (!target) return;
     window.open(target, '_blank', 'noopener,noreferrer');
   };
 
-  const copyPreviewLink = async (productKey: string, version: ProductVersionManifest | undefined) => {
-    if (!version || typeof window === 'undefined') return;
-    const copied = await copyText(new URL(resolvePreviewStateUrl(productKey, version), window.location.origin).toString());
+  const copyPreviewLink = async (version: ProductVersionManifest | undefined) => {
+    const target = resolveTarget(version);
+    if (!target) return;
+    const copied = await copyText(target);
     copied ? toast.success(t('copied')) : toast.error(t('copyFailed'));
   };
 
@@ -101,8 +97,8 @@ export function PreviewProductList({ products, selectedProductKey, selectedVersi
                   selectedVersion={selectedRowVersion}
                   onVersionChange={(value) => setVersionSelections((current) => ({ ...current, [product.key]: value }))}
                   onOpenViewer={() => openViewer(product.key, selectedRowVersion)}
-                  onCopyLink={() => void copyPreviewLink(product.key, selectedRowVersion)}
-                  onOpenInNewWindow={() => openPreviewInNewWindow(product.key, selectedRowVersion)}
+                  onCopyLink={() => void copyPreviewLink(selectedRowVersion)}
+                  onOpenInNewWindow={() => openPreviewInNewWindow(selectedRowVersion)}
                 />
               );
             })}
@@ -122,7 +118,7 @@ export function PreviewProductList({ products, selectedProductKey, selectedVersi
             router.push(buildPreviewStateHref(), { scroll: false });
           }
         }}
-        onOpenInNewWindow={() => openPreviewInNewWindow(viewerProduct?.key ?? '', viewerVersion)}
+        onOpenInNewWindow={() => openPreviewInNewWindow(viewerVersion)}
       />
     </>
   );
