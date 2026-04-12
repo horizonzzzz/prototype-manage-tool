@@ -1,9 +1,10 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-import { detectForbiddenAbsoluteReferences } from '@/lib/domain/upload-validation';
-
-const ROOT_ASSET_REFERENCE = /\b(src|href)=(["'])(\/(?!\/)[^"']+)\2/gi;
+import {
+  detectForbiddenAbsoluteReferences,
+  normalizeForbiddenAbsoluteReferences,
+} from '@/lib/domain/upload-validation';
 
 export const BUILD_JOB_STEP_ORDER = ['extract', 'install', 'build', 'normalize', 'validate', 'publish'] as const;
 
@@ -26,6 +27,7 @@ type InstallCommandOptions = {
 };
 
 const LINUX_MAX_OPEN_FILES_RE = /^Max open files\s+(\d+|unlimited)\s+(\d+|unlimited)\s+files$/mi;
+const PUBLISHABLE_TEXT_EXTENSIONS = new Set(['.css', '.html']);
 
 const STEP_LABELS: Record<BuildJobStepKey, string> = {
   extract: '解压源码包',
@@ -161,6 +163,33 @@ async function pathExists(targetPath: string) {
   }
 }
 
+async function collectPublishableTextFiles(rootDir: string) {
+  const collected: string[] = [];
+
+  async function walk(currentDir: string): Promise<void> {
+    const entries = await fs.readdir(currentDir, { withFileTypes: true });
+
+    await Promise.all(
+      entries.map(async (entry) => {
+        const entryPath = path.join(currentDir, entry.name);
+
+        if (entry.isDirectory()) {
+          await walk(entryPath);
+          return;
+        }
+
+        if (PUBLISHABLE_TEXT_EXTENSIONS.has(path.extname(entry.name).toLowerCase())) {
+          collected.push(entryPath);
+        }
+      }),
+    );
+  }
+
+  await walk(rootDir);
+
+  return collected.sort();
+}
+
 export async function detectPackageManager(projectDir: string): Promise<PackageManagerName> {
   const packageJson = await readPackageJson(projectDir);
   const packageManager = packageJson.packageManager?.split('@')[0];
@@ -220,7 +249,18 @@ export async function validateBuildOutput(distDir: string) {
     throw new Error('Build output must contain dist/index.html');
   }
 
-  const forbiddenReferences = detectForbiddenAbsoluteReferences(indexHtml);
+  const publishableFiles = await collectPublishableTextFiles(distDir);
+  const forbiddenReferences: string[] = [];
+
+  for (const filePath of publishableFiles) {
+    const content = filePath === indexHtmlPath ? indexHtml : await fs.readFile(filePath, 'utf8');
+    const relativeFilePath = path.relative(distDir, filePath).split(path.sep).join('/');
+
+    for (const reference of detectForbiddenAbsoluteReferences(content)) {
+      forbiddenReferences.push(`${relativeFilePath} -> ${reference}`);
+    }
+  }
+
   if (forbiddenReferences.length > 0) {
     throw new Error(`Detected root absolute asset references: ${forbiddenReferences.join(', ')}`);
   }
@@ -228,31 +268,39 @@ export async function validateBuildOutput(distDir: string) {
   return {
     distDir,
     indexHtmlPath,
+    checkedFilesCount: publishableFiles.length,
   };
 }
 
 export async function normalizeBuildOutputPaths(distDir: string) {
-  const indexHtmlPath = path.join(distDir, 'index.html');
-  const originalHtml = await fs.readFile(indexHtmlPath, 'utf8');
+  const publishableFiles = await collectPublishableTextFiles(distDir);
+  const remainingForbiddenReferences: string[] = [];
   let rewrittenCount = 0;
+  let rewrittenFilesCount = 0;
 
-  const normalizedHtml = originalHtml.replace(ROOT_ASSET_REFERENCE, (match, attribute, quote, assetPath) => {
-    if (assetPath.startsWith('/api/') || assetPath.startsWith('/prototypes/')) {
-      return match;
+  for (const filePath of publishableFiles) {
+    const originalContent = await fs.readFile(filePath, 'utf8');
+    const relativeDir = path.relative(distDir, path.dirname(filePath));
+    const normalized = normalizeForbiddenAbsoluteReferences(originalContent, relativeDir);
+
+    if (normalized.rewrittenCount > 0) {
+      rewrittenCount += normalized.rewrittenCount;
+      rewrittenFilesCount += 1;
+      await fs.writeFile(filePath, normalized.content, 'utf8');
     }
 
-    rewrittenCount += 1;
-    return `${attribute}=${quote}.${assetPath}${quote}`;
-  });
-
-  if (rewrittenCount > 0) {
-    await fs.writeFile(indexHtmlPath, normalizedHtml, 'utf8');
+    const relativeFilePath = path.relative(distDir, filePath).split(path.sep).join('/');
+    for (const reference of detectForbiddenAbsoluteReferences(normalized.content)) {
+      remainingForbiddenReferences.push(`${relativeFilePath} -> ${reference}`);
+    }
   }
 
   return {
     rewritten: rewrittenCount > 0,
     rewrittenCount,
-    indexHtmlPath,
-    remainingForbiddenReferences: detectForbiddenAbsoluteReferences(normalizedHtml),
+    rewrittenFilesCount,
+    scannedFilesCount: publishableFiles.length,
+    indexHtmlPath: path.join(distDir, 'index.html'),
+    remainingForbiddenReferences,
   };
 }

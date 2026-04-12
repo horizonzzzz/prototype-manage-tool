@@ -411,7 +411,7 @@ async function runBuildJob(jobId: number) {
     const distDir = path.join(projectRoot, 'dist');
     const normalizeResult = await normalizeBuildOutputPaths(distDir);
     const normalizeMessage = normalizeResult.rewritten
-      ? `已自动修正 ${normalizeResult.rewrittenCount} 处资源路径`
+      ? `已自动修正 ${normalizeResult.rewrittenFilesCount} 个文件中的 ${normalizeResult.rewrittenCount} 处资源路径`
       : '未发现需要修正的资源路径';
     steps = await markStep(jobId, steps, 'normalize', 'success', normalizeMessage);
 

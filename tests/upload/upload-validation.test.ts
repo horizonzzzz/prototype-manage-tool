@@ -37,6 +37,16 @@ describe('upload validation helpers', () => {
     expect(detectForbiddenAbsoluteReferences(html)).toHaveLength(0);
   });
 
+  test('rejects root absolute asset references in css url() values', () => {
+    const css = `
+      @font-face {
+        src: url("/assets/geist-latin.woff2") format("woff2");
+      }
+    `;
+
+    expect(detectForbiddenAbsoluteReferences(css)).toContain('/assets/geist-latin.woff2');
+  });
+
   test('extracts uploaded file from antd upload event', () => {
     const targetFile = { name: 'demo.zip' };
     const event = {

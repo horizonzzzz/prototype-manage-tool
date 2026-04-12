@@ -189,6 +189,7 @@ Max open files            1024                 1024                 files
   test('validates dist index and absolute asset references', async () => {
     const validDir = await createTempProject({
       'dist/index.html': '<html><head><script src="./assets/app.js"></script></head></html>',
+      'dist/assets/index.css': '@font-face { src: url("./geist-latin.woff2") format("woff2"); }',
     });
     await expect(validateBuildOutput(path.join(validDir, 'dist'))).resolves.toEqual(
       expect.objectContaining({ indexHtmlPath: path.join(validDir, 'dist', 'index.html') }),
@@ -199,6 +200,17 @@ Max open files            1024                 1024                 files
     });
     await expect(validateBuildOutput(path.join(invalidDir, 'dist'))).rejects.toThrow(
       'Detected root absolute asset references',
+    );
+  });
+
+  test('fails when css keeps root absolute asset references', async () => {
+    const projectDir = await createTempProject({
+      'dist/index.html': '<html><head><link rel="stylesheet" href="./assets/index.css"></head></html>',
+      'dist/assets/index.css': '@font-face { src: url("/assets/geist-latin.woff2") format("woff2"); }',
+    });
+
+    await expect(validateBuildOutput(path.join(projectDir, 'dist'))).rejects.toThrow(
+      'assets/index.css -> /assets/geist-latin.woff2',
     );
   });
 
@@ -218,6 +230,38 @@ Max open files            1024                 1024                 files
     await expect(validateBuildOutput(path.join(projectDir, 'dist'))).resolves.toEqual(
       expect.objectContaining({ indexHtmlPath: path.join(projectDir, 'dist', 'index.html') }),
     );
+  });
+
+  test('normalizes root absolute asset references in css files', async () => {
+    const projectDir = await createTempProject({
+      'dist/index.html': '<html><head><link rel="stylesheet" href="./assets/index.css"></head></html>',
+      'dist/assets/index.css':
+        '@font-face { src: url("/assets/geist-latin-wght-normal-Dm3htQBi.woff2") format("woff2"); }',
+    });
+
+    const result = await normalizeBuildOutputPaths(path.join(projectDir, 'dist'));
+    const rewrittenCss = await fs.readFile(path.join(projectDir, 'dist', 'assets', 'index.css'), 'utf8');
+
+    expect(result.rewritten).toBe(true);
+    expect(result.rewrittenCount).toBe(1);
+    expect(rewrittenCss).toContain('url("./geist-latin-wght-normal-Dm3htQBi.woff2")');
+    await expect(validateBuildOutput(path.join(projectDir, 'dist'))).resolves.toEqual(
+      expect.objectContaining({ indexHtmlPath: path.join(projectDir, 'dist', 'index.html') }),
+    );
+  });
+
+  test('normalizes root absolute asset references relative to nested css files', async () => {
+    const projectDir = await createTempProject({
+      'dist/index.html': '<html><head><link rel="stylesheet" href="./nested/styles/app.css"></head></html>',
+      'dist/nested/styles/app.css': '@font-face { src: url("/assets/geist-latin.woff2") format("woff2"); }',
+    });
+
+    const result = await normalizeBuildOutputPaths(path.join(projectDir, 'dist'));
+    const rewrittenCss = await fs.readFile(path.join(projectDir, 'dist', 'nested', 'styles', 'app.css'), 'utf8');
+
+    expect(result.rewritten).toBe(true);
+    expect(result.rewrittenCount).toBe(1);
+    expect(rewrittenCss).toContain('url("../../assets/geist-latin.woff2")');
   });
 
   test('keeps allowed platform paths unchanged when normalizing output', async () => {
