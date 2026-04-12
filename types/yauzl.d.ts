@@ -7,6 +7,7 @@ declare module 'yauzl' {
   }
 
   export interface ZipFile extends EventEmitter {
+    entryCount: number;
     readEntry(): void;
     openReadStream(
       entry: Entry,
@@ -17,6 +18,12 @@ declare module 'yauzl' {
 
   export function open(
     path: string,
+    options: { lazyEntries: boolean },
+    callback: (error: Error | null, zipFile?: ZipFile) => void,
+  ): void;
+
+  export function fromBuffer(
+    buffer: Buffer,
     options: { lazyEntries: boolean },
     callback: (error: Error | null, zipFile?: ZipFile) => void,
   ): void;

@@ -19,10 +19,38 @@ export async function ensureAppDirectories() {
   ]);
 }
 
+const RETRYABLE_EOCD_ERROR = /End of central directory record signature not found|Either not a zip file|file is truncated/i;
+
+function shouldFallbackToBufferOpen(error: unknown) {
+  return error instanceof Error && RETRYABLE_EOCD_ERROR.test(error.message);
+}
+
+async function openZipFromBuffer(filePath: string) {
+  const buffer = await fs.readFile(filePath);
+
+  return await new Promise<yauzl.ZipFile>((resolve, reject) => {
+    yauzl.fromBuffer(buffer, { lazyEntries: true }, (error: Error | null, zipFile: yauzl.ZipFile | undefined) => {
+      if (error || !zipFile) {
+        reject(error ?? new Error('Failed to open zip buffer'));
+        return;
+      }
+
+      resolve(zipFile);
+    });
+  });
+}
+
 async function openZip(filePath: string) {
   return await new Promise<yauzl.ZipFile>((resolve, reject) => {
     yauzl.open(filePath, { lazyEntries: true }, (error: Error | null, zipFile: yauzl.ZipFile | undefined) => {
       if (error || !zipFile) {
+        if (shouldFallbackToBufferOpen(error)) {
+          void openZipFromBuffer(filePath).then(resolve).catch(() => {
+            reject(error ?? new Error('Failed to open zip file'));
+          });
+          return;
+        }
+
         reject(error ?? new Error('Failed to open zip file'));
         return;
       }
@@ -30,6 +58,18 @@ async function openZip(filePath: string) {
       resolve(zipFile);
     });
   });
+}
+
+export async function probeZipArchive(zipPath: string) {
+  const zipFile = await openZip(zipPath);
+
+  try {
+    return {
+      entryCount: (zipFile as yauzl.ZipFile & { entryCount: number }).entryCount,
+    };
+  } finally {
+    zipFile.close();
+  }
 }
 
 async function extractEntry(zipFile: yauzl.ZipFile, entry: yauzl.Entry, tempDir: string) {
