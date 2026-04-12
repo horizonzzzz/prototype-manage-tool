@@ -1,25 +1,28 @@
 # Prototype Manage Tool
 
-一个开源、自托管的前端原型发布与预览平台，提供统一的产品/版本预览入口，以及用于管理上传、构建任务、发布状态和默认版本的后台工作台。
+Prototype Manage Tool 是一个按产品和版本发布静态前端原型的自托管平台。
+它主要提供三个工作入口：
+
+- `/preview`：浏览已发布原型，并在产品与版本之间切换
+- `/admin`：上传源码压缩包、查看构建任务、发布或下线版本、管理默认版本
+- `POST /api/mcp`：通过 MCP 让 agent 直接读取已发布版本的源码快照
 
 [English](./README.md) | [MIT License](./LICENSE)
 
-## 核心能力
+## 项目定位
 
-- 提供原型风格的工作区外壳，在预览与管理页面统一使用侧边导航和顶部主题切换控件
-- 统一使用当前工作台风格的 shadcn 卡片、表格、弹窗、认证页与占位页基础组件
-- 在 `/preview` 提供卡片式预览中心，支持按产品和已发布版本切换
-- 提供全屏预览弹层，支持桌面 / 平板 / 手机视图切换，以及 `/preview/:product?v=:version` 深链接状态
-- 在 `/admin` 提供分页化的产品/版本管理界面，支持上传、构建任务监控、默认版本设置、下线和删除操作
-- 提供 `/login`、`/register`、`/users`、`/settings` 认证与账号占位页面，并统一接入当前多语言工作区外壳
-- 使用 `next-intl` 实现国际化路由，默认语言为中文，英文页面位于 `/en/*`
-- 语言切换入口位于认证页与 `/settings`，通过切换当前路由 locale 生效，不再依赖浏览器本地语言存储
-- 当前阶段提供 `light` / `dark` / `system` 三档本地主题切换
-- 提供产品、版本、manifest 解析、构建任务状态和预览路由等 API
-- 通过 `/prototypes/*` 提供基于文件系统的静态原型访问
-- 提供远程 `POST /api/mcp` MCP 接口，便于 agent 直接读取已发布版本的源码快照
-- 提供可直接体验的演示种子数据
-- 提供面向 Docker 部署的镜像发布工作流
+应用会长期维护三类状态：
+
+- 通过 Prisma 管理的 SQLite 元数据
+- 位于 `data/prototypes/<productKey>/<version>/` 的已发布静态产物
+- 位于 `data/source-snapshots/<productKey>/<version>/` 的已发布源码快照
+
+整个系统有两个关键产品约束：
+
+- 只有 `published` 版本会出现在 `/preview`
+- 只有源码快照状态为 `ready` 的版本才会通过 MCP 暴露
+
+这意味着预览页和 MCP 都只消费“已经发布完成”的结果，而不会临时触发构建。
 
 ## 技术栈
 
@@ -27,11 +30,19 @@
 - React 19
 - next-intl
 - TypeScript
-- Tailwind CSS v4
-- shadcn/ui 基础组件
-- Prisma 7
-- 通过 `@prisma/adapter-better-sqlite3` 访问 SQLite
-- 基于本地文件系统的产物存储
+- Prisma 7 与 `@prisma/adapter-better-sqlite3`
+- 基于 `data/` 的文件系统存储
+- Vitest 测试
+
+## 核心工作流
+
+1. 管理员上传一个 `.zip` 源码压缩包。
+2. 平台创建构建任务，并将压缩包解压到 `data/build-jobs/`。
+3. 构建任务定位有效项目根目录，安装依赖并执行项目自身的 `build` 脚本。
+4. 系统从 `dist/` 校验构建结果。
+5. 已发布文件会复制到 `data/prototypes/<productKey>/<version>/`。
+6. 源码快照会复制到 `data/source-snapshots/<productKey>/<version>/`。
+7. 版本发布完成后可在 `/preview` 访问；源码快照标记为 `ready` 后可被 MCP 读取。
 
 ## 快速开始
 
@@ -39,114 +50,139 @@
 
 - Node.js 22 或更高版本
 - pnpm 10.33 或更高版本
-- 如果要使用容器部署，需要 Docker
+- 如果要走容器部署流程，需要 Docker
 
 ### 本地开发
 
-1. 安装依赖：
+1. 安装依赖。
+
+   ```bash
+   pnpm install
+   ```
+
+2. 创建本地环境变量文件。
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   PowerShell 可使用：
+
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+3. 初始化数据库并写入演示数据。
+
+   ```bash
+   pnpm prisma:generate
+   pnpm db:push
+   pnpm db:seed
+   ```
+
+   也可以直接使用简写命令：
+
+   ```bash
+   pnpm init
+   ```
+
+4. 启动开发服务器。
+
+   ```bash
+   pnpm dev
+   ```
+
+5. 打开应用。
+
+- 中文默认路由：`http://localhost:3000/preview` 和 `http://localhost:3000/admin`
+- 英文路由：`http://localhost:3000/en/preview` 和 `http://localhost:3000/en/admin`
+
+无前缀应用路由默认渲染 `zh`，英文页面统一位于 `/en/*`。
+
+### 常用命令
+
+| 命令 | 作用 |
+| --- | --- |
+| `pnpm dev` | 启动本地开发服务器 |
+| `pnpm init` | 生成 Prisma Client、推送 schema、写入演示数据 |
+| `pnpm test` | 运行带 coverage 的 Vitest 测试 |
+| `pnpm typecheck` | 执行 TypeScript 类型检查 |
+| `pnpm build` | 构建 Next.js 应用 |
+| `pnpm backfill:source-snapshots` | 为历史已发布版本补齐源码快照 |
+
+### Schema 工作流说明
+
+本项目当前以 `pnpm db:push` 作为 schema 初始化流程。
+本地开发和运行时行为都不以提交到仓库的 Prisma migrations 作为主要事实来源。
+
+## Docker 部署
+
+1. 从示例文件生成 `.env.docker`。
+
+   ```bash
+   cp .env.docker.example .env.docker
+   ```
+
+2. 设置关键部署变量：
+
+- `IMAGE_TAG`：生产环境应固定到明确的发布标签 `vX.Y.Z`，例如 `v1.4.0`
+- `APP_URL`：应填写用户和 MCP 客户端实际访问到的公网地址
+- `APP_PORT`：宿主机映射端口
+- `MCP_AUTH_TOKEN`：开启远程 MCP 访问
+
+3. 首次部署时先初始化数据库。
+
+   ```bash
+   docker compose --env-file .env.docker --profile init run --rm db-init
+   ```
+
+4. 如果需要演示数据，再执行种子任务。
+
+   ```bash
+   docker compose --env-file .env.docker --profile seed run --rm seed-demo
+   ```
+
+5. 启动应用。
+
+   ```bash
+   docker compose --env-file .env.docker pull
+   docker compose --env-file .env.docker up -d
+   ```
+
+### 升级已有部署
+
+1. 备份 `docker-data/sqlite/app.db`。
+2. 将 `.env.docker` 中的 `IMAGE_TAG` 更新为目标发布版本。
+3. 拉取新镜像。
+4. 运行 `db-init` 应用 Prisma schema 变更。
+5. 重启应用容器。
 
 ```bash
-pnpm install
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker --profile init run --rm db-init
+docker compose --env-file .env.docker up -d
 ```
 
-2. 从示例环境变量文件复制：
+`latest` 适合快速体验，但生产环境应固定到明确的发布标签，这样升级和回滚才可预测。
+仓库提供的 `compose.yml` 还设置了 `ulimits.nofile=65535`；如果你用其他方式运行容器，也应保持同等级别限制。
 
-```bash
-cp .env.example .env
-```
+部署后的常用访问入口：
 
-3. 初始化 Prisma 并写入演示数据：
+- `http://<server>:3000/preview`
+- `http://<server>:3000/admin`
+- `http://<server>:3000/en/preview`
+- `http://<server>:3000/en/admin`
 
-```bash
-pnpm prisma:generate
-pnpm db:push
-pnpm db:seed
-```
+## 接入 MCP 客户端
 
-4. 启动开发服务器：
-
-```bash
-pnpm dev
-```
-
-5. 打开页面：
-
-- 预览页：`http://localhost:3000/preview`
-- 管理台：`http://localhost:3000/admin`
-- 英文预览页：`http://localhost:3000/en/preview`
-- 英文管理台：`http://localhost:3000/en/admin`
-
-种子数据会创建 CRM 和 ERP 示例原型。
-
-## 配置
-
-Prisma 7 的 CLI 配置位于 `prisma.config.ts`。
-生成后的 Prisma Client 输出到 `generated/prisma/`，`pnpm-workspace.yaml` 用于记录原生依赖的 build-script 授权。
-
-## 路由与多语言
-
-- 多语言路由由 `next-intl` 提供
-- 当前支持 `zh`、`en`
-- 默认语言是 `zh`
-- `localePrefix` 模式为 `as-needed`
-- `/admin`、`/preview`、`/login`、`/settings` 等无前缀路径默认渲染中文
-- 英文页面位于 `/en/*`，例如 `/en/admin`、`/en/preview`、`/en/login`
-- 语言切换会切换当前路由 locale，不再使用 `localStorage` 或自定义语言 cookie
-
-### 本地
-
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `DATABASE_URL` | `file:../data/sqlite/app.db` | Prisma 使用的 SQLite 连接串 |
-| `DATA_DIR` | `./data` | SQLite、上传文件、构建任务和发布产物的根目录 |
-| `UPLOAD_MAX_MB` | `200` | 上传文件大小上限，单位 MB |
-| `APP_URL` | `http://localhost:3000` | 对外访问地址 |
-| `MCP_AUTH_TOKEN` | _(空)_ | `POST /api/mcp` 的 Bearer Token；为空时 MCP 接口禁用 |
-
-在本地开发中，默认的相对 `DATABASE_URL` 会先由 Prisma CLI 配置按 `prisma/` 目录解析。
-运行时的 SQLite adapter 会在打开数据库前将其标准化为可用路径。
-
-### Docker
-
-| 变量 | 默认值 | 说明 |
-| --- | --- | --- |
-| `IMAGE_TAG` | `v1.4.0` | `compose.yml` 使用的发布镜像标签；生产环境应固定到具体 `vX.Y.Z` |
-| `APP_URL` | `http://localhost` | 对外访问地址 |
-| `APP_PORT` | `3000` | 宿主机映射端口 |
-| `UPLOAD_MAX_MB` | `200` | 上传文件大小上限，单位 MB |
-| `MCP_AUTH_TOKEN` | _(空)_ | `POST /api/mcp` 的 Bearer Token；为空时 MCP 接口禁用 |
-
-## 原型上传机制
-
-平台会接收源码压缩包、安装依赖、执行构建、校验构建产物，然后将结果发布到数据目录中。
-
-当前约束如下：
-
-- 仅接受 `.zip` 上传
-- 压缩包中必须包含 `package.json`
-- 当前只支持 `pnpm` 和 `npm` 项目
-- 项目必须定义 `build` 脚本
-- 构建产物必须从 `dist/` 发布
-- `dist/index.html` 必须使用相对资源路径
-- `/assets/...` 这类根绝对路径资源引用会被拒绝
-
-## MCP 源码快照
-
-仓库内置了基于 `@modelcontextprotocol/sdk` 的远程 MCP 接口，供 agent 直接读取已发布原型源码。
-
-- 仅 `status=published` 且源码快照 `status=ready` 的版本
-- 已发布源码快照的目录树
-- 文本文件的完整读取，以及按行范围读取
-- 已发布源码文件内的全文搜索
+仓库内置了一个基于已发布源码快照的远程 MCP 接口。
 
 - 接口地址：`POST /api/mcp`
-- 传输方式：无状态 Streamable HTTP
 - 鉴权方式：`Authorization: Bearer <MCP_AUTH_TOKEN>`
-- 可用条件：`MCP_AUTH_TOKEN` 为空时 MCP 接口返回禁用状态
+- 可用条件：当 `MCP_AUTH_TOKEN` 为空时，接口返回 `503`
+- 方法约束：`GET /api/mcp` 和 `DELETE /api/mcp` 会明确返回 `405`
 
-### Agent 侧配置
-
-大多数 MCP 客户端都支持通过 `mcpServers` JSON 注册远程服务。将下面的 URL 和 Token 替换为你自己的：
+大多数 MCP 客户端都可以通过类似下面的配置接入：
 
 ```json
 {
@@ -161,122 +197,83 @@ Prisma 7 的 CLI 配置位于 `prisma.config.ts`。
 }
 ```
 
-本地开发通常应使用 `http://localhost:3000/api/mcp`。只有在你确实配置了 HTTPS 时才使用 `https://`。
-如果前面有反向代理，请确认它会透传 `Authorization` 请求头。
+本地开发一般使用 `http://localhost:3000/api/mcp`。
+如果服务前面有反向代理，请确保它会透传 `Authorization` 请求头。
 
-### 可用 MCP 工具
+### 当前可用 MCP 工具
 
-- `list_products`：列出当前存在已发布源码快照的产品
-- `list_versions`：列出某产品已发布的源码快照版本
-- `resolve_version`：按 `default`、`latest` 或精确版本号解析版本
-- `get_source_tree`：读取已发布源码快照的目录/文件树
-- `read_source_file`：读取已发布源码快照中的文本文件内容
-- `search_source_files`：在已发布源码快照中执行文本搜索
+- `list_products`
+- `list_versions`
+- `resolve_version`
+- `get_source_tree`
+- `read_source_file`
+- `search_source_files`
 
-### 回填源码快照
-
-如果历史已发布版本早于源码快照功能上线，可执行：
+如果你的已发布版本早于源码快照功能上线，可以执行：
 
 ```bash
 pnpm backfill:source-snapshots
 ```
 
-## 可用脚本
+## 配置参考
 
-| 命令 | 作用 |
-| --- | --- |
-| `pnpm dev` | 启动本地开发服务器 |
-| `pnpm build` | 构建 Next.js 应用 |
-| `pnpm start` | 启动生产服务器 |
-| `pnpm test` | 运行带 coverage 输出的 Vitest 测试 |
-| `pnpm test:run` | 运行不带 coverage 的 Vitest 测试 |
-| `pnpm test:coverage` | 运行带 coverage 输出的 Vitest 测试 |
-| `pnpm test:watch` | 以 watch 模式运行 Vitest |
-| `pnpm typecheck` | 运行 TypeScript 类型检查 |
-| `pnpm prisma:generate` | 生成 Prisma Client |
-| `pnpm prisma:migrate` | 在开发环境创建并应用 Prisma migration |
-| `pnpm db:push` | 将 Prisma schema 推送到 SQLite 数据库 |
-| `pnpm db:seed` | 写入演示产品和版本 |
-| `pnpm init` | 生成 Prisma Client、推送 schema 并写入演示数据 |
-| `pnpm backfill:source-snapshots` | 为已发布版本回填缺失的源码快照 |
+### 本地默认值
 
-## Docker 部署
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `DATABASE_URL` | `file:../data/sqlite/app.db` | Prisma 使用的 SQLite 连接串 |
+| `DATA_DIR` | `./data` | SQLite、上传文件、构建任务、静态原型和源码快照的根目录 |
+| `UPLOAD_MAX_MB` | `200` | 上传大小上限，单位 MB |
+| `APP_URL` | `http://localhost:3000` | 对外访问地址 |
+| `MCP_AUTH_TOKEN` | _(空)_ | `POST /api/mcp` 的 Bearer Token |
 
-仓库提供了运行镜像和 `compose.yml`，可用于自托管部署。先从 `.env.docker.example` 复制出 `.env.docker`，再按实际情况调整：
+### Docker 默认值
 
-- `APP_URL`
-- `APP_PORT`
-- `IMAGE_TAG`，指定要运行的发布镜像版本，例如 `v1.4.0`
-- `MCP_AUTH_TOKEN`
+| 变量 | 默认值 | 说明 |
+| --- | --- | --- |
+| `IMAGE_TAG` | `v1.4.0` | `compose.yml` 使用的发布镜像标签 |
+| `APP_URL` | `http://localhost` | 对外访问地址 |
+| `APP_PORT` | `3000` | 映射到容器的宿主机端口 |
+| `UPLOAD_MAX_MB` | `200` | 上传大小上限，单位 MB |
+| `MCP_AUTH_TOKEN` | _(空)_ | `POST /api/mcp` 的 Bearer Token |
 
-首次部署时，先初始化数据库再启动应用：
+`DATABASE_URL` 仍然是 Prisma CLI 和运行时共享的数据库事实来源。
+本地相对 SQLite 路径会先由 `prisma.config.ts` 在 CLI 阶段解析，再由 `lib/prisma.ts` 在运行时标准化。
 
-```bash
-docker compose --env-file .env.docker --profile init run --rm db-init
-```
+## 原型上传约束
 
-如果还需要演示数据：
+上传规则是刻意收紧的，目的是保证发布后的预览行为稳定可预测。
 
-```bash
-docker compose --env-file .env.docker --profile seed run --rm seed-demo
-```
-
-启动应用：
-
-```bash
-docker compose --env-file .env.docker pull
-docker compose --env-file .env.docker up -d
-```
-
-升级已有部署时，必须显式执行一次 schema 同步：
-
-1. 备份 `docker-data/sqlite/app.db`
-2. 将 `.env.docker` 中的 `IMAGE_TAG` 改成目标发布版本
-3. 拉取目标镜像
-4. 运行 `db-init` 应用 Prisma schema 变更
-5. 重启应用容器
-
-```bash
-docker compose --env-file .env.docker pull
-docker compose --env-file .env.docker --profile init run --rm db-init
-docker compose --env-file .env.docker up -d
-```
-
-`latest` 仍会继续发布，便于快速体验；生产环境应固定到发布版 `vX.Y.Z`，这样升级和回滚才可预测。
-
-默认访问入口：
-
-- `http://<server>:3000/preview`
-- `http://<server>:3000/admin`
-- `http://<server>:3000/en/preview`
-- `http://<server>:3000/en/admin`
-
-仓库里的 `compose.yml` 已设置 `ulimits.nofile=65535`。如果你用其他方式运行容器，请保持相同限制。
+- 只接受 `.zip` 上传
+- 压缩包中必须包含 `package.json`
+- 当前只支持 `pnpm` 和 `npm` 项目
+- 项目必须定义 `build` 脚本
+- 可发布产物必须来自 `dist/`
+- `dist/index.html` 必须使用相对资源路径
+- `/assets/...` 这类根绝对路径资源引用会被拒绝
 
 ## 仓库结构
 
 ```text
-app/                    Next.js 页面、路由与 API 处理器
-i18n/                   next-intl 路由、导航与请求配置
-messages/               zh / en 文案消息目录
-components/             管理台和预览页 UI 组件
-components/admin/       按 dialogs、forms、hooks、pages、panels 分层的管理台组件
-components/preview/     预览列表、产品卡片与全屏预览弹层
-lib/                    配置、领域逻辑与服务端工具
+app/                    Next.js 页面、路由和 API 处理器
+app/[locale]/           zh 和 en 的 locale 路由层
+components/             管理台与预览页 UI
+components/admin/       管理台 hooks、dialogs、forms、panels
+components/preview/     预览列表、产品卡片和全屏预览器
+i18n/                   next-intl 路由和请求配置
+messages/               多语言文案目录
+lib/domain/             业务规则和校验逻辑
+lib/server/             构建、上传、manifest、MCP、快照和文件系统服务
+lib/ui/                 客户端视图辅助方法和轻量 API 工具
 prisma/                 Prisma schema
-generated/              Prisma Client 生成目录，由 `pnpm prisma:generate` 产出，默认不纳入 git
-prisma.config.ts        Prisma 7 CLI 数据源配置
-pnpm-workspace.yaml     pnpm 工作区配置，包括原生依赖 build-script 授权
-scripts/                种子与辅助脚本
-tests/                  按 admin、preview、build-jobs、routes、upload 等领域划分的测试
-data/                   本地 SQLite、上传文件和发布产物
-docker/                 容器入口脚本与 Docker 相关文件
-public/                 静态资源
+scripts/                种子和维护脚本
+tests/                  按功能领域划分的测试
+data/                   运行时数据，不属于源码
 ```
 
-## 测试
+## 验证与贡献
 
-在发起 Pull Request 前，建议至少执行以下验证命令：
+发起 Pull Request 前，建议至少执行：
 
 ```bash
 pnpm test
@@ -284,16 +281,14 @@ pnpm typecheck
 pnpm build
 ```
 
-如果在 Windows 上执行 `pnpm build`，由于 Next.js `output: 'standalone'` 需要创建符号链接，通常需要启用 Developer Mode 或使用具备相应权限的终端。
+如果你在 Windows 上执行 `pnpm build`，Next.js standalone 输出可能要求启用 Developer Mode，或者使用具备符号链接权限的终端。
 
-## 贡献说明
+如果你准备提交代码：
 
-欢迎贡献。
-
-- 将行为变化控制在清晰可说明的范围内
-- 逻辑有变更时同步补充或更新对应 `tests/<领域>/` 目录下的测试
-- 在 Pull Request 中明确说明运行和部署层面的影响
-- 如果修改了部署相关文件，补充验证本地或 Docker 行为
+- 保持路由处理器足够薄，把业务规则放进 `lib/domain` 或 `lib/server`
+- 行为变更时同步更新对应测试
+- 在 Pull Request 中明确说明部署层面或运维层面的影响
+- 工作流或配置有变化时同步更新文档
 
 ## 许可证
 
