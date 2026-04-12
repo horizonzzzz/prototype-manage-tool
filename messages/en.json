@@ -46,6 +46,7 @@
       "passwordLabel": "Password",
       "confirmPasswordLabel": "Confirm Password",
       "submitLabel": "Register",
+      "invalidInput": "Enter a valid email and use a password with at least 8 characters",
       "emailExists": "That email is already registered",
       "passwordMismatch": "Passwords do not match",
       "genericError": "Unable to register right now"

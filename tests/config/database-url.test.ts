@@ -3,13 +3,23 @@ import { pathToFileURL } from 'node:url';
 
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-import { buildDefaultDatabaseUrl } from '@/lib/config';
+import { buildDefaultDatabaseUrl, buildDevelopmentAuthSecret } from '@/lib/config';
 
 describe('buildDefaultDatabaseUrl', () => {
   test('falls back to the local sqlite file under data/sqlite', () => {
     const url = buildDefaultDatabaseUrl('C:/work/product-preview-mvp');
 
     expect(url).toBe('file:../data/sqlite/app.db');
+  });
+});
+
+describe('buildDevelopmentAuthSecret', () => {
+  test('returns a stable non-empty fallback secret for local development', () => {
+    const secret = buildDevelopmentAuthSecret('C:/work/product-preview-mvp');
+
+    expect(secret).toMatch(/^dev-auth-secret-/);
+    expect(secret.length).toBeGreaterThan(20);
+    expect(buildDevelopmentAuthSecret('C:/work/product-preview-mvp')).toBe(secret);
   });
 });
 

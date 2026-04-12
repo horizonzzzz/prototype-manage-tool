@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 export function buildDefaultDatabaseUrl(rootDir: string) {
@@ -7,12 +8,22 @@ export function buildDefaultDatabaseUrl(rootDir: string) {
   return `file:${relativePath}`;
 }
 
+export function buildDevelopmentAuthSecret(rootDir: string) {
+  const digest = createHash('sha256').update(rootDir).digest('hex');
+  return `dev-auth-secret-${digest}`;
+}
+
 const rootDir = process.cwd();
 const dataDir = path.resolve(rootDir, process.env.DATA_DIR ?? './data');
 const databaseUrl = process.env.DATABASE_URL ?? buildDefaultDatabaseUrl(rootDir);
+const authSecret =
+  process.env.AUTH_SECRET ??
+  process.env.NEXTAUTH_SECRET ??
+  (process.env.NODE_ENV === 'production' ? '' : buildDevelopmentAuthSecret(rootDir));
 
 export const appConfig = {
   appUrl: process.env.APP_URL ?? 'http://localhost:3000',
+  authSecret,
   dataDir,
   prototypesDir: path.join(dataDir, 'prototypes'),
   sourceSnapshotsDir: path.join(dataDir, 'source-snapshots'),

@@ -21,6 +21,8 @@ function takeFirst(value: string | string[] | undefined) {
 
 function resolveErrorMessage(errorCode: string | undefined, t: Awaited<ReturnType<typeof getTranslations>>) {
   switch (errorCode) {
+    case 'invalid_input':
+      return t('invalidInput');
     case 'email_exists':
       return t('emailExists');
     case 'password_mismatch':
@@ -63,6 +65,10 @@ export default async function RegisterPage({ params, searchParams }: RegisterPag
       }
 
       if (error instanceof Error) {
+        if (error.message === 'INVALID_REGISTRATION_INPUT') {
+          redirect(buildLocalizedHref(locale, '/register?error=invalid_input'));
+        }
+
         if (error.message === 'EMAIL_ALREADY_EXISTS') {
           redirect(buildLocalizedHref(locale, '/register?error=email_exists'));
         }

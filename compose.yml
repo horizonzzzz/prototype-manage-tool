@@ -13,6 +13,7 @@ services:
       DATA_DIR: /app/data
       DATABASE_URL: file:/app/data/sqlite/app.db
       APP_URL: ${APP_URL:-http://localhost}
+      AUTH_SECRET: ${AUTH_SECRET}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
     ports:
@@ -33,6 +34,7 @@ services:
       DATA_DIR: /app/data
       DATABASE_URL: file:/app/data/sqlite/app.db
       APP_URL: ${APP_URL:-http://localhost}
+      AUTH_SECRET: ${AUTH_SECRET}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
     volumes:
@@ -51,6 +53,7 @@ services:
       DATA_DIR: /app/data
       DATABASE_URL: file:/app/data/sqlite/app.db
       APP_URL: ${APP_URL:-http://localhost}
+      AUTH_SECRET: ${AUTH_SECRET}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
       MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
     volumes:

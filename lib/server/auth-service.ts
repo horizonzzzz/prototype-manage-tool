@@ -34,7 +34,12 @@ export async function authenticateUser(email: string, password: string) {
 }
 
 export async function registerUser(input: z.infer<typeof registerSchema>) {
-  const parsed = registerSchema.parse(input);
+  const parsedResult = registerSchema.safeParse(input);
+  if (!parsedResult.success) {
+    throw new Error('INVALID_REGISTRATION_INPUT');
+  }
+
+  const parsed = parsedResult.data;
   if (parsed.password !== parsed.confirmPassword) {
     throw new Error('PASSWORD_MISMATCH');
   }
