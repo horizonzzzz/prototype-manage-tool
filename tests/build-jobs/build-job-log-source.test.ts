@@ -1,15 +1,20 @@
+import { readProjectSource } from '@/tests/support/project-source';
 import { describe, expect, test } from 'vitest';
 
 import {
   applyBuildJobLogStreamEvent,
   buildBuildJobStageText,
   getBuildJobLogStep,
+  getBuildJobTerminalSessionKey,
   getBuildJobTerminalWrite,
   isBuildJobLogStep,
   isBuildJobLogStreamStep,
+  resolveBuildJobLogRequest,
   shouldStreamBuildJobLog,
 } from '@/lib/ui/build-job-log';
 import type { BuildJobItem, BuildJobLogItem, BuildJobStepItem } from '@/lib/types';
+
+const buildJobLogHookSource = readProjectSource('components/admin/hooks/use-build-job-log.ts');
 
 function createStep(overrides: Partial<BuildJobStepItem> = {}): BuildJobStepItem {
   return {
@@ -80,6 +85,65 @@ describe('build job log source helpers', () => {
     expect(shouldStreamBuildJobLog(buildJob, 'build')).toBe(true);
     expect(shouldStreamBuildJobLog(installJob, 'extract')).toBe(false);
     expect(shouldStreamBuildJobLog(finishedInstallJob, 'install')).toBe(false);
+  });
+
+  test('requests a single fetch for completed steps even while another build step is still running', () => {
+    const finishedExtractStep = createStep({
+      key: 'extract',
+      status: 'success',
+      completedAt: '2026-03-25T08:00:01.000Z',
+    });
+    const runningBuildStep = createStep({
+      key: 'build',
+      label: '执行构建',
+      status: 'running',
+      message: '正在执行构建脚本',
+      completedAt: null,
+    });
+    const job = createJob(runningBuildStep, {
+      currentStep: 'build',
+      steps: [finishedExtractStep, runningBuildStep],
+    });
+
+    expect(resolveBuildJobLogRequest(job, 'extract')).toEqual({
+      logStep: 'extract',
+      updateMode: 'once',
+    });
+  });
+
+  test('streams the active build step and polls only non-stream running steps', () => {
+    const runningBuildStep = createStep({
+      key: 'build',
+      label: '执行构建',
+      status: 'running',
+      message: '正在执行构建脚本',
+      completedAt: null,
+    });
+    const runningNormalizeStep = createStep({
+      key: 'normalize',
+      label: '规范化资源路径',
+      status: 'running',
+      message: '正在规范化资源路径',
+      completedAt: null,
+    });
+
+    expect(resolveBuildJobLogRequest(createJob(runningBuildStep, { currentStep: 'build' }), 'build')).toEqual({
+      logStep: 'build',
+      updateMode: 'stream',
+    });
+    expect(resolveBuildJobLogRequest(createJob(runningNormalizeStep, { currentStep: 'normalize' }), 'normalize')).toEqual({
+      logStep: 'normalize',
+      updateMode: 'poll',
+    });
+  });
+
+  test('builds session keys from both job and step identifiers', () => {
+    expect(getBuildJobTerminalSessionKey(7, 'build')).toBe('7:build');
+    expect(getBuildJobTerminalSessionKey(undefined, null)).toBe('no-job:empty');
+  });
+
+  test('does not clear history log state before refetching the same job step', () => {
+    expect(buildJobLogHookSource).not.toMatch(/let cancelled = false;\s+setHistoryJobLog\(null\);/);
   });
 
   test('builds structured terminal text for non-process stages', () => {

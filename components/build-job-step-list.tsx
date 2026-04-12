@@ -6,6 +6,7 @@ import type { BuildJobStepItem, BuildJobStepKey } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
 type BuildJobStepListProps = {
+  interactive?: boolean;
   steps: BuildJobStepItem[];
   selectedStepKey: BuildJobStepKey | null;
   onSelect: (stepKey: BuildJobStepKey) => void;
@@ -43,17 +44,20 @@ function getStatusClasses(status: string, selected: boolean) {
   };
 }
 
-export function BuildJobStepList({ steps, selectedStepKey, onSelect }: BuildJobStepListProps) {
+export function BuildJobStepList({ steps, selectedStepKey, onSelect, interactive = true }: BuildJobStepListProps) {
   return (
     <div className="flex flex-col gap-3.5">
       {steps.map((step) => (
         <button
           key={step.key}
           type="button"
+          disabled={!interactive}
           data-status={step.status}
           aria-pressed={step.key === selectedStepKey}
+          aria-disabled={!interactive}
           className={cn(
-            'flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-transform hover:-translate-y-0.5',
+            'flex w-full items-start gap-3 rounded-2xl border px-3 py-3 text-left transition-transform',
+            interactive ? 'hover:-translate-y-0.5' : 'cursor-default',
             getStatusClasses(step.status, step.key === selectedStepKey).shell,
           )}
           onClick={() => onSelect(step.key)}

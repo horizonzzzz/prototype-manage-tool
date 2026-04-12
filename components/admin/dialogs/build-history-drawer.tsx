@@ -15,9 +15,12 @@ type BuildHistoryDrawerProps = {
   onOpenChange: (open: boolean) => void;
   versionLabel: string | null;
   activeJob: BuildJobItem | null;
+  stepSelectionInteractive: boolean;
   selectedLogStepKey: BuildJobStepKey | null;
   terminalBadge: string;
   terminalContent: string;
+  terminalSessionKey: string;
+  terminalShowEmptyText: boolean;
   onSelectStep: (stepKey: BuildJobStepKey) => void;
 };
 
@@ -26,9 +29,12 @@ export function BuildHistoryDrawer({
   onOpenChange,
   versionLabel,
   activeJob,
+  stepSelectionInteractive,
   selectedLogStepKey,
   terminalBadge,
   terminalContent,
+  terminalSessionKey,
+  terminalShowEmptyText,
   onSelectStep,
 }: BuildHistoryDrawerProps) {
   const t = useTranslations('buildHistory');
@@ -56,10 +62,20 @@ export function BuildHistoryDrawer({
           {activeJob ? (
             <div className="grid gap-4 xl:grid-cols-[minmax(240px,0.72fr)_minmax(0,1.28fr)]">
               <div className="rounded-[16px] border border-[color:var(--border)] bg-white p-3">
-                <BuildJobStepList steps={activeJob.steps} selectedStepKey={selectedLogStepKey} onSelect={onSelectStep} />
+                <BuildJobStepList
+                  steps={activeJob.steps}
+                  interactive={stepSelectionInteractive}
+                  selectedStepKey={selectedLogStepKey}
+                  onSelect={onSelectStep}
+                />
               </div>
               <TerminalShell badge={terminalBadge}>
-                <BuildJobTerminal content={terminalContent} emptyText={t('selectStep')} />
+                <BuildJobTerminal
+                  content={terminalContent}
+                  emptyText={t('selectStep')}
+                  sessionKey={terminalSessionKey}
+                  showEmptyTextWhenContentMissing={terminalShowEmptyText}
+                />
               </TerminalShell>
             </div>
           ) : (

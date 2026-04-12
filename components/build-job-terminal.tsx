@@ -11,14 +11,26 @@ type FitAddonModule = typeof import('@xterm/addon-fit');
 type BuildJobTerminalProps = {
   content: string;
   emptyText: string;
+  sessionKey: string;
+  showEmptyTextWhenContentMissing?: boolean;
 };
 
-export function BuildJobTerminal({ content, emptyText }: BuildJobTerminalProps) {
+function resolveTerminalText(content: string, emptyText: string, showEmptyTextWhenContentMissing: boolean) {
+  return content || (showEmptyTextWhenContentMissing ? emptyText : '');
+}
+
+export function BuildJobTerminal({
+  content,
+  emptyText,
+  sessionKey,
+  showEmptyTextWhenContentMissing = true,
+}: BuildJobTerminalProps) {
   const t = useTranslations('buildHistory');
   const hostRef = useRef<HTMLDivElement | null>(null);
   const terminalRef = useRef<import('@xterm/xterm').Terminal | null>(null);
   const fitAddonRef = useRef<import('@xterm/addon-fit').FitAddon | null>(null);
   const renderedContentRef = useRef('');
+  const renderedSessionKeyRef = useRef(sessionKey);
 
   useEffect(() => {
     if (!hostRef.current || terminalRef.current) {
@@ -74,9 +86,10 @@ export function BuildJobTerminal({ content, emptyText }: BuildJobTerminalProps) 
 
       terminalRef.current = terminal;
       fitAddonRef.current = fitAddon;
-      const initialContent = content || emptyText;
+      const initialContent = resolveTerminalText(content, emptyText, showEmptyTextWhenContentMissing);
       terminal.write(initialContent);
       renderedContentRef.current = initialContent;
+      renderedSessionKeyRef.current = sessionKey;
 
       const handleResize = () => {
         fitAddonRef.current?.fit();
@@ -103,12 +116,15 @@ export function BuildJobTerminal({ content, emptyText }: BuildJobTerminalProps) 
       return;
     }
 
-    const nextContent = content || emptyText;
-    if (renderedContentRef.current === nextContent) {
+    const nextContent = resolveTerminalText(content, emptyText, showEmptyTextWhenContentMissing);
+    const shouldForceReplace = renderedSessionKeyRef.current !== sessionKey;
+    if (!shouldForceReplace && renderedContentRef.current === nextContent) {
       return;
     }
 
-    const write = getBuildJobTerminalWrite(renderedContentRef.current, nextContent, emptyText);
+    const write = shouldForceReplace
+      ? { mode: 'replace' as const, content: nextContent }
+      : getBuildJobTerminalWrite(renderedContentRef.current, nextContent, emptyText);
     if (write.mode === 'append' && write.content) {
       terminal.write(write.content);
     } else {
@@ -117,8 +133,9 @@ export function BuildJobTerminal({ content, emptyText }: BuildJobTerminalProps) 
     }
 
     renderedContentRef.current = nextContent;
+    renderedSessionKeyRef.current = sessionKey;
     fitAddonRef.current?.fit();
-  }, [content, emptyText]);
+  }, [content, emptyText, sessionKey, showEmptyTextWhenContentMissing]);
 
   return <div ref={hostRef} className="build-job-terminal" aria-label={t('terminalAriaLabel')} />;
 }

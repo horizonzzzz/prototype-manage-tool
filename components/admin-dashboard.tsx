@@ -19,7 +19,13 @@ import { Button } from '@/components/ui/button';
 import { useRouter } from '@/i18n/navigation';
 import type { ApiResponse, BuildJobItem, BuildJobStepKey, ProductVersionItem } from '@/lib/types';
 import { fetchJson } from '@/lib/ui/api-client';
-import { getBuildJobLogStep, resolveBuildJobTerminalContent } from '@/lib/ui/build-job-log';
+import {
+  getBuildJobTerminalSessionKey,
+  getBuildJobLogStep,
+  resolveBuildJobTerminalContent,
+  shouldDisableBuildJobStepSelection,
+  shouldUseBuildJobTerminalEmptyText,
+} from '@/lib/ui/build-job-log';
 
 const ITEMS_PER_PAGE = 10;
 
@@ -44,13 +50,13 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const { activeJob, activeJobId, activateJob, jobs, loadError, loading, productDetail, productMissing, refreshCurrent } =
     useProductDetailState(productKey, t('errors.loadFailed'));
   const [selectedLogStepKey, setSelectedLogStepKey] = useState<BuildJobStepKey | null>(null);
-  const [isLogStepPinned, setIsLogStepPinned] = useState(false);
   const [versionPage, setVersionPage] = useState(1);
   const [uploading, setUploading] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [buildProgressDialogOpen, setBuildProgressDialogOpen] = useState(false);
   const [historyDrawerOpen, setHistoryDrawerOpen] = useState(false);
   const [historyVersion, setHistoryVersion] = useState<ProductVersionItem | null>(null);
+  const [historyJobId, setHistoryJobId] = useState<number | null>(null);
   const [historyStepKey, setHistoryStepKey] = useState<BuildJobStepKey | null>(null);
   const [uploadError, setUploadError] = useState<string>();
   const [selectedUploadFile, setSelectedUploadFile] = useState<File | null>(null);
@@ -73,13 +79,13 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
     setBuildProgressDialogOpen(false);
     setHistoryDrawerOpen(false);
     setHistoryVersion(null);
+    setHistoryJobId(null);
     setHistoryStepKey(null);
   }
 
   useEffect(() => {
     setVersionPage(1);
     setSelectedLogStepKey(null);
-    setIsLogStepPinned(false);
     setUploadDialogOpen(false);
     closeBuildLogDialog();
     resetUploadFormState();
@@ -88,21 +94,19 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   useEffect(() => {
     if (!activeJob) {
       setSelectedLogStepKey(null);
-      setIsLogStepPinned(false);
       return;
     }
 
     const currentStep = getBuildJobLogStep(activeJob.currentStep);
-    if (!isLogStepPinned || !selectedLogStepKey) {
+    if (shouldDisableBuildJobStepSelection(activeJob)) {
       setSelectedLogStepKey(currentStep);
       return;
     }
 
-    if (!activeJob.steps.some((step) => step.key === selectedLogStepKey)) {
+    if (!selectedLogStepKey || !activeJob.steps.some((step) => step.key === selectedLogStepKey)) {
       setSelectedLogStepKey(currentStep);
-      setIsLogStepPinned(false);
     }
-  }, [activeJob, isLogStepPinned, selectedLogStepKey]);
+  }, [activeJob, selectedLogStepKey]);
 
   const filteredVersions = useMemo(() => productDetail?.versions ?? [], [productDetail]);
   const totalVersionPages = Math.max(1, Math.ceil(filteredVersions.length / ITEMS_PER_PAGE));
@@ -118,17 +122,12 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   }, [currentVersionPage, filteredVersions]);
 
   const historyActiveJob = useMemo(() => {
-    if (!historyVersion) {
+    if (!historyVersion || historyJobId === null) {
       return null;
     }
 
-    const scopedJobs = jobs.filter((item) => item.version === historyVersion.version);
-    if (!scopedJobs.length) {
-      return null;
-    }
-
-    return scopedJobs.find((item) => item.id === activeJobId) ?? scopedJobs[0];
-  }, [activeJobId, historyVersion, jobs]);
+    return jobs.find((item) => item.id === historyJobId && item.version === historyVersion.version) ?? null;
+  }, [historyJobId, historyVersion, jobs]);
 
   const historySelectedStep = useMemo(() => {
     if (!historyActiveJob) {
@@ -137,6 +136,22 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
 
     return historyActiveJob.steps.find((step) => step.key === historyStepKey) ?? historyActiveJob.steps[0] ?? null;
   }, [historyActiveJob, historyStepKey]);
+
+  useEffect(() => {
+    if (!historyDrawerOpen || !historyActiveJob) {
+      return;
+    }
+
+    const currentStep = getBuildJobLogStep(historyActiveJob.currentStep);
+    if (shouldDisableBuildJobStepSelection(historyActiveJob)) {
+      setHistoryStepKey(currentStep);
+      return;
+    }
+
+    if (!historyStepKey || !historyActiveJob.steps.some((step) => step.key === historyStepKey)) {
+      setHistoryStepKey(currentStep);
+    }
+  }, [historyActiveJob, historyDrawerOpen, historyStepKey]);
 
   const activeJobLog = useActiveBuildJobLog(activeJobId, activeJob, selectedLogStepKey);
   const historyJobLog = useHistoryBuildJobLog(historyDrawerOpen, historyActiveJob, historySelectedStep);
@@ -154,10 +169,12 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
 
     if (scopedJobs.length) {
       const nextActive = scopedJobs.find((job) => job.id === activeJobId) ?? scopedJobs[0];
+      setHistoryJobId(nextActive.id);
       setHistoryStepKey(getBuildJobLogStep(nextActive.currentStep));
       return;
     }
 
+    setHistoryJobId(null);
     setHistoryStepKey(null);
   }
 
@@ -194,7 +211,6 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
           toast.success(t('uploadStarted'));
           activateJob(payload.data);
           setSelectedLogStepKey(getBuildJobLogStep(payload.data.currentStep));
-          setIsLogStepPinned(false);
           setUploadDialogOpen(false);
           setBuildProgressDialogOpen(true);
           resetUploadFormState();
@@ -221,10 +237,15 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
   const buildLogJob = isActiveBuildLogDialog ? activeJob : historyActiveJob;
   const buildLogVersionLabel = isActiveBuildLogDialog ? activeJob?.version ?? null : historyVersion?.version ?? null;
   const buildLogSelectedStepKey = isActiveBuildLogDialog ? selectedLogStepKey : historyStepKey;
+  const buildLogSelectedStep = isActiveBuildLogDialog ? selectedStep : historySelectedStep;
   const buildLogTerminalContent = isActiveBuildLogDialog ? terminalContent : historyTerminalContent;
+  const buildLogTerminalShowEmptyText = isActiveBuildLogDialog
+    ? shouldUseBuildJobTerminalEmptyText(activeJob, selectedStep, activeJobLog)
+    : shouldUseBuildJobTerminalEmptyText(historyActiveJob, historySelectedStep, historyJobLog);
+  const buildLogStepSelectionInteractive = !shouldDisableBuildJobStepSelection(buildLogJob);
   const buildLogTerminalBadge = isActiveBuildLogDialog
-    ? activeJobLog?.step ?? selectedLogStepKey ?? activeJob?.currentStep ?? 'status'
-    : historyJobLog?.step ?? historyStepKey ?? historyActiveJob?.currentStep ?? 'status';
+    ? buildLogSelectedStep?.key ?? selectedLogStepKey ?? activeJob?.currentStep ?? 'status'
+    : buildLogSelectedStep?.key ?? historyStepKey ?? historyActiveJob?.currentStep ?? 'status';
 
   if (productMissing && !loading) {
     return (
@@ -327,16 +348,24 @@ export function AdminDashboard({ productKey }: { productKey: string }) {
         }}
         versionLabel={buildLogVersionLabel}
         activeJob={buildLogJob}
+        stepSelectionInteractive={buildLogStepSelectionInteractive}
         selectedLogStepKey={buildLogSelectedStepKey}
         terminalBadge={buildLogTerminalBadge}
         terminalContent={buildLogTerminalContent}
+        terminalSessionKey={getBuildJobTerminalSessionKey(buildLogJob?.id, buildLogSelectedStepKey)}
+        terminalShowEmptyText={buildLogTerminalShowEmptyText}
         onSelectStep={(stepKey) => {
           if (isActiveBuildLogDialog) {
+            if (activeJob && shouldDisableBuildJobStepSelection(activeJob)) {
+              return;
+            }
             setSelectedLogStepKey(stepKey);
-            setIsLogStepPinned(true);
             return;
           }
 
+          if (historyActiveJob && shouldDisableBuildJobStepSelection(historyActiveJob)) {
+            return;
+          }
           setHistoryStepKey(stepKey);
         }}
       />

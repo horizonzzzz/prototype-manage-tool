@@ -29,6 +29,7 @@ describe('BuildJobStepList', () => {
     const markup = renderToStaticMarkup(
       React.createElement(BuildJobStepList, {
         steps,
+        interactive: true,
         selectedStepKey: 'install',
         onSelect: () => undefined,
       }),
@@ -42,5 +43,18 @@ describe('BuildJobStepList', () => {
     expect(markup).not.toContain('这里曾经是日志摘要');
     expect(markup).not.toContain('npm install 输出摘要');
     expect(markup).not.toContain('task-step-item is-active is-selected');
+  });
+
+  test('renders steps as disabled buttons when interaction is locked', () => {
+    const markup = renderToStaticMarkup(
+      React.createElement(BuildJobStepList, {
+        steps,
+        interactive: false,
+        selectedStepKey: 'install',
+        onSelect: () => undefined,
+      }),
+    );
+
+    expect(markup).toContain('disabled=""');
   });
 });

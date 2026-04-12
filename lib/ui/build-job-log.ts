@@ -7,6 +7,19 @@ import type {
   BuildJobStepItem,
 } from '@/lib/types';
 
+export type BuildJobLogUpdateMode = 'once' | 'poll' | 'stream';
+
+export type BuildJobLogRequest = {
+  logStep: BuildJobLogStep;
+  updateMode: BuildJobLogUpdateMode;
+};
+
+export type ActiveBuildJobLogRequest = {
+  logStep: BuildJobLogStep;
+  shouldPoll: boolean;
+  shouldStream: boolean;
+};
+
 const BUILD_JOB_LOG_STEPS = ['extract', 'install', 'build', 'normalize', 'validate', 'publish'] as const satisfies readonly BuildJobLogStep[];
 const BUILD_JOB_LOG_STREAM_STEPS = ['install', 'build'] as const satisfies readonly BuildJobLogStreamStep[];
 
@@ -34,15 +47,101 @@ export function buildBuildJobLogStreamUrl(jobId: number, step: BuildJobLogStream
   return `/api/build-jobs/${jobId}/logs/stream?step=${step}`;
 }
 
+export function resolveBuildJobLogRequest(
+  job: BuildJobItem | null | undefined,
+  selectedLogStepKey: string | null | undefined,
+): BuildJobLogRequest | null {
+  if (!job) {
+    return null;
+  }
+
+  const logStep = selectedLogStepKey ? getBuildJobLogStep(selectedLogStepKey) : getBuildJobLogStep(job.currentStep);
+  if (!logStep) {
+    return null;
+  }
+
+  const selectedStep = job.steps.find((item) => item.key === logStep);
+  if (!selectedStep || selectedStep.status !== 'running') {
+    return {
+      logStep,
+      updateMode: 'once',
+    };
+  }
+
+  if (shouldStreamBuildJobLog(job, logStep)) {
+    return {
+      logStep,
+      updateMode: 'stream',
+    };
+  }
+
+  return {
+    logStep,
+    updateMode: 'poll',
+  };
+}
+
+export function resolveActiveBuildJobLogRequest(
+  job: BuildJobItem | null | undefined,
+  selectedLogStepKey: string | null | undefined,
+): ActiveBuildJobLogRequest | null {
+  const request = resolveBuildJobLogRequest(job, selectedLogStepKey);
+  if (!request) {
+    return null;
+  }
+
+  return {
+    logStep: request.logStep,
+    shouldPoll: request.updateMode === 'poll',
+    shouldStream: request.updateMode === 'stream',
+  };
+}
+
+export function getBuildJobTerminalSessionKey(jobId: number | undefined, step: string | null | undefined) {
+  return `${jobId ?? 'no-job'}:${step ?? 'empty'}`;
+}
+
+export function shouldDisableBuildJobStepSelection(job: BuildJobItem | null | undefined) {
+  if (!job) {
+    return false;
+  }
+
+  return ['queued', 'running', 'building'].includes(job.status);
+}
+
+export function mergeBuildJobLogSnapshot(current: BuildJobLogItem | null, next: BuildJobLogItem): BuildJobLogItem {
+  if (!current || current.step !== next.step) {
+    return next;
+  }
+
+  if (!next.content && current.content) {
+    return {
+      ...next,
+      content: current.content,
+      exists: current.exists || next.exists,
+    };
+  }
+
+  if (current.content && next.content.length < current.content.length && current.content.startsWith(next.content)) {
+    return {
+      ...next,
+      content: current.content,
+      exists: true,
+    };
+  }
+
+  return next;
+}
+
 export function applyBuildJobLogStreamEvent(current: BuildJobLogItem | null, event: BuildJobLogStreamEvent): BuildJobLogItem {
   switch (event.type) {
     case 'snapshot':
-      return {
+      return mergeBuildJobLogSnapshot(current, {
         step: event.step,
         content: event.content,
         exists: event.exists,
         updatedAt: event.updatedAt,
-      };
+      });
     case 'chunk':
       return {
         step: event.step,
@@ -113,8 +212,12 @@ export function resolveBuildJobTerminalContent(
   step: BuildJobStepItem | null | undefined,
   log: BuildJobLogItem | null | undefined,
 ) {
-  if (log?.exists && log.content) {
+  if (log?.exists && step && log.step === step.key) {
     return log.content;
+  }
+
+  if (job && step && shouldStreamBuildJobLog(job, step.key)) {
+    return '';
   }
 
   if (job && step) {
@@ -122,4 +225,20 @@ export function resolveBuildJobTerminalContent(
   }
 
   return '';
+}
+
+export function shouldUseBuildJobTerminalEmptyText(
+  job: BuildJobItem | null | undefined,
+  step: BuildJobStepItem | null | undefined,
+  log: BuildJobLogItem | null | undefined,
+) {
+  if (!job || !step) {
+    return true;
+  }
+
+  if (shouldStreamBuildJobLog(job, step.key)) {
+    return false;
+  }
+
+  return !(log?.exists && log.step === step.key);
 }
