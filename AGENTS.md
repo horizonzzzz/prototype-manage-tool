@@ -274,7 +274,7 @@ Rules:
 - The tag version must exactly match `package.json#version`.
 - `CHANGELOG.md` must contain a matching `## X.Y.Z` section before the tag is created.
 - The changelog is the release-notes source of truth. GitHub Releases should reuse the matching version section from `CHANGELOG.md`.
-- `docker-publish.yml` publishes Docker images on `main` and on `v*` tags, but the GitHub Release notes flow only runs on tags.
+- `docker-publish.yml` publishes Docker images on `master` and on `v*` tags, but the GitHub Release notes flow only runs on tags.
 - On a tag build, the workflow validates the tag against `package.json`, extracts the matching changelog section, and writes it into the GitHub Release.
 
 Practical guidance:

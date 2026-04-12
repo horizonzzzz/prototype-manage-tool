@@ -110,7 +110,7 @@ Prisma 7 的 CLI 配置位于 `prisma.config.ts`。
 
 | 变量 | 默认值 | 说明 |
 | --- | --- | --- |
-| `IMAGE_TAG` | `latest` | `compose.yml` 使用的镜像标签 |
+| `IMAGE_TAG` | `v1.4.0` | `compose.yml` 使用的发布镜像标签；生产环境应固定到具体 `vX.Y.Z` |
 | `APP_URL` | `http://localhost` | 对外访问地址 |
 | `APP_PORT` | `3000` | 宿主机映射端口 |
 | `UPLOAD_MAX_MB` | `200` | 上传文件大小上限，单位 MB |
@@ -206,10 +206,10 @@ pnpm backfill:source-snapshots
 
 - `APP_URL`
 - `APP_PORT`
-- `IMAGE_TAG`
+- `IMAGE_TAG`，指定要运行的发布镜像版本，例如 `v1.4.0`
 - `MCP_AUTH_TOKEN`
 
-初始化数据库：
+首次部署时，先初始化数据库再启动应用：
 
 ```bash
 docker compose --env-file .env.docker --profile init run --rm db-init
@@ -227,6 +227,22 @@ docker compose --env-file .env.docker --profile seed run --rm seed-demo
 docker compose --env-file .env.docker pull
 docker compose --env-file .env.docker up -d
 ```
+
+升级已有部署时，必须显式执行一次 schema 同步：
+
+1. 备份 `docker-data/sqlite/app.db`
+2. 将 `.env.docker` 中的 `IMAGE_TAG` 改成目标发布版本
+3. 拉取目标镜像
+4. 运行 `db-init` 应用 Prisma schema 变更
+5. 重启应用容器
+
+```bash
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker --profile init run --rm db-init
+docker compose --env-file .env.docker up -d
+```
+
+`latest` 仍会继续发布，便于快速体验；生产环境应固定到发布版 `vX.Y.Z`，这样升级和回滚才可预测。
 
 默认访问入口：
 

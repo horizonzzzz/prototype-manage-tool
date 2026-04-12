@@ -110,7 +110,7 @@ At runtime, the SQLite adapter normalizes that path before opening the database.
 
 | Variable | Default | Description |
 | --- | --- | --- |
-| `IMAGE_TAG` | `latest` | Docker image tag used by `compose.yml` |
+| `IMAGE_TAG` | `v1.4.0` | Released Docker image tag used by `compose.yml`; keep production pinned to a specific `vX.Y.Z` |
 | `APP_URL` | `http://localhost` | Public application URL |
 | `APP_PORT` | `3000` | Host port mapped to the container |
 | `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
@@ -208,10 +208,10 @@ Create `.env.docker` from `.env.docker.example`, then adjust:
 
 - `APP_URL`
 - `APP_PORT`
-- `IMAGE_TAG`
+- `IMAGE_TAG` to the released image you want to run, for example `v1.4.0`
 - `MCP_AUTH_TOKEN`
 
-Initialize the database:
+For a first deployment, initialize the database before starting the app:
 
 ```bash
 docker compose --env-file .env.docker --profile init run --rm db-init
@@ -229,6 +229,22 @@ Start the application:
 docker compose --env-file .env.docker pull
 docker compose --env-file .env.docker up -d
 ```
+
+Upgrade an existing deployment with an explicit schema-sync step:
+
+1. Back up `docker-data/sqlite/app.db`.
+2. Update `IMAGE_TAG` in `.env.docker` to the target release tag.
+3. Pull the target image.
+4. Run `db-init` to apply Prisma schema changes.
+5. Restart the app containers.
+
+```bash
+docker compose --env-file .env.docker pull
+docker compose --env-file .env.docker --profile init run --rm db-init
+docker compose --env-file .env.docker up -d
+```
+
+`latest` is still published for convenience, but production deployments should stay pinned to a released `vX.Y.Z` tag so upgrades and rollbacks are predictable.
 
 Default entry points:
 
