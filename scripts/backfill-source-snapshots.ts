@@ -35,7 +35,7 @@ export async function backfillSourceSnapshots(logger: BackfillLogger = console):
     where: { status: 'published' },
     include: {
       product: {
-        select: { key: true },
+        select: { key: true, ownerId: true },
       },
       sourceSnapshot: {
         select: { status: true },
@@ -57,7 +57,7 @@ export async function backfillSourceSnapshots(logger: BackfillLogger = console):
     let tempDir: string | null = null;
 
     try {
-      const archive = await getVersionSourceArchive(version.id);
+      const archive = await getVersionSourceArchive(version.product.ownerId, version.id);
       if (!archive) {
         summary.skippedMissingArchive += 1;
         continue;
@@ -75,6 +75,7 @@ export async function backfillSourceSnapshots(logger: BackfillLogger = console):
       }
 
       await createSourceSnapshot({
+        userId: version.product.ownerId,
         versionId: version.id,
         productKey: version.product.key,
         version: version.version,

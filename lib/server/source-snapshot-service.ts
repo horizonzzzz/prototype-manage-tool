@@ -4,10 +4,11 @@ import path from 'node:path';
 import fse from 'fs-extra';
 
 import { appConfig } from '@/lib/config';
-import { ensureChildPath, ensureVersionPathInsideRoot } from '@/lib/domain/path-safety';
+import { ensureChildPath, ensureUserVersionPathInsideRoot, ensureVersionPathInsideRoot } from '@/lib/domain/path-safety';
 import { prisma } from '@/lib/prisma';
 
 type CreateSourceSnapshotInput = {
+  userId: string;
   versionId: number;
   productKey: string;
   version: string;
@@ -114,7 +115,12 @@ function isPathInsideRoot(rootDir: string, candidatePath: string) {
 }
 
 export async function createSourceSnapshot(input: CreateSourceSnapshotInput) {
-  const destinationDir = ensureVersionPathInsideRoot(appConfig.sourceSnapshotsDir, input.productKey, input.version);
+  const destinationDir = ensureUserVersionPathInsideRoot(
+    appConfig.sourceSnapshotsDir,
+    input.userId,
+    input.productKey,
+    input.version,
+  );
 
   try {
     await fse.remove(destinationDir);
@@ -187,13 +193,13 @@ export async function createSourceSnapshot(input: CreateSourceSnapshotInput) {
   }
 }
 
-export async function deleteSourceSnapshotForVersion(productKey: string, version: string) {
-  const snapshotDir = ensureVersionPathInsideRoot(appConfig.sourceSnapshotsDir, productKey, version);
+export async function deleteSourceSnapshotForVersion(userId: string, productKey: string, version: string) {
+  const snapshotDir = ensureUserVersionPathInsideRoot(appConfig.sourceSnapshotsDir, userId, productKey, version);
   await fse.remove(snapshotDir);
 }
 
-export async function deleteSourceSnapshotsForProduct(productKey: string) {
-  const productSnapshotsDir = ensureChildPath(appConfig.sourceSnapshotsDir, productKey);
+export async function deleteSourceSnapshotsForProduct(userId: string, productKey: string) {
+  const productSnapshotsDir = ensureChildPath(appConfig.sourceSnapshotsDir, userId, productKey);
   await fse.remove(productSnapshotsDir);
 }
 

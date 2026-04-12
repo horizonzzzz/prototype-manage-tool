@@ -1,6 +1,10 @@
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
+
+import { requirePageUser } from '@/lib/server/session-user';
 
 export default async function UsersPage() {
+  const locale = await getLocale();
+  await requirePageUser(locale);
   const t = await getTranslations('users');
 
   return (

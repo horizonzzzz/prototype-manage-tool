@@ -32,7 +32,9 @@
       "footerActionLabel": "Sign up",
       "emailLabel": "Email",
       "passwordLabel": "Password",
-      "submitLabel": "Login"
+      "submitLabel": "Login",
+      "invalidCredentials": "Invalid email or password",
+      "genericError": "Unable to sign in right now"
     },
     "register": {
       "brandTitle": "Prototype Management System",
@@ -43,7 +45,10 @@
       "emailLabel": "Email",
       "passwordLabel": "Password",
       "confirmPasswordLabel": "Confirm Password",
-      "submitLabel": "Register"
+      "submitLabel": "Register",
+      "emailExists": "That email is already registered",
+      "passwordMismatch": "Passwords do not match",
+      "genericError": "Unable to register right now"
     }
   },
   "users": {

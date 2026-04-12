@@ -1,4 +1,6 @@
 import { ok } from '@/lib/api';
+import { fail } from '@/lib/api';
+import { getApiUser } from '@/lib/server/api-auth';
 import { prisma } from '@/lib/prisma';
 import { serializeUploadRecord, serializeVersion } from '@/lib/server/serializers';
 
@@ -7,12 +9,17 @@ type Context = {
 };
 
 export async function GET(request: Request, context: Context) {
+  const user = await getApiUser();
+  if (!user?.id) {
+    return fail('Unauthorized', 401);
+  }
+
   const { key } = await context.params;
   const { searchParams } = new URL(request.url);
 
   if (searchParams.get('includeRecords') === 'true') {
     const records = await prisma.uploadRecord.findMany({
-      where: { productKey: key },
+      where: { userId: user.id, productKey: key },
       orderBy: { createdAt: 'desc' },
       take: 30,
     });
@@ -20,8 +27,8 @@ export async function GET(request: Request, context: Context) {
     return ok(records.map(serializeUploadRecord));
   }
 
-  const product = await prisma.product.findUnique({
-    where: { key },
+  const product = await prisma.product.findFirst({
+    where: { key, ownerId: user.id },
     include: { versions: true },
   });
 

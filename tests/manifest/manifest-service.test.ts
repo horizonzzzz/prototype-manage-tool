@@ -86,9 +86,10 @@ describe('getManifest', () => {
       })),
     }));
 
-    const manifest = await getManifest();
+    const manifest = await getManifest('user-1');
 
     expect(productFindManyMock).toHaveBeenCalledWith({
+      where: { ownerId: 'user-1' },
       include: {
         versions: {
           where: { status: 'published' },
@@ -108,7 +109,7 @@ describe('getManifest', () => {
     productFindManyMock.mockResolvedValue([]);
     serializeManifestProductMock.mockImplementation((product: any) => product);
 
-    await getManifest();
+    await getManifest('user-1');
 
     expect(noStoreMock).toHaveBeenCalledTimes(1);
   });

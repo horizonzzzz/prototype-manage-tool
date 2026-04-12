@@ -7,6 +7,9 @@ It is intentionally more implementation-focused than `README.md`.
 
 Prototype Manage Tool is a self-hosted platform for publishing static frontend prototypes by product and version.
 
+The application now uses Auth.js email/password authentication.
+All admin, preview, product, version, and build-job data is user-owned and isolated by account.
+
 There are two primary user-facing surfaces:
 
 - `/preview`: browse published prototypes and switch product/version
@@ -31,8 +34,8 @@ There is also a remote MCP surface:
 The system has three persistent layers:
 
 1. Prisma metadata in SQLite
-2. Published prototype files in `data/prototypes/<productKey>/<version>/`
-3. Published source snapshots in `data/source-snapshots/<productKey>/<version>/`
+2. Published prototype files in `data/prototypes/<userId>/<productKey>/<version>/`
+3. Published source snapshots in `data/source-snapshots/<userId>/<productKey>/<version>/`
 
 Uploads are processed as build jobs. A successful job produces:
 
@@ -115,6 +118,7 @@ Prisma CLI datasource configuration lives in [prisma.config.ts](/D:/Work/prototy
 
 Main models:
 
+- `User`: Auth.js account owner for all application data
 - `Product`: stable product identity keyed by `key`
 - `ProductVersion`: version metadata, publish status, default flag, storage location, preview entry URL
 - `SourceSnapshot`: persisted source tree for a published version
@@ -142,8 +146,8 @@ Flow:
 5. The build job installs dependencies with `pnpm` or `npm`.
 6. The build runs via the project's `build` script.
 7. `dist/` output is validated and normalized.
-8. Published files are copied into `data/prototypes/<product>/<version>/`.
-9. A source snapshot is copied into `data/source-snapshots/<product>/<version>/`.
+8. Published files are copied into `data/prototypes/<userId>/<product>/<version>/`.
+9. A source snapshot is copied into `data/source-snapshots/<userId>/<product>/<version>/`.
 10. `ProductVersion` is marked `published`, and default version may be assigned automatically.
 
 Current upload constraints:
@@ -221,6 +225,7 @@ Source of truth:
 Important env vars:
 
 - `APP_URL`
+- `AUTH_SECRET`
 - `DATA_DIR`
 - `DATABASE_URL`
 - `UPLOAD_MAX_MB`
@@ -293,6 +298,7 @@ Prefer these rules when editing:
 - Before making code changes, re-read this `AGENTS.md` and update it in the same branch when the implementation or workflow conventions here become stale.
 - Keep business rules in `lib/domain` or `lib/server`, not inside route handlers.
 - Keep route handlers thin. Validate input, call service layer, serialize output.
+- Preserve user isolation. Product/version/upload/build-job queries must scope by the authenticated user unless the task is explicitly MCP-related.
 - Preserve path-safety checks. Filesystem writes should remain constrained to configured roots.
 - Do not expose unpublished versions through preview or MCP unless the product decision changes explicitly.
 - Be careful with default-version behavior. Deleting or offlining a published default should promote another published version when possible.

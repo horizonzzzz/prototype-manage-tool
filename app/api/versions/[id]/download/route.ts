@@ -1,6 +1,7 @@
 import { readFile } from 'node:fs/promises';
 
 import { fail } from '@/lib/api';
+import { getApiUser } from '@/lib/server/api-auth';
 import { getVersionSourceArchive } from '@/lib/server/upload-service';
 
 type Context = {
@@ -19,8 +20,13 @@ function buildContentDisposition(fileName: string) {
 
 export async function GET(_: Request, context: Context) {
   try {
+    const user = await getApiUser();
+    if (!user?.id) {
+      return fail('Unauthorized', 401);
+    }
+
     const { id } = await context.params;
-    const sourceArchive = await getVersionSourceArchive(Number(id));
+    const sourceArchive = await getVersionSourceArchive(user.id, Number(id));
 
     if (!sourceArchive) {
       return fail('Original zip unavailable', 404);

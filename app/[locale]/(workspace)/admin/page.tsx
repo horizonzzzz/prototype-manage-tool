@@ -3,6 +3,7 @@ import { getLocale } from 'next-intl/server';
 import { AdminProductListPage } from '@/components/admin/pages/admin-product-list-page';
 import { redirect } from '@/i18n/navigation';
 import { isSafeRouteSegment } from '@/lib/domain/route-segment';
+import { requirePageUser } from '@/lib/server/session-user';
 import { buildAdminHref } from '@/lib/ui/navigation';
 import { prisma } from '@/lib/prisma';
 import { serializeProductListItem } from '@/lib/server/serializers';
@@ -17,6 +18,7 @@ function takeFirst(value: string | string[] | undefined) {
 
 export default async function AdminPage({ searchParams }: AdminPageProps) {
   const locale = await getLocale();
+  const user = await requirePageUser(locale);
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const product = takeFirst(resolvedSearchParams?.product);
 
@@ -25,6 +27,7 @@ export default async function AdminPage({ searchParams }: AdminPageProps) {
   }
 
   const products = await prisma.product.findMany({
+    where: { ownerId: user.id },
     include: { versions: true },
     orderBy: { createdAt: 'desc' },
   });

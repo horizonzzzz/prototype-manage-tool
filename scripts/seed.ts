@@ -5,6 +5,7 @@ import fse from 'fs-extra';
 
 import { appConfig } from '@/lib/config';
 import { prisma } from '@/lib/prisma';
+import { hashPassword } from '@/lib/server/password';
 import { ensureAppDirectories } from '@/lib/server/fs-utils';
 
 const products = [
@@ -54,19 +55,37 @@ function buildHtml(item: (typeof demoVersions)[number]) {
 async function main() {
   await ensureAppDirectories();
 
+  const demoUser = await prisma.user.upsert({
+    where: { email: 'demo@example.com' },
+    update: {
+      name: 'demo',
+      passwordHash: hashPassword('Demo123456'),
+    },
+    create: {
+      email: 'demo@example.com',
+      name: 'demo',
+      passwordHash: hashPassword('Demo123456'),
+    },
+  });
+
   await Promise.all(
     products.map((product) =>
       prisma.product.upsert({
-        where: { key: product.key },
+        where: { ownerId_key: { ownerId: demoUser.id, key: product.key } },
         update: { name: product.name, description: product.description },
-        create: product,
+        create: {
+          ...product,
+          ownerId: demoUser.id,
+        },
       }),
     ),
   );
 
   for (const item of demoVersions) {
-    const product = await prisma.product.findUniqueOrThrow({ where: { key: item.productKey } });
-    const publishDir = path.join(appConfig.prototypesDir, item.productKey, item.version);
+    const product = await prisma.product.findUniqueOrThrow({
+      where: { ownerId_key: { ownerId: demoUser.id, key: item.productKey } },
+    });
+    const publishDir = path.join(appConfig.prototypesDir, demoUser.id, item.productKey, item.version);
     await fse.ensureDir(publishDir);
     await fs.writeFile(path.join(publishDir, 'index.html'), buildHtml(item), 'utf8');
 

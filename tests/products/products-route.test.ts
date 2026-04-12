@@ -1,10 +1,15 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
-const { deleteProductMock, getVersionDownloadabilityMapMock, productFindUniqueMock, serializeProductDetailMock } = vi.hoisted(() => ({
+const { authMock, deleteProductMock, getVersionDownloadabilityMapMock, productFindFirstMock, serializeProductDetailMock } = vi.hoisted(() => ({
+  authMock: vi.fn(),
   deleteProductMock: vi.fn(),
   getVersionDownloadabilityMapMock: vi.fn(),
-  productFindUniqueMock: vi.fn(),
+  productFindFirstMock: vi.fn(),
   serializeProductDetailMock: vi.fn(),
+}));
+
+vi.mock('@/auth', () => ({
+  auth: authMock,
 }));
 
 vi.mock('@/lib/server/upload-service', () => ({
@@ -15,7 +20,7 @@ vi.mock('@/lib/server/upload-service', () => ({
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     product: {
-      findUnique: productFindUniqueMock,
+      findFirst: productFindFirstMock,
     },
   },
 }));
@@ -29,6 +34,12 @@ import { DELETE, GET } from '@/app/api/products/[key]/route';
 describe('/api/products/[key]', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    authMock.mockResolvedValue({
+      user: {
+        id: 'user-1',
+        email: 'owner@example.com',
+      },
+    });
   });
 
   test('returns product detail with per-version downloadability', async () => {
@@ -54,7 +65,7 @@ describe('/api/products/[key]', () => {
       ],
     };
 
-    productFindUniqueMock.mockResolvedValue(product);
+    productFindFirstMock.mockResolvedValue(product);
     getVersionDownloadabilityMapMock.mockResolvedValue({ 'v1.0.0': true });
     serializeProductDetailMock.mockReturnValue({
       id: 1,
@@ -91,15 +102,15 @@ describe('/api/products/[key]', () => {
         versions: [{ version: 'v1.0.0', downloadable: true }],
       },
     });
-    expect(productFindUniqueMock).toHaveBeenCalledWith({
-      where: { key: 'crm' },
+    expect(productFindFirstMock).toHaveBeenCalledWith({
+      where: { key: 'crm', ownerId: 'user-1' },
       include: {
         versions: {
           orderBy: { createdAt: 'desc' },
         },
       },
     });
-    expect(getVersionDownloadabilityMapMock).toHaveBeenCalledWith('crm', ['v1.0.0']);
+    expect(getVersionDownloadabilityMapMock).toHaveBeenCalledWith('user-1', 'crm', ['v1.0.0']);
     expect(serializeProductDetailMock).toHaveBeenCalledWith(product, { 'v1.0.0': true });
   });
 
@@ -115,7 +126,7 @@ describe('/api/products/[key]', () => {
       success: true,
       message: '产品已删除',
     });
-    expect(deleteProductMock).toHaveBeenCalledWith('crm');
+    expect(deleteProductMock).toHaveBeenCalledWith('user-1', 'crm');
   });
 
   test('returns a 404 payload when product deletion targets a missing product', async () => {

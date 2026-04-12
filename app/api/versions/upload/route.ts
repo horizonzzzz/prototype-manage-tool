@@ -2,10 +2,16 @@ export const runtime = 'nodejs';
 
 import { fail, ok } from '@/lib/api';
 import { assertSafeRouteSegment } from '@/lib/domain/route-segment';
+import { getApiUser } from '@/lib/server/api-auth';
 import { processPrototypeUpload } from '@/lib/server/upload-service';
 
 export async function POST(request: Request) {
   try {
+    const user = await getApiUser();
+    if (!user?.id) {
+      return fail('Unauthorized', 401);
+    }
+
     const formData = await request.formData();
     const productKey = String(formData.get('productKey') ?? '');
     const version = String(formData.get('version') ?? '');
@@ -21,6 +27,7 @@ export async function POST(request: Request) {
     assertSafeRouteSegment(version, 'version');
 
     const result = await processPrototypeUpload({
+      userId: user.id,
       productKey,
       version,
       title,

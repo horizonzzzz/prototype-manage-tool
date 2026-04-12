@@ -51,26 +51,26 @@ describe('backfillSourceSnapshots', () => {
         id: 10,
         version: 'v1.0.0',
         status: 'published',
-        product: { key: 'crm' },
+        product: { key: 'crm', ownerId: 'user-1' },
         sourceSnapshot: { status: 'ready' },
       },
       {
         id: 11,
         version: 'v1.1.0',
         status: 'published',
-        product: { key: 'crm' },
+        product: { key: 'crm', ownerId: 'user-1' },
         sourceSnapshot: null,
       },
       {
         id: 12,
         version: 'v1.2.0',
         status: 'published',
-        product: { key: 'crm' },
+        product: { key: 'crm', ownerId: 'user-1' },
         sourceSnapshot: { status: 'failed' },
       },
     ]);
-    getVersionSourceArchiveMock.mockImplementation(async (versionId: number) => {
-      if (versionId === 11) {
+    getVersionSourceArchiveMock.mockImplementation(async (userId: string, versionId: number) => {
+      if (userId === 'user-1' && versionId === 11) {
         return {
           fileName: 'crm-v1.1.0.zip',
           filePath: 'C:/archives/crm-v1.1.0.zip',
@@ -92,7 +92,7 @@ describe('backfillSourceSnapshots', () => {
       where: { status: 'published' },
       include: {
         product: {
-          select: { key: true },
+          select: { key: true, ownerId: true },
         },
         sourceSnapshot: {
           select: { status: true },
@@ -101,8 +101,8 @@ describe('backfillSourceSnapshots', () => {
       orderBy: { createdAt: 'asc' },
     });
     expect(getVersionSourceArchiveMock).toHaveBeenCalledTimes(2);
-    expect(getVersionSourceArchiveMock).toHaveBeenNthCalledWith(1, 11);
-    expect(getVersionSourceArchiveMock).toHaveBeenNthCalledWith(2, 12);
+    expect(getVersionSourceArchiveMock).toHaveBeenNthCalledWith(1, 'user-1', 11);
+    expect(getVersionSourceArchiveMock).toHaveBeenNthCalledWith(2, 'user-1', 12);
 
     const extractDirArg = extractZipToTempMock.mock.calls[0]?.[1];
     expect(extractZipToTempMock).toHaveBeenCalledWith('C:/archives/crm-v1.1.0.zip', expect.any(String));
@@ -113,6 +113,7 @@ describe('backfillSourceSnapshots', () => {
 
     expect(createSourceSnapshotMock).toHaveBeenCalledTimes(1);
     expect(createSourceSnapshotMock).toHaveBeenCalledWith({
+      userId: 'user-1',
       versionId: 11,
       productKey: 'crm',
       version: 'v1.1.0',
@@ -134,7 +135,7 @@ describe('backfillSourceSnapshots', () => {
         id: 21,
         version: 'v2.0.0',
         status: 'published',
-        product: { key: 'erp' },
+        product: { key: 'erp', ownerId: 'user-2' },
         sourceSnapshot: { status: 'failed' },
       },
     ]);
@@ -147,7 +148,7 @@ describe('backfillSourceSnapshots', () => {
     const result = await backfillSourceSnapshots();
 
     expect(getVersionSourceArchiveMock).toHaveBeenCalledTimes(1);
-    expect(getVersionSourceArchiveMock).toHaveBeenCalledWith(21);
+    expect(getVersionSourceArchiveMock).toHaveBeenCalledWith('user-2', 21);
     expect(extractZipToTempMock).toHaveBeenCalledWith('C:/archives/erp-v2.0.0.zip', expect.any(String));
     expect(findFileRootMock).toHaveBeenCalledWith(expect.stringContaining(`${path.sep}extract`), 'package.json');
     expect(createSourceSnapshotMock).not.toHaveBeenCalled();
@@ -167,19 +168,19 @@ describe('backfillSourceSnapshots', () => {
         id: 31,
         version: 'v3.1.0',
         status: 'published',
-        product: { key: 'crm' },
+        product: { key: 'crm', ownerId: 'user-1' },
         sourceSnapshot: null,
       },
       {
         id: 32,
         version: 'v3.2.0',
         status: 'published',
-        product: { key: 'crm' },
+        product: { key: 'crm', ownerId: 'user-1' },
         sourceSnapshot: null,
       },
     ]);
-    getVersionSourceArchiveMock.mockImplementation(async (versionId: number) => {
-      if (versionId === 31) {
+    getVersionSourceArchiveMock.mockImplementation(async (userId: string, versionId: number) => {
+      if (userId === 'user-1' && versionId === 31) {
         throw new Error('archive lookup failed');
       }
 
@@ -206,6 +207,7 @@ describe('backfillSourceSnapshots', () => {
     expect(createSourceSnapshotMock).toHaveBeenCalledTimes(1);
     expect(createSourceSnapshotMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        userId: 'user-1',
         versionId: 32,
         productKey: 'crm',
         version: 'v3.2.0',
@@ -228,14 +230,14 @@ describe('backfillSourceSnapshots', () => {
         id: 41,
         version: 'v4.1.0',
         status: 'published',
-        product: { key: 'erp' },
+        product: { key: 'erp', ownerId: 'user-2' },
         sourceSnapshot: null,
       },
       {
         id: 42,
         version: 'v4.2.0',
         status: 'published',
-        product: { key: 'erp' },
+        product: { key: 'erp', ownerId: 'user-2' },
         sourceSnapshot: null,
       },
     ]);
@@ -266,6 +268,7 @@ describe('backfillSourceSnapshots', () => {
     expect(createSourceSnapshotMock).toHaveBeenCalledTimes(1);
     expect(createSourceSnapshotMock).toHaveBeenCalledWith(
       expect.objectContaining({
+        userId: 'user-2',
         versionId: 42,
         productKey: 'erp',
         version: 'v4.2.0',

@@ -3,7 +3,9 @@ import { NextIntlClientProvider, hasLocale } from 'next-intl';
 import { getMessages, setRequestLocale } from 'next-intl/server';
 import { notFound } from 'next/navigation';
 
+import { auth } from '@/auth';
 import { AppFrame } from '@/components/layout/app-frame';
+import { AuthSessionProvider } from '@/components/providers/auth-session-provider';
 import { routing } from '@/i18n/routing';
 
 type LocaleLayoutProps = {
@@ -23,11 +25,14 @@ export default async function LocaleLayout({ children, params }: LocaleLayoutPro
   }
 
   setRequestLocale(locale);
+  const session = await auth();
   const messages = await getMessages();
 
   return (
-    <NextIntlClientProvider locale={locale} messages={messages}>
-      <AppFrame>{children}</AppFrame>
-    </NextIntlClientProvider>
+    <AuthSessionProvider session={session}>
+      <NextIntlClientProvider locale={locale} messages={messages}>
+        <AppFrame>{children}</AppFrame>
+      </NextIntlClientProvider>
+    </AuthSessionProvider>
   );
 }

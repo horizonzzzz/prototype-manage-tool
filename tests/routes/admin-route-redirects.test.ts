@@ -16,6 +16,10 @@ vi.mock('next-intl/server', () => ({
   getLocale: vi.fn().mockResolvedValue('zh'),
 }));
 
+vi.mock('@/lib/server/session-user', () => ({
+  requirePageUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
+}));
+
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     product: {
@@ -65,6 +69,7 @@ describe('admin route redirects', () => {
     });
 
     expect(findManyMock).toHaveBeenCalledWith({
+      where: { ownerId: 'user-1' },
       include: { versions: true },
       orderBy: { createdAt: 'desc' },
     });

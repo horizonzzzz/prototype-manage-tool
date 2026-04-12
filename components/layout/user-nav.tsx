@@ -1,5 +1,6 @@
 'use client';
 
+import { signOut, useSession } from 'next-auth/react';
 import { useTranslations } from 'next-intl';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -13,19 +14,25 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { useLocale } from 'next-intl';
 import { useRouter } from '@/i18n/navigation';
 
 export function UserNav() {
   const t = useTranslations('userNav');
+  const locale = useLocale();
   const router = useRouter();
+  const { data: session } = useSession();
+  const email = session?.user?.email ?? '';
+  const displayName = session?.user?.name || email || 'User';
+  const avatarFallback = displayName.slice(0, 2).toUpperCase();
 
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" className="relative h-8 w-8 rounded-full">
           <Avatar className="h-8 w-8">
-            <AvatarImage src="https://github.com/shadcn.png" alt="@shadcn" />
-            <AvatarFallback>SC</AvatarFallback>
+            <AvatarImage src={session?.user?.image ?? undefined} alt={displayName} />
+            <AvatarFallback>{avatarFallback}</AvatarFallback>
           </Avatar>
         </Button>
       </DropdownMenuTrigger>
@@ -33,8 +40,8 @@ export function UserNav() {
         <DropdownMenuGroup>
           <DropdownMenuLabel className="font-normal">
             <div className="flex flex-col space-y-1">
-              <p className="text-sm font-medium leading-none">Admin User</p>
-              <p className="text-xs leading-none text-muted-foreground">admin@example.com</p>
+              <p className="text-sm font-medium leading-none">{displayName}</p>
+              <p className="text-xs leading-none text-muted-foreground">{email}</p>
             </div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
@@ -44,7 +51,15 @@ export function UserNav() {
           <DropdownMenuItem onSelect={() => router.push('/settings')}>{t('settings')}</DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem onSelect={() => router.push('/login')}>{t('logout')}</DropdownMenuItem>
+        <DropdownMenuItem
+          onSelect={() => {
+            void signOut({
+              redirectTo: `/${locale}/login`,
+            });
+          }}
+        >
+          {t('logout')}
+        </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );

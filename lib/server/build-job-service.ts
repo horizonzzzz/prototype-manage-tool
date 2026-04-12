@@ -35,6 +35,7 @@ import { buildBuildJobStageText, isBuildJobLogStep, isBuildJobLogStreamStep } fr
 import type { BuildJobLogItem, BuildJobLogStep, BuildJobLogStreamStep } from '@/lib/types';
 
 type BuildJobInput = {
+  userId: string;
   productKey: string;
   version: string;
   title?: string;
@@ -226,16 +227,17 @@ async function markStep(jobId: number, steps: BuildJobStep[], stepKey: BuildJobS
 
 async function finalizeBuildJobSuccess(jobId: number, publishedPath: string, steps: BuildJobStep[]) {
   await prisma.$transaction(async (transaction) => {
+    const job = await transaction.uploadRecord.findUniqueOrThrow({ where: { id: jobId } });
     const version = await transaction.productVersion.findFirst({
       where: {
         product: {
-          key: (await transaction.uploadRecord.findUniqueOrThrow({ where: { id: jobId } })).productKey,
+          key: job.productKey,
+          ownerId: job.userId,
         },
-        version: (await transaction.uploadRecord.findUniqueOrThrow({ where: { id: jobId } })).version,
+        version: job.version,
       },
     });
 
-    const job = await transaction.uploadRecord.findUniqueOrThrow({ where: { id: jobId } });
     const targetVersion = version!;
     await transaction.productVersion.updateMany({
       where: { productId: targetVersion.productId },
@@ -277,7 +279,7 @@ async function finalizeBuildJobFailure(jobId: number, message: string, steps: Bu
   await prisma.$transaction(async (transaction) => {
     const version = await transaction.productVersion.findFirst({
       where: {
-        product: { key: job.productKey },
+        product: { key: job.productKey, ownerId: job.userId },
         version: job.version,
       },
     });
@@ -327,7 +329,7 @@ async function runBuildJob(jobId: number) {
 
     const targetVersion = await prisma.productVersion.findFirst({
       where: {
-        product: { key: job.productKey },
+        product: { key: job.productKey, ownerId: job.userId },
         version: job.version,
       },
       select: { id: true },
@@ -336,6 +338,7 @@ async function runBuildJob(jobId: number) {
       throw new Error('Version not found');
     }
     await createSourceSnapshot({
+      userId: job.userId,
       versionId: targetVersion.id,
       productKey: job.productKey,
       version: job.version,
@@ -420,7 +423,7 @@ async function runBuildJob(jobId: number) {
     steps = await markStep(jobId, steps, 'validate', 'success', 'dist/index.html 校验通过');
 
     steps = await markStep(jobId, steps, 'publish', 'running', '正在发布 dist 目录');
-    publishedPath = await publishExtractedDir(job.productKey, job.version, distDir);
+    publishedPath = await publishExtractedDir(job.userId, job.productKey, job.version, distDir);
     steps = await markStep(jobId, steps, 'publish', 'success', 'dist 已发布到预览目录');
 
     await finalizeBuildJobSuccess(jobId, publishedPath, steps);
@@ -487,8 +490,8 @@ export async function createBuildJob(input: BuildJobInput) {
     throw new Error(`Zip file exceeds ${process.env.UPLOAD_MAX_MB ?? '200'}MB limit`);
   }
 
-  const product = await prisma.product.findUnique({
-    where: { key: input.productKey },
+  const product = await prisma.product.findFirst({
+    where: { key: input.productKey, ownerId: input.userId },
     include: { versions: true },
   });
 
@@ -519,6 +522,7 @@ export async function createBuildJob(input: BuildJobInput) {
 
     const jobRecord = await transaction.uploadRecord.create({
       data: {
+        userId: input.userId,
         productKey: input.productKey,
         version: input.version,
         fileName: safeFileName,
@@ -554,11 +558,11 @@ export async function createBuildJob(input: BuildJobInput) {
   }
 
   scheduleBuildJob(jobRecord.id);
-  return await getBuildJob(jobRecord.id);
+  return await getBuildJob(input.userId, jobRecord.id);
 }
 
-export async function getBuildJob(jobId: number) {
-  const record = await prisma.uploadRecord.findUnique({ where: { id: jobId } });
+export async function getBuildJob(userId: string, jobId: number) {
+  const record = await prisma.uploadRecord.findFirst({ where: { id: jobId, userId } });
   if (!record) {
     throw new Error('Build job not found');
   }
@@ -566,12 +570,12 @@ export async function getBuildJob(jobId: number) {
   return serializeUploadRecord(record);
 }
 
-export async function getBuildJobLog(jobId: number, step: string): Promise<BuildJobLogItem> {
+export async function getBuildJobLog(userId: string, jobId: number, step: string): Promise<BuildJobLogItem> {
   if (!isBuildJobLogStep(step)) {
     throw new Error('Unsupported log step');
   }
 
-  const record = await prisma.uploadRecord.findUnique({ where: { id: jobId } });
+  const record = await prisma.uploadRecord.findFirst({ where: { id: jobId, userId } });
   if (!record) {
     throw new Error('Build job not found');
   }
@@ -616,12 +620,12 @@ export async function getBuildJobLog(jobId: number, step: string): Promise<Build
   }
 }
 
-export async function getBuildJobLogStreamResponse(jobId: number, step: string, signal?: AbortSignal) {
+export async function getBuildJobLogStreamResponse(userId: string, jobId: number, step: string, signal?: AbortSignal) {
   if (!isBuildJobLogStreamStep(step)) {
     throw new Error('Unsupported realtime log step');
   }
 
-  const record = await prisma.uploadRecord.findUnique({ where: { id: jobId } });
+  const record = await prisma.uploadRecord.findFirst({ where: { id: jobId, userId } });
   if (!record) {
     throw new Error('Build job not found');
   }
@@ -632,12 +636,12 @@ export async function getBuildJobLogStreamResponse(jobId: number, step: string, 
     throw new Error('Build job step not found');
   }
 
-  return createBuildJobLogStreamResponse(jobId, step, signal, await getBuildJobLog(jobId, step));
+  return createBuildJobLogStreamResponse(jobId, step, signal, await getBuildJobLog(userId, jobId, step));
 }
 
-export async function listBuildJobs(productKey: string) {
+export async function listBuildJobs(userId: string, productKey: string) {
   const records = await prisma.uploadRecord.findMany({
-    where: { productKey },
+    where: { userId, productKey },
     orderBy: { createdAt: 'desc' },
     take: 20,
   });

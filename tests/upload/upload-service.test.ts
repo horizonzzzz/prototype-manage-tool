@@ -5,8 +5,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 const {
   pathExistsMock,
   removeMock,
-  productFindUniqueMock,
-  productVersionFindUniqueMock,
+  productFindFirstMock,
   productVersionDeleteMock,
   productVersionFindFirstMock,
   productVersionUpdateMock,
@@ -21,8 +20,7 @@ const {
   vi.hoisted(() => ({
     pathExistsMock: vi.fn(),
     removeMock: vi.fn(),
-    productFindUniqueMock: vi.fn(),
-    productVersionFindUniqueMock: vi.fn(),
+    productFindFirstMock: vi.fn(),
     productVersionDeleteMock: vi.fn(),
     productVersionFindFirstMock: vi.fn(),
     productVersionUpdateMock: vi.fn(),
@@ -51,11 +49,10 @@ vi.mock('@/lib/config', () => ({
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     product: {
-      findUnique: productFindUniqueMock,
+      findFirst: productFindFirstMock,
       delete: productDeleteMock,
     },
     productVersion: {
-      findUnique: productVersionFindUniqueMock,
       delete: productVersionDeleteMock,
       findFirst: productVersionFindFirstMock,
       update: productVersionUpdateMock,
@@ -96,24 +93,25 @@ describe('deleteVersion', () => {
   });
 
   test('cleans up published assets and source snapshots for a deleted version', async () => {
-    productVersionFindUniqueMock.mockResolvedValue({
-      id: 11,
-      version: 'v1.0.0',
-      productId: 1,
-      product: { key: 'crm' },
-      status: 'published',
-    });
+    productVersionFindFirstMock
+      .mockResolvedValueOnce({
+        id: 11,
+        version: 'v1.0.0',
+        productId: 1,
+        product: { key: 'crm' },
+        status: 'published',
+      })
+      .mockResolvedValueOnce(null);
     productVersionDeleteMock.mockResolvedValue({ id: 11 });
-    productVersionFindFirstMock.mockResolvedValue(null);
     removeMock.mockResolvedValue(undefined);
     deleteSourceSnapshotForVersionMock.mockResolvedValue(undefined);
 
-    await deleteVersion(11);
+    await deleteVersion('user-1', 11);
 
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(productVersionDeleteMock).toHaveBeenCalledWith({ where: { id: 11 } });
-    expect(removeMock).toHaveBeenCalledWith(path.join('C:/prototypes-root', 'crm', 'v1.0.0'));
-    expect(deleteSourceSnapshotForVersionMock).toHaveBeenCalledWith('crm', 'v1.0.0');
+    expect(removeMock).toHaveBeenCalledWith(path.join('C:/prototypes-root', 'user-1', 'crm', 'v1.0.0'));
+    expect(deleteSourceSnapshotForVersionMock).toHaveBeenCalledWith('user-1', 'crm', 'v1.0.0');
   });
 });
 
@@ -134,7 +132,7 @@ describe('deleteProduct', () => {
   });
 
   test('removes upload records, product data, and published files for an existing product', async () => {
-    productFindUniqueMock.mockResolvedValue({
+    productFindFirstMock.mockResolvedValue({
       id: 1,
       key: 'crm',
       versions: [{ id: 11, version: 'v1.0.0' }],
@@ -143,27 +141,27 @@ describe('deleteProduct', () => {
     productDeleteMock.mockResolvedValue({ id: 1 });
     removeMock.mockResolvedValue(undefined);
 
-    await deleteProduct('crm');
+    await deleteProduct('user-1', 'crm');
 
-    expect(productFindUniqueMock).toHaveBeenCalledWith({
-      where: { key: 'crm' },
+    expect(productFindFirstMock).toHaveBeenCalledWith({
+      where: { key: 'crm', ownerId: 'user-1' },
       include: { versions: true },
     });
     expect(transactionMock).toHaveBeenCalledTimes(1);
     expect(uploadRecordDeleteManyMock).toHaveBeenCalledWith({
-      where: { productKey: 'crm' },
+      where: { userId: 'user-1', productKey: 'crm' },
     });
     expect(productDeleteMock).toHaveBeenCalledWith({
-      where: { key: 'crm' },
+      where: { id: 1 },
     });
-    expect(removeMock).toHaveBeenCalledWith(path.join('C:/prototypes-root', 'crm'));
-    expect(deleteSourceSnapshotsForProductMock).toHaveBeenCalledWith('crm');
+    expect(removeMock).toHaveBeenCalledWith(path.join('C:/prototypes-root', 'user-1', 'crm'));
+    expect(deleteSourceSnapshotsForProductMock).toHaveBeenCalledWith('user-1', 'crm');
   });
 
   test('throws when deleting a missing product', async () => {
-    productFindUniqueMock.mockResolvedValue(null);
+    productFindFirstMock.mockResolvedValue(null);
 
-    await expect(deleteProduct('missing')).rejects.toThrow('Product not found');
+    await expect(deleteProduct('user-1', 'missing')).rejects.toThrow('Product not found');
 
     expect(transactionMock).not.toHaveBeenCalled();
     expect(removeMock).not.toHaveBeenCalled();
@@ -201,7 +199,9 @@ describe('getVersionDownloadabilityMap', () => {
     ]);
     pathExistsMock.mockImplementation(async (targetPath: string) => targetPath === 'C:/archives/crm-v1.zip');
 
-    await expect(getVersionDownloadabilityMap('crm', ['v1.0.0', 'v1.1.0', 'v2.0.0', 'v3.0.0'])).resolves.toEqual({
+    await expect(
+      getVersionDownloadabilityMap('user-1', 'crm', ['v1.0.0', 'v1.1.0', 'v2.0.0', 'v3.0.0']),
+    ).resolves.toEqual({
       'v1.0.0': true,
       'v1.1.0': false,
       'v2.0.0': false,
@@ -216,7 +216,7 @@ describe('getVersionDownloadabilityMap', () => {
       }),
     );
 
-    await expect(getVersionDownloadabilityMap('crm', ['v1.0.0'])).resolves.toEqual({
+    await expect(getVersionDownloadabilityMap('user-1', 'crm', ['v1.0.0'])).resolves.toEqual({
       'v1.0.0': false,
     });
   });
@@ -224,7 +224,7 @@ describe('getVersionDownloadabilityMap', () => {
 
 describe('getVersionSourceArchive', () => {
   test('returns the latest successful source archive for a version when the file exists', async () => {
-    productVersionFindUniqueMock.mockResolvedValue({
+    productVersionFindFirstMock.mockResolvedValue({
       id: 7,
       version: 'v1.0.0',
       product: { key: 'crm' },
@@ -235,14 +235,14 @@ describe('getVersionSourceArchive', () => {
     });
     pathExistsMock.mockResolvedValue(true);
 
-    await expect(getVersionSourceArchive(7)).resolves.toEqual({
+    await expect(getVersionSourceArchive('user-1', 7)).resolves.toEqual({
       fileName: 'crm-v1.zip',
       filePath: 'C:/archives/crm-v1.zip',
     });
   });
 
   test('returns null when the upload record query hits an old sqlite schema', async () => {
-    productVersionFindUniqueMock.mockResolvedValue({
+    productVersionFindFirstMock.mockResolvedValue({
       id: 7,
       version: 'v1.0.0',
       product: { key: 'crm' },
@@ -253,6 +253,6 @@ describe('getVersionSourceArchive', () => {
       }),
     );
 
-    await expect(getVersionSourceArchive(7)).resolves.toBeNull();
+    await expect(getVersionSourceArchive('user-1', 7)).resolves.toBeNull();
   });
 });

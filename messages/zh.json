@@ -32,7 +32,9 @@
       "footerActionLabel": "去注册",
       "emailLabel": "邮箱",
       "passwordLabel": "密码",
-      "submitLabel": "登录"
+      "submitLabel": "登录",
+      "invalidCredentials": "邮箱或密码错误",
+      "genericError": "登录失败，请稍后重试"
     },
     "register": {
       "brandTitle": "原型管理系统",
@@ -43,7 +45,10 @@
       "emailLabel": "邮箱",
       "passwordLabel": "密码",
       "confirmPasswordLabel": "确认密码",
-      "submitLabel": "注册"
+      "submitLabel": "注册",
+      "emailExists": "该邮箱已被注册",
+      "passwordMismatch": "两次输入的密码不一致",
+      "genericError": "注册失败，请稍后重试"
     }
   },
   "users": {

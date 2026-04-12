@@ -5,6 +5,10 @@ const { getVersionSourceArchiveMock, readFileMock } = vi.hoisted(() => ({
   readFileMock: vi.fn(),
 }));
 
+vi.mock('@/lib/server/api-auth', () => ({
+  getApiUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
+}));
+
 vi.mock('@/lib/server/upload-service', () => ({
   getVersionSourceArchive: getVersionSourceArchiveMock,
 }));
@@ -37,6 +41,7 @@ describe('GET /api/versions/[id]/download', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('content-type')).toBe('application/zip');
     expect(response.headers.get('content-disposition')).toContain('crm-v1.0.0.zip');
+    expect(getVersionSourceArchiveMock).toHaveBeenCalledWith('user-1', 7);
     expect(readFileMock).toHaveBeenCalledWith('C:/archives/crm-v1.0.0.zip');
     await expect(response.arrayBuffer()).resolves.toEqual(Uint8Array.from(Buffer.from('zip-bytes')).buffer);
   });

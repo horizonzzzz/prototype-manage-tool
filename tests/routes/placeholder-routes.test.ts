@@ -28,19 +28,24 @@ describe('placeholder routes', () => {
     expect(settingsPageSource).not.toContain('FeaturePlaceholder');
   });
 
-  test('auth placeholders stay server-driven and locale-aware', () => {
+  test('auth pages use real auth actions instead of placeholder workspace redirects', () => {
     const loginPageSource = readProjectSource('app/[locale]/(auth)/login/page.tsx');
     const registerPageSource = readProjectSource('app/[locale]/(auth)/register/page.tsx');
 
     expect(loginPageSource).toContain("'use server'");
-    expect(loginPageSource).toContain("from '@/i18n/navigation'");
-    expect(loginPageSource).toContain('<form action={enterWorkspace}');
-    expect(loginPageSource).not.toContain('<form action="/admin"');
+    expect(loginPageSource).toContain("from '@/auth'");
+    expect(loginPageSource).toContain('await signIn(');
+    expect(loginPageSource).toContain('name="email"');
+    expect(loginPageSource).toContain('name="password"');
+    expect(loginPageSource).not.toContain('redirect({ href: \'/admin\'');
     expect(loginPageSource).toContain('type="submit"');
     expect(registerPageSource).toContain("'use server'");
-    expect(registerPageSource).toContain("from '@/i18n/navigation'");
-    expect(registerPageSource).toContain('<form action={enterWorkspace}');
-    expect(registerPageSource).not.toContain('<form action="/admin"');
+    expect(registerPageSource).toContain("from '@/lib/server/auth-service'");
+    expect(registerPageSource).toContain('await registerUser(');
+    expect(registerPageSource).toContain('name="email"');
+    expect(registerPageSource).toContain('name="password"');
+    expect(registerPageSource).toContain('name="confirmPassword"');
+    expect(registerPageSource).not.toContain('redirect({ href: \'/admin\'');
     expect(registerPageSource).toContain('type="submit"');
   });
 

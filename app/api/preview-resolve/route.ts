@@ -1,9 +1,19 @@
 import { fail, ok } from '@/lib/api';
+import { getApiUser } from '@/lib/server/api-auth';
 import { getManifest } from '@/lib/server/manifest-service';
 
 export async function GET(request: Request) {
+  const user = await getApiUser();
+  if (!user?.id) {
+    return fail('Unauthorized', 401);
+  }
+
   const { searchParams } = new URL(request.url);
-  const manifest = await getManifest(searchParams.get('product') ?? undefined, searchParams.get('version') ?? undefined);
+  const manifest = await getManifest(
+    user.id,
+    searchParams.get('product') ?? undefined,
+    searchParams.get('version') ?? undefined,
+  );
 
   if (!manifest.resolved.productKey || !manifest.resolved.version) {
     return fail('No published version available', 404);

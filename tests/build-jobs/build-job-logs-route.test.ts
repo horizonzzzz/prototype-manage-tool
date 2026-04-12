@@ -4,6 +4,10 @@ const { getBuildJobLogMock } = vi.hoisted(() => ({
   getBuildJobLogMock: vi.fn(),
 }));
 
+vi.mock('@/lib/server/api-auth', () => ({
+  getApiUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
+}));
+
 vi.mock('@/lib/server/build-job-service', () => ({
   getBuildJobLog: getBuildJobLogMock,
 }));
@@ -35,7 +39,7 @@ describe('GET /api/build-jobs/[id]/logs', () => {
         exists: true,
       },
     });
-    expect(getBuildJobLogMock).toHaveBeenCalledWith(7, 'extract');
+    expect(getBuildJobLogMock).toHaveBeenCalledWith('user-1', 7, 'extract');
   });
 
   test('returns a 400 payload for invalid step requests', async () => {

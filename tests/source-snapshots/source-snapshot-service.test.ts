@@ -88,13 +88,14 @@ describe('source snapshot service', () => {
     await fs.writeFile(path.join(sourceDir, 'coverage', 'lcov.info'), 'skip');
 
     await createSourceSnapshot({
+      userId: 'user-1',
       versionId: 1001,
       productKey: 'crm',
       version: 'v1.2.3',
       sourceDir,
     });
 
-    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'crm', 'v1.2.3');
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.2.3');
     await expect(fse.pathExists(path.join(snapshotDir, 'README.md'))).resolves.toBe(true);
     await expect(fse.pathExists(path.join(snapshotDir, 'src', 'index.ts'))).resolves.toBe(true);
     await expect(fse.pathExists(path.join(snapshotDir, 'node_modules'))).resolves.toBe(false);
@@ -127,29 +128,29 @@ describe('source snapshot service', () => {
   });
 
   test('deletes one version snapshot by version path', async () => {
-    const targetDir = path.join(testState.sourceSnapshotsDir, 'crm', 'v1.0.0');
-    const keepDir = path.join(testState.sourceSnapshotsDir, 'crm', 'v2.0.0');
+    const targetDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.0');
+    const keepDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v2.0.0');
     await fse.ensureDir(targetDir);
     await fse.ensureDir(keepDir);
     await fs.writeFile(path.join(targetDir, 'a.txt'), 'to-delete');
     await fs.writeFile(path.join(keepDir, 'a.txt'), 'keep');
 
-    await deleteSourceSnapshotForVersion('crm', 'v1.0.0');
+    await deleteSourceSnapshotForVersion('user-1', 'crm', 'v1.0.0');
 
     await expect(fse.pathExists(targetDir)).resolves.toBe(false);
     await expect(fse.pathExists(keepDir)).resolves.toBe(true);
   });
 
   test('deletes all version snapshots for a product', async () => {
-    const productDir = path.join(testState.sourceSnapshotsDir, 'crm');
-    const otherProductDir = path.join(testState.sourceSnapshotsDir, 'erp');
+    const productDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm');
+    const otherProductDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'erp');
     await fse.ensureDir(path.join(productDir, 'v1.0.0'));
     await fse.ensureDir(path.join(productDir, 'v2.0.0'));
     await fse.ensureDir(path.join(otherProductDir, 'v1.0.0'));
     await fs.writeFile(path.join(productDir, 'v1.0.0', 'a.txt'), 'to-delete');
     await fs.writeFile(path.join(otherProductDir, 'v1.0.0', 'a.txt'), 'keep');
 
-    await deleteSourceSnapshotsForProduct('crm');
+    await deleteSourceSnapshotsForProduct('user-1', 'crm');
 
     await expect(fse.pathExists(productDir)).resolves.toBe(false);
     await expect(fse.pathExists(otherProductDir)).resolves.toBe(true);
@@ -160,7 +161,7 @@ describe('source snapshot service', () => {
     await fse.ensureDir(sourceDir);
     await fs.writeFile(path.join(sourceDir, 'README.md'), 'keep');
 
-    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'crm', 'v9.9.9');
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v9.9.9');
     const copyError = new Error('copy failed on purpose');
     const copySpy = vi.spyOn(fse, 'copy').mockImplementationOnce(async () => {
       await fse.ensureDir(snapshotDir);
@@ -170,6 +171,7 @@ describe('source snapshot service', () => {
 
     await expect(
       createSourceSnapshot({
+        userId: 'user-1',
         versionId: 2002,
         productKey: 'crm',
         version: 'v9.9.9',

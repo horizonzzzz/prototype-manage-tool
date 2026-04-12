@@ -1,8 +1,11 @@
-import { getTranslations } from 'next-intl/server';
+import { getLocale, getTranslations } from 'next-intl/server';
 
 import { LanguageSwitcher } from '@/components/layout/language-switcher';
+import { requirePageUser } from '@/lib/server/session-user';
 
 export default async function SettingsPage() {
+  const locale = await getLocale();
+  await requirePageUser(locale);
   const t = await getTranslations('settings');
 
   return (

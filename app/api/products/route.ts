@@ -1,6 +1,7 @@
 import { z } from 'zod';
 
 import { fail, ok } from '@/lib/api';
+import { getApiUser } from '@/lib/server/api-auth';
 import { prisma } from '@/lib/prisma';
 import { serializeProductListItem } from '@/lib/server/serializers';
 
@@ -11,7 +12,13 @@ const createProductSchema = z.object({
 });
 
 export async function GET() {
+  const user = await getApiUser();
+  if (!user?.id) {
+    return fail('Unauthorized', 401);
+  }
+
   const products = await prisma.product.findMany({
+    where: { ownerId: user.id },
     include: { versions: true },
     orderBy: { createdAt: 'desc' },
   });
@@ -21,9 +28,15 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
+    const user = await getApiUser();
+    if (!user?.id) {
+      return fail('Unauthorized', 401);
+    }
+
     const parsed = createProductSchema.parse(await request.json());
     const product = await prisma.product.create({
       data: {
+        ownerId: user.id,
         key: parsed.key,
         name: parsed.name,
         description: parsed.description || null,

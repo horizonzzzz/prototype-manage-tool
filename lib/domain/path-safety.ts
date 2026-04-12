@@ -20,6 +20,14 @@ export function ensureVersionPathInsideRoot(rootDir: string, productKey: string,
   return resolved;
 }
 
+export function ensureUserVersionPathInsideRoot(rootDir: string, userId: string, productKey: string, version: string) {
+  if (!isSafeRouteSegment(userId)) {
+    throw new Error('Invalid user id');
+  }
+
+  return ensureChildPath(rootDir, userId, productKey, version);
+}
+
 export function ensureChildPath(rootDir: string, ...segments: string[]) {
   const resolved = path.resolve(rootDir, ...segments);
   if (!resolved.startsWith(path.resolve(rootDir))) {

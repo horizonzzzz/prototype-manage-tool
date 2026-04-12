@@ -4,6 +4,10 @@ const { getBuildJobLogStreamResponseMock } = vi.hoisted(() => ({
   getBuildJobLogStreamResponseMock: vi.fn(),
 }));
 
+vi.mock('@/lib/server/api-auth', () => ({
+  getApiUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
+}));
+
 vi.mock('@/lib/server/build-job-service', () => ({
   getBuildJobLogStreamResponse: getBuildJobLogStreamResponseMock,
 }));
@@ -30,7 +34,7 @@ describe('GET /api/build-jobs/[id]/logs/stream', () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get('Content-Type')).toContain('text/event-stream');
-    expect(getBuildJobLogStreamResponseMock).toHaveBeenCalledWith(7, 'install', expect.any(AbortSignal));
+    expect(getBuildJobLogStreamResponseMock).toHaveBeenCalledWith('user-1', 7, 'install', expect.any(AbortSignal));
   });
 
   test('returns a 400 payload for non-streamable steps', async () => {

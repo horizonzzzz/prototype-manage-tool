@@ -5,6 +5,7 @@ import { PreviewProductList } from '@/components/preview/preview-product-list';
 import { Button } from '@/components/ui/button';
 import { Link, redirect } from '@/i18n/navigation';
 import { isSafeRouteSegment } from '@/lib/domain/route-segment';
+import { requirePageUser } from '@/lib/server/session-user';
 import { buildPreviewStateHref } from '@/lib/ui/preview-viewer-state';
 import { getManifest } from '@/lib/server/manifest-service';
 
@@ -21,6 +22,7 @@ function takeFirst(value: string | string[] | undefined) {
 
 export default async function PreviewProductRoutePage({ params, searchParams }: PreviewProductRouteProps) {
   const locale = await getLocale();
+  const user = await requirePageUser(locale);
   const t = await getTranslations('preview.missingProduct');
   const { productKey } = await params;
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
@@ -30,7 +32,7 @@ export default async function PreviewProductRoutePage({ params, searchParams }: 
     redirect({ href: '/preview', locale });
   }
 
-  const manifest = await getManifest(productKey, requestedVersion);
+  const manifest = await getManifest(user.id, productKey, requestedVersion);
 
   if (!manifest.resolved.productKey || manifest.resolved.productKey !== productKey) {
     return (

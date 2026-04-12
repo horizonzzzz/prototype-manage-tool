@@ -19,6 +19,10 @@ vi.mock('@/lib/server/manifest-service', () => ({
   getManifest: getManifestMock,
 }));
 
+vi.mock('@/lib/server/session-user', () => ({
+  requirePageUser: vi.fn().mockResolvedValue({ id: 'user-1' }),
+}));
+
 vi.mock('next-intl/server', () => ({
   getLocale: vi.fn().mockResolvedValue('zh'),
   getTranslations: vi.fn().mockResolvedValue((key: string, values?: Record<string, string>) => {
@@ -119,7 +123,7 @@ describe('preview route redirects', () => {
       }),
     ).rejects.toThrow('REDIRECT:/preview/crm?v=v1.2.0');
 
-    expect(getManifestMock).toHaveBeenCalledWith('crm', 'broken-version');
+    expect(getManifestMock).toHaveBeenCalledWith('user-1', 'crm', 'broken-version');
   });
 
   test('redirects product viewer route with invalid version query to canonical version query', async () => {
@@ -135,7 +139,7 @@ describe('preview route redirects', () => {
       }),
     ).rejects.toThrow('REDIRECT:/preview/crm?v=v1.2.0');
 
-    expect(getManifestMock).toHaveBeenCalledWith('crm', 'broken-version');
+    expect(getManifestMock).toHaveBeenCalledWith('user-1', 'crm', 'broken-version');
   });
 
   test('renders a product-not-found state for unknown product viewer routes', async () => {

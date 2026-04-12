@@ -23,6 +23,7 @@
     "backfill:source-snapshots": "tsx scripts/backfill-source-snapshots.ts"
   },
   "dependencies": {
+    "@auth/prisma-adapter": "^2.11.1",
     "@fontsource-variable/geist": "^5.2.8",
     "@hookform/resolvers": "^5.2.2",
     "@modelcontextprotocol/sdk": "^1.29.0",
@@ -44,6 +45,7 @@
     "lucide-react": "^1.8.0",
     "mime-types": "^3.0.2",
     "next": "^16.2.3",
+    "next-auth": "5.0.0-beta.30",
     "next-intl": "^4.9.1",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

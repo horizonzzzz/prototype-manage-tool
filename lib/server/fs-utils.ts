@@ -6,7 +6,7 @@ import fse from 'fs-extra';
 import yauzl from 'yauzl';
 
 import { appConfig } from '@/lib/config';
-import { ensureChildPath, ensureVersionPathInsideRoot } from '@/lib/domain/path-safety';
+import { ensureChildPath, ensureUserVersionPathInsideRoot } from '@/lib/domain/path-safety';
 
 export async function ensureAppDirectories() {
   await Promise.all([
@@ -145,8 +145,8 @@ export async function findFileRoot(startDir: string, fileName: string): Promise<
   return null;
 }
 
-export async function publishExtractedDir(productKey: string, version: string, sourceDir: string) {
-  const destinationDir = ensureVersionPathInsideRoot(appConfig.prototypesDir, productKey, version);
+export async function publishExtractedDir(userId: string, productKey: string, version: string, sourceDir: string) {
+  const destinationDir = ensureUserVersionPathInsideRoot(appConfig.prototypesDir, userId, productKey, version);
   await fse.remove(destinationDir);
   await fse.ensureDir(path.dirname(destinationDir));
   await fse.copy(sourceDir, destinationDir, { overwrite: true });

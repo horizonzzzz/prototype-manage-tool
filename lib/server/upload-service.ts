@@ -1,12 +1,13 @@
 import fse from 'fs-extra';
 
 import { appConfig } from '@/lib/config';
-import { ensureChildPath, ensureVersionPathInsideRoot } from '@/lib/domain/path-safety';
+import { ensureChildPath, ensureUserVersionPathInsideRoot } from '@/lib/domain/path-safety';
 import { prisma } from '@/lib/prisma';
 import { createBuildJob } from '@/lib/server/build-job-service';
 import { deleteSourceSnapshotForVersion, deleteSourceSnapshotsForProduct } from '@/lib/server/source-snapshot-service';
 
 type UploadInput = {
+  userId: string;
   productKey: string;
   version: string;
   title?: string;
@@ -44,8 +45,10 @@ function isUploadRecordCompatibilityError(error: unknown) {
   return /sourcearchivepath|workspacepath|publishedpath|no such column|does not exist/i.test(error.message);
 }
 
-export async function setDefaultVersion(versionId: number) {
-  const version = await prisma.productVersion.findUnique({ where: { id: versionId } });
+export async function setDefaultVersion(userId: string, versionId: number) {
+  const version = await prisma.productVersion.findFirst({
+    where: { id: versionId, product: { ownerId: userId } },
+  });
   if (!version) {
     throw new Error('Version not found');
   }
@@ -66,8 +69,10 @@ export async function setDefaultVersion(versionId: number) {
   ]);
 }
 
-export async function setVersionOffline(versionId: number) {
-  const version = await prisma.productVersion.findUnique({ where: { id: versionId } });
+export async function setVersionOffline(userId: string, versionId: number) {
+  const version = await prisma.productVersion.findFirst({
+    where: { id: versionId, product: { ownerId: userId } },
+  });
   if (!version) {
     throw new Error('Version not found');
   }
@@ -96,9 +101,9 @@ export async function setVersionOffline(versionId: number) {
   });
 }
 
-export async function deleteVersion(versionId: number) {
-  const version = await prisma.productVersion.findUnique({
-    where: { id: versionId },
+export async function deleteVersion(userId: string, versionId: number) {
+  const version = await prisma.productVersion.findFirst({
+    where: { id: versionId, product: { ownerId: userId } },
     include: { product: true },
   });
 
@@ -122,14 +127,14 @@ export async function deleteVersion(versionId: number) {
     }
   });
 
-  const targetDir = ensureVersionPathInsideRoot(appConfig.prototypesDir, version.product.key, version.version);
+  const targetDir = ensureUserVersionPathInsideRoot(appConfig.prototypesDir, userId, version.product.key, version.version);
   await fse.remove(targetDir);
-  await deleteSourceSnapshotForVersion(version.product.key, version.version);
+  await deleteSourceSnapshotForVersion(userId, version.product.key, version.version);
 }
 
-export async function deleteProduct(productKey: string) {
-  const product = await prisma.product.findUnique({
-    where: { key: productKey },
+export async function deleteProduct(userId: string, productKey: string) {
+  const product = await prisma.product.findFirst({
+    where: { key: productKey, ownerId: userId },
     include: { versions: true },
   });
 
@@ -139,24 +144,24 @@ export async function deleteProduct(productKey: string) {
 
   await prisma.$transaction(async (transaction) => {
     await transaction.uploadRecord.deleteMany({
-      where: { productKey },
+      where: { userId, productKey },
     });
 
     await transaction.product.delete({
-      where: { key: productKey },
+      where: { id: product.id },
     });
   });
 
-  const targetDir = ensureChildPath(appConfig.prototypesDir, productKey);
+  const targetDir = ensureChildPath(appConfig.prototypesDir, userId, productKey);
   await fse.remove(targetDir);
-  await deleteSourceSnapshotsForProduct(productKey);
+  await deleteSourceSnapshotsForProduct(userId, productKey);
 }
 
 export async function processPrototypeUpload(input: UploadInput) {
   return await createBuildJob(input);
 }
 
-export async function getVersionDownloadabilityMap(productKey: string, versions: string[]) {
+export async function getVersionDownloadabilityMap(userId: string, productKey: string, versions: string[]) {
   if (!versions.length) {
     return {};
   }
@@ -167,6 +172,7 @@ export async function getVersionDownloadabilityMap(productKey: string, versions:
   try {
     records = await prisma.uploadRecord.findMany({
       where: {
+        userId,
         productKey,
         version: { in: versions },
         status: 'success',
@@ -206,9 +212,9 @@ export async function getVersionDownloadabilityMap(productKey: string, versions:
   return downloadabilityMap;
 }
 
-export async function getVersionSourceArchive(versionId: number): Promise<VersionSourceArchive | null> {
-  const version = await prisma.productVersion.findUnique({
-    where: { id: versionId },
+export async function getVersionSourceArchive(userId: string, versionId: number): Promise<VersionSourceArchive | null> {
+  const version = await prisma.productVersion.findFirst({
+    where: { id: versionId, product: { ownerId: userId } },
     include: {
       product: {
         select: { key: true },
@@ -224,6 +230,7 @@ export async function getVersionSourceArchive(versionId: number): Promise<Versio
   try {
     record = await prisma.uploadRecord.findFirst({
       where: {
+        userId,
         productKey: version.product.key,
         version: version.version,
         status: 'success',

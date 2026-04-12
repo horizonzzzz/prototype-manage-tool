@@ -1,4 +1,5 @@
 import { fail, ok } from '@/lib/api';
+import { getApiUser } from '@/lib/server/api-auth';
 import { prisma } from '@/lib/prisma';
 import { serializeProductDetail } from '@/lib/server/serializers';
 import { deleteProduct, getVersionDownloadabilityMap } from '@/lib/server/upload-service';
@@ -8,9 +9,14 @@ type Context = {
 };
 
 export async function GET(_: Request, context: Context) {
+  const user = await getApiUser();
+  if (!user?.id) {
+    return fail('Unauthorized', 401);
+  }
+
   const { key } = await context.params;
-  const product = await prisma.product.findUnique({
-    where: { key },
+  const product = await prisma.product.findFirst({
+    where: { key, ownerId: user.id },
     include: {
       versions: {
         orderBy: { createdAt: 'desc' },
@@ -23,6 +29,7 @@ export async function GET(_: Request, context: Context) {
   }
 
   const downloadabilityMap = await getVersionDownloadabilityMap(
+    user.id,
     key,
     product.versions.map((version) => version.version),
   );
@@ -32,8 +39,13 @@ export async function GET(_: Request, context: Context) {
 
 export async function DELETE(_: Request, context: Context) {
   try {
+    const user = await getApiUser();
+    if (!user?.id) {
+      return fail('Unauthorized', 401);
+    }
+
     const { key } = await context.params;
-    await deleteProduct(key);
+    await deleteProduct(user.id, key);
     return ok(null, '产品已删除');
   } catch (error) {
     const message = error instanceof Error ? error.message : '删除产品失败';

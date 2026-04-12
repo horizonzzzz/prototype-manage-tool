@@ -4,10 +4,11 @@ import { pickVersionForPreview } from '@/lib/domain/preview';
 import { prisma } from '@/lib/prisma';
 import { serializeManifestProduct } from '@/lib/server/serializers';
 
-export async function getManifest(selectedProduct?: string, selectedVersion?: string) {
+export async function getManifest(userId: string, selectedProduct?: string, selectedVersion?: string) {
   noStore();
 
   const products = await prisma.product.findMany({
+    where: { ownerId: userId },
     include: {
       versions: {
         where: { status: 'published' },
