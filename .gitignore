@@ -1,6 +1,7 @@
 .next
 .worktrees
 node_modules
+generated
 .env
 .env.docker
 .env.local

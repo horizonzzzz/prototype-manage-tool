@@ -1,4 +1,4 @@
-import type { Product, ProductVersion, UploadRecord } from '@prisma/client';
+import type { Product, ProductVersion, UploadRecord } from '@/generated/prisma/client';
 
 import { getCurrentJobStep, getJobProgressPercent, parseJobSteps } from '@/lib/domain/build-job';
 import type { ManifestProduct, ProductDetail, ProductListItem, ProductVersionItem, UploadRecordItem } from '@/lib/types';
