@@ -222,6 +222,7 @@ describe('build-job-service default version promotion', () => {
       id: 7,
       productKey: 'crm',
       version: 'v2.0.0',
+      userId: 'user-1',
     });
     txProductVersionFindFirstMock
       .mockResolvedValueOnce({ id: 702, productId: 1 })
@@ -268,6 +269,23 @@ describe('build-job-service default version promotion', () => {
         where: { id: 7 },
         data: expect.objectContaining({
           status: 'success',
+        }),
+      }),
+    );
+  });
+
+  test('stores a preview entry url that includes the owning user id', async () => {
+    scheduleBuildJob(7);
+
+    await waitUntil(() => {
+      expect(txProductVersionUpdateMock).toHaveBeenCalled();
+    });
+
+    expect(txProductVersionUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: expect.any(Number) }),
+        data: expect.objectContaining({
+          entryUrl: '/prototypes/user-1/crm/v2.0.0/index.html',
         }),
       }),
     );

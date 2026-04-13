@@ -54,8 +54,8 @@ describe('preview link helpers', () => {
       return;
     }
 
-    expect(previewLink.resolvePreviewEntryUrl('/prototypes/crm/v1.2.0/index.html', 'http://localhost:3000')).toBe(
-      'http://localhost:3000/prototypes/crm/v1.2.0/index.html',
+    expect(previewLink.resolvePreviewEntryUrl('/prototypes/user-1/crm/v1.2.0/index.html', 'http://localhost:3000')).toBe(
+      'http://localhost:3000/prototypes/user-1/crm/v1.2.0/index.html',
     );
   });
 
@@ -84,7 +84,7 @@ describe('preview link helpers', () => {
     }
 
     await expect(
-      previewLink.copyText('http://localhost:3000/prototypes/crm/v1.2.0/index.html', {
+      previewLink.copyText('http://localhost:3000/prototypes/user-1/crm/v1.2.0/index.html', {
         navigator: {
           clipboard: {
             writeText,
@@ -93,7 +93,7 @@ describe('preview link helpers', () => {
       }),
     ).resolves.toBe(true);
 
-    expect(writeText).toHaveBeenCalledWith('http://localhost:3000/prototypes/crm/v1.2.0/index.html');
+    expect(writeText).toHaveBeenCalledWith('http://localhost:3000/prototypes/user-1/crm/v1.2.0/index.html');
   });
 
   test('falls back to execCommand copy when Clipboard API is unavailable or blocked', async () => {
@@ -107,14 +107,14 @@ describe('preview link helpers', () => {
     }
 
     await expect(
-      previewLink.copyText('http://localhost:3000/prototypes/crm/v1.2.0/index.html', {
+      previewLink.copyText('http://localhost:3000/prototypes/user-1/crm/v1.2.0/index.html', {
         navigator: {},
         document,
       }),
     ).resolves.toBe(true);
 
     expect(document.createElement).toHaveBeenCalledWith('textarea');
-    expect(textarea.value).toBe('http://localhost:3000/prototypes/crm/v1.2.0/index.html');
+    expect(textarea.value).toBe('http://localhost:3000/prototypes/user-1/crm/v1.2.0/index.html');
     expect(textarea.select).toHaveBeenCalledTimes(1);
     expect(document.execCommand).toHaveBeenCalledWith('copy');
     expect(document.body.appendChild).toHaveBeenCalledWith(textarea);

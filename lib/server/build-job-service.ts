@@ -82,8 +82,8 @@ function getQueueState(): QueueState {
   return globalQueueState.__buildJobQueueState__;
 }
 
-function buildEntryUrl(productKey: string, version: string) {
-  return `/prototypes/${productKey}/${version}/index.html`;
+function buildEntryUrl(userId: string, productKey: string, version: string) {
+  return `/prototypes/${userId}/${productKey}/${version}/index.html`;
 }
 
 function getJobPaths(jobId: number, fileName: string) {
@@ -246,12 +246,13 @@ async function finalizeBuildJobSuccess(jobId: number, publishedPath: string, ste
 
     await transaction.productVersion.update({
       where: { id: targetVersion.id },
-      data: {
-        status: 'published',
-        storagePath: publishedPath,
-        isDefault: true,
-      },
-    });
+        data: {
+          status: 'published',
+          storagePath: publishedPath,
+          entryUrl: buildEntryUrl(job.userId, job.productKey, job.version),
+          isDefault: true,
+        },
+      });
 
     await transaction.uploadRecord.update({
       where: { id: jobId },
@@ -504,7 +505,7 @@ export async function createBuildJob(input: BuildJobInput) {
   }
 
   const steps = buildInitialJobSteps();
-  const entryUrl = buildEntryUrl(input.productKey, input.version);
+  const entryUrl = buildEntryUrl(input.userId, input.productKey, input.version);
 
   const { versionRecord, jobRecord } = await prisma.$transaction(async (transaction) => {
     const versionRecord = await transaction.productVersion.create({

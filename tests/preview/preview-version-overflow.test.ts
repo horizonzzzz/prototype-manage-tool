@@ -11,7 +11,7 @@ function createVersion(version: string, flags?: Partial<Pick<ProductVersionManif
     version,
     title: null,
     remark: null,
-    entryUrl: `/prototypes/crm/${version}/index.html`,
+    entryUrl: `/prototypes/user-1/crm/${version}/index.html`,
     createdAt: '2024-01-01T00:00:00.000Z',
     isDefault: flags?.isDefault ?? false,
     isLatest: flags?.isLatest ?? false,

@@ -45,7 +45,7 @@ function createVersion(overrides: Partial<ProductVersionItem> = {}): ProductVers
     version: 'v1.0.0',
     title: 'CRM 首版',
     remark: '包含商机看板',
-    entryUrl: '/prototypes/crm/v1.0.0/index.html',
+    entryUrl: '/prototypes/user-1/crm/v1.0.0/index.html',
     status: 'published',
     isDefault: false,
     isLatest: true,

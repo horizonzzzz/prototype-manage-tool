@@ -24,18 +24,18 @@ export async function GET(_: Request, context: Context) {
 
     const { slug } = await context.params;
 
-    if (!slug?.length || slug.length < 2) {
+    if (!slug?.length || slug.length < 4) {
       return new NextResponse('Not found', { status: 404 });
     }
 
-    const [productKey, version, ...assetSegments] = slug;
+    const [ownerId, productKey, version, ...assetSegments] = slug;
     const targetVersion = await prisma.productVersion.findFirst({
       where: {
         version,
         status: 'published',
         product: {
           key: productKey,
-          ownerId: user.id,
+          ownerId,
         },
       },
       select: {
@@ -47,7 +47,7 @@ export async function GET(_: Request, context: Context) {
       return new NextResponse('Not found', { status: 404 });
     }
 
-    const filePath = ensureChildPath(targetVersion.storagePath, ...(assetSegments.length ? assetSegments : ['index.html']));
+    const filePath = ensureChildPath(targetVersion.storagePath, ...assetSegments);
     const stat = await fs.stat(filePath);
 
     if (!stat.isFile()) {
@@ -67,4 +67,3 @@ export async function GET(_: Request, context: Context) {
     return new NextResponse('Not found', { status: 404 });
   }
 }
-

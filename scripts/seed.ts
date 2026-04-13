@@ -95,7 +95,7 @@ async function main() {
         title: item.title,
         remark: item.remark,
         storagePath: publishDir,
-        entryUrl: `/prototypes/${item.productKey}/${item.version}/index.html`,
+        entryUrl: `/prototypes/${demoUser.id}/${item.productKey}/${item.version}/index.html`,
         status: 'published',
         isDefault: item.productKey === 'crm' ? item.version === 'v1.1.0' : true,
       },
@@ -105,7 +105,7 @@ async function main() {
         title: item.title,
         remark: item.remark,
         storagePath: publishDir,
-        entryUrl: `/prototypes/${item.productKey}/${item.version}/index.html`,
+        entryUrl: `/prototypes/${demoUser.id}/${item.productKey}/${item.version}/index.html`,
         status: 'published',
         isDefault: item.productKey === 'crm' ? item.version === 'v1.1.0' : true,
       },
@@ -123,4 +123,3 @@ main()
   .finally(async () => {
     await prisma.$disconnect();
   });
-
