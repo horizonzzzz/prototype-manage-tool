@@ -47,7 +47,30 @@ describe('/prototypes/[...slug]', () => {
     readFileMock.mockResolvedValue(Buffer.from('<html>owner preview</html>'));
   });
 
-  test('resolves published prototype assets by owner id from the url instead of the viewer id', async () => {
+  test('serves published prototype assets without requiring sign-in', async () => {
+    authMock.mockResolvedValue(null);
+
+    const response = await GET(new Request('http://localhost/prototypes/owner-user/crm/v1.0.0/index.html'), {
+      params: Promise.resolve({ slug: ['owner-user', 'crm', 'v1.0.0', 'index.html'] }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(productVersionFindFirstMock).toHaveBeenCalledWith({
+      where: {
+        version: 'v1.0.0',
+        status: 'published',
+        product: {
+          key: 'crm',
+          ownerId: 'owner-user',
+        },
+      },
+      select: {
+        storagePath: true,
+      },
+    });
+  });
+
+  test('serves published prototype assets for a signed-in viewer who does not own them', async () => {
     const response = await GET(new Request('http://localhost/prototypes/owner-user/crm/v1.0.0/index.html'), {
       params: Promise.resolve({ slug: ['owner-user', 'crm', 'v1.0.0', 'index.html'] }),
     });
