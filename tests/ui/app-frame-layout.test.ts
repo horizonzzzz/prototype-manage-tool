@@ -50,5 +50,7 @@ describe('app frame layout migration', () => {
     expect(authShellSource).toContain('<LanguageSwitcher />');
     expect(userNavSource).toContain("useTranslations('userNav')");
     expect(userNavSource).toContain("from '@/i18n/navigation'");
+    expect(userNavSource).toContain("router.push('/settings')");
+    expect(userNavSource).not.toContain("t('profile')");
   });
 });

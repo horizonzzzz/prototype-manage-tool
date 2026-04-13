@@ -30,8 +30,8 @@ describe('navigation helpers', () => {
     expect(buildAdminHref()).toBe('/admin');
   });
 
-  test('includes admin, preview, users, mcp, and settings navigation entries', () => {
-    expect(appNavigationItems.map((item) => item.href)).toEqual(['/admin', '/preview', '/users', '/mcp', '/settings']);
+  test('includes admin, preview, mcp, and settings navigation entries', () => {
+    expect(appNavigationItems.map((item) => item.href)).toEqual(['/admin', '/preview', '/mcp', '/settings']);
   });
 
   test('exposes workspace route hrefs from the same navigation source-of-truth', () => {
@@ -55,15 +55,9 @@ describe('navigation helpers', () => {
     expect(adminNavigation?.match('/preview')).toBe(false);
   });
 
-  test('keeps users, mcp, and settings navigation active for nested routes', () => {
-    const usersNavigation = appNavigationItems.find((item) => item.href === '/users');
+  test('keeps mcp and settings navigation active for nested routes', () => {
     const mcpNavigation = appNavigationItems.find((item) => item.href === '/mcp');
     const settingsNavigation = appNavigationItems.find((item) => item.href === '/settings');
-
-    expect(usersNavigation?.match('/users')).toBe(true);
-    expect(usersNavigation?.match('/users/list')).toBe(true);
-    expect(usersNavigation?.match('/settings')).toBe(false);
-    expect(usersNavigation?.match('/mcp')).toBe(false);
 
     expect(mcpNavigation?.match('/mcp')).toBe(true);
     expect(mcpNavigation?.match('/mcp/tokens')).toBe(true);
@@ -78,7 +72,6 @@ describe('navigation helpers', () => {
   test('provides a shared workspace-route matcher based on navigation entries', () => {
     expect(isWorkspaceNavigationRoute('/admin')).toBe(true);
     expect(isWorkspaceNavigationRoute('/preview/demo/v1')).toBe(true);
-    expect(isWorkspaceNavigationRoute('/users/list')).toBe(true);
     expect(isWorkspaceNavigationRoute('/mcp/tokens')).toBe(true);
     expect(isWorkspaceNavigationRoute('/settings/profile')).toBe(true);
     expect(isWorkspaceNavigationRoute('/login')).toBe(false);

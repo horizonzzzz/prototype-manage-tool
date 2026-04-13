@@ -14,13 +14,11 @@
     "nav": {
       "admin": "原型管理",
       "preview": "原型预览",
-      "users": "用户",
       "mcp": "MCP",
       "settings": "设置"
     }
   },
   "userNav": {
-    "profile": "个人资料",
     "settings": "设置",
     "logout": "退出登录"
   },
@@ -53,15 +51,37 @@
       "genericError": "注册失败，请稍后重试"
     }
   },
-  "users": {
-    "title": "用户管理",
-    "description": "管理用户账户和权限。",
-    "emptyTitle": "敬请期待",
-    "emptyDescription": "用户管理功能将在此提供。"
-  },
   "settings": {
     "title": "设置",
-    "description": "管理应用程序设置和偏好。",
+    "description": "管理您的个人资料、安全设置和界面偏好。",
+    "profileTitle": "个人资料",
+    "profileDescription": "更新您的名称和头像，右上角头像菜单会同步展示最新信息。",
+    "avatarLabel": "头像",
+    "avatarHint": "支持 PNG、JPG、WEBP、GIF，默认上限 2MB。",
+    "displayNameLabel": "显示名称",
+    "emailLabel": "邮箱",
+    "profileSave": "保存个人资料",
+    "profileSaving": "保存中...",
+    "profileSaved": "个人资料已更新",
+    "profileSaveError": "个人资料更新失败",
+    "securityTitle": "安全",
+    "securityDescription": "输入当前密码后设置新的登录密码。",
+    "currentPasswordLabel": "当前密码",
+    "newPasswordLabel": "新密码",
+    "confirmPasswordLabel": "确认新密码",
+    "passwordSave": "修改密码",
+    "passwordSaving": "修改中...",
+    "passwordSaved": "密码已更新",
+    "passwordSaveError": "密码更新失败",
+    "errors": {
+      "displayNameRequired": "请输入显示名称",
+      "unsupportedAvatarType": "仅支持 PNG、JPG、WEBP、GIF 格式头像",
+      "avatarTooLarge": "头像文件过大，请控制在 2MB 内",
+      "userNotFound": "未找到当前用户",
+      "currentPasswordIncorrect": "当前密码不正确",
+      "passwordTooShort": "新密码至少需要 8 位",
+      "passwordConfirmationMismatch": "两次输入的新密码不一致"
+    },
     "languageTitle": "语言",
     "languageDescription": "选择您喜欢的界面语言。"
   },

@@ -34,7 +34,7 @@ describe('app preferences', () => {
   test('recognizes workspace routes', () => {
     expect(isWorkspaceRoute('/admin')).toBe(true);
     expect(isWorkspaceRoute('/preview/demo/v1')).toBe(true);
-    expect(isWorkspaceRoute('/users')).toBe(true);
+    expect(isWorkspaceRoute('/users')).toBe(false);
     expect(isWorkspaceRoute('/settings/profile')).toBe(true);
     expect(isWorkspaceRoute('/login')).toBe(false);
     expect(isWorkspaceRoute('/')).toBe(false);

@@ -6,7 +6,7 @@ import { appConfig } from '@/lib/config';
 import { prisma } from '@/lib/prisma';
 import { authenticateUser, loginSchema } from '@/lib/server/auth-service';
 
-export const { auth, handlers, signIn, signOut } = NextAuth({
+export const { auth, handlers, signIn, signOut, unstable_update } = NextAuth({
   adapter: PrismaAdapter(prisma as never),
   secret: appConfig.authSecret,
   session: { strategy: 'jwt' },
@@ -37,12 +37,24 @@ export const { auth, handlers, signIn, signOut } = NextAuth({
     }),
   ],
   callbacks: {
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger, session }) {
       if (user) {
         token.sub = user.id;
         token.name = user.name;
         token.email = user.email;
         token.picture = user.image;
+      }
+
+      if (trigger === 'update' && session?.user) {
+        if (typeof session.user.name === 'string') {
+          token.name = session.user.name;
+        }
+
+        if (typeof session.user.email === 'string') {
+          token.email = session.user.email;
+        }
+
+        token.picture = typeof session.user.image === 'string' ? session.user.image : null;
       }
 
       return token;

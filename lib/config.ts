@@ -27,10 +27,12 @@ export const appConfig = {
   mcpTokenEncryptionKey: process.env.MCP_TOKEN_ENCRYPTION_KEY ?? authSecret,
   dataDir,
   prototypesDir: path.join(dataDir, 'prototypes'),
+  userAvatarsDir: path.join(dataDir, 'user-avatars'),
   sourceSnapshotsDir: path.join(dataDir, 'source-snapshots'),
   uploadsTempDir: path.join(dataDir, 'uploads-temp'),
   buildJobsDir: path.join(dataDir, 'build-jobs'),
   sqliteDir: path.join(dataDir, 'sqlite'),
+  avatarMaxBytes: Number(process.env.AVATAR_MAX_MB ?? '2') * 1024 * 1024,
   uploadMaxBytes: Number(process.env.UPLOAD_MAX_MB ?? '200') * 1024 * 1024,
   databaseUrl,
 };

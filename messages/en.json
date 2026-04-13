@@ -14,13 +14,11 @@
     "nav": {
       "admin": "Prototypes",
       "preview": "Previews",
-      "users": "Users",
       "mcp": "MCP",
       "settings": "Settings"
     }
   },
   "userNav": {
-    "profile": "Profile",
     "settings": "Settings",
     "logout": "Log out"
   },
@@ -53,15 +51,37 @@
       "genericError": "Unable to register right now"
     }
   },
-  "users": {
-    "title": "User Management",
-    "description": "Manage user accounts and permissions.",
-    "emptyTitle": "Coming Soon",
-    "emptyDescription": "User management features will be available here."
-  },
   "settings": {
     "title": "Settings",
-    "description": "Manage application settings and preferences.",
+    "description": "Manage your profile, password, and interface preferences.",
+    "profileTitle": "Profile",
+    "profileDescription": "Update your display name and avatar. The header menu will reflect the latest profile data.",
+    "avatarLabel": "Avatar",
+    "avatarHint": "Supports PNG, JPG, WEBP, and GIF up to 2MB.",
+    "displayNameLabel": "Display name",
+    "emailLabel": "Email",
+    "profileSave": "Save profile",
+    "profileSaving": "Saving...",
+    "profileSaved": "Profile updated",
+    "profileSaveError": "Failed to update profile",
+    "securityTitle": "Security",
+    "securityDescription": "Enter your current password before setting a new one.",
+    "currentPasswordLabel": "Current password",
+    "newPasswordLabel": "New password",
+    "confirmPasswordLabel": "Confirm new password",
+    "passwordSave": "Change password",
+    "passwordSaving": "Updating...",
+    "passwordSaved": "Password updated",
+    "passwordSaveError": "Failed to update password",
+    "errors": {
+      "displayNameRequired": "Enter a display name",
+      "unsupportedAvatarType": "Only PNG, JPG, WEBP, and GIF avatars are supported",
+      "avatarTooLarge": "Avatar file is too large. Keep it within 2MB",
+      "userNotFound": "The current user could not be found",
+      "currentPasswordIncorrect": "Current password is incorrect",
+      "passwordTooShort": "New password must be at least 8 characters",
+      "passwordConfirmationMismatch": "New password confirmation does not match"
+    },
     "languageTitle": "Language",
     "languageDescription": "Select your preferred language for the interface."
   },
