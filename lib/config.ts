@@ -24,6 +24,7 @@ const authSecret =
 export const appConfig = {
   appUrl: process.env.APP_URL ?? 'http://localhost:3000',
   authSecret,
+  mcpTokenEncryptionKey: process.env.MCP_TOKEN_ENCRYPTION_KEY ?? authSecret,
   dataDir,
   prototypesDir: path.join(dataDir, 'prototypes'),
   sourceSnapshotsDir: path.join(dataDir, 'source-snapshots'),
@@ -31,6 +32,5 @@ export const appConfig = {
   buildJobsDir: path.join(dataDir, 'build-jobs'),
   sqliteDir: path.join(dataDir, 'sqlite'),
   uploadMaxBytes: Number(process.env.UPLOAD_MAX_MB ?? '200') * 1024 * 1024,
-  mcpAuthToken: process.env.MCP_AUTH_TOKEN ?? '',
   databaseUrl,
 };

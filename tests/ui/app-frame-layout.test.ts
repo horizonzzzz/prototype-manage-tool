@@ -6,6 +6,7 @@ const localeLayoutSource = readProjectSource('app/[locale]/layout.tsx');
 const workspaceShellSource = readProjectSource('components/layout/workspace-shell.tsx');
 const authShellSource = readProjectSource('components/layout/auth-shell.tsx');
 const userNavSource = readProjectSource('components/layout/user-nav.tsx');
+const navigationSource = readProjectSource('lib/ui/navigation.ts');
 
 describe('app frame layout migration', () => {
   test('keeps the root layout locale-agnostic so client locale switches can remount the localized shell', () => {
@@ -41,6 +42,7 @@ describe('app frame layout migration', () => {
     expect(workspaceShellSource).toContain('<UserNav />');
     expect(workspaceShellSource).not.toContain('readLanguagePreference');
     expect(workspaceShellSource).toContain('useTranslations');
+    expect(navigationSource).toContain("href: '/mcp'");
   });
 
   test('keeps auth shell and user nav aligned with auth/dashboard prototype', () => {

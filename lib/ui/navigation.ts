@@ -1,7 +1,7 @@
-import { LayoutDashboard, PanelsTopLeft, Settings, Users, type LucideIcon } from 'lucide-react';
+import { KeyRound, LayoutDashboard, PanelsTopLeft, Settings, Users, type LucideIcon } from 'lucide-react';
 
 export type AppNavigationItem = {
-  href: '/admin' | '/preview' | '/users' | '/settings';
+  href: '/admin' | '/preview' | '/users' | '/mcp' | '/settings';
   icon: LucideIcon;
   match: (pathname: string) => boolean;
 };
@@ -25,6 +25,11 @@ export const appNavigationItems: AppNavigationItem[] = [
     href: '/users',
     icon: Users,
     match: (pathname) => matchesRoutePrefix(pathname, '/users'),
+  },
+  {
+    href: '/mcp',
+    icon: KeyRound,
+    match: (pathname) => matchesRoutePrefix(pathname, '/mcp'),
   },
   {
     href: '/settings',

@@ -51,6 +51,12 @@ import {
   searchSourceFiles,
 } from '@/lib/server/source-snapshot-service';
 
+const mcpAccessScope = {
+  userId: 'user-1',
+  apiKeyId: 101,
+  allowedProductIds: [11],
+};
+
 describe('source snapshot service', () => {
   let tmpDir: string;
 
@@ -239,8 +245,8 @@ describe('source snapshot service', () => {
       },
     ]);
 
-    const products = await listPublishedSnapshotProducts();
-    const versions = await listPublishedSnapshotVersions('crm');
+    const products = await listPublishedSnapshotProducts(mcpAccessScope);
+    const versions = await listPublishedSnapshotVersions(mcpAccessScope, 'crm');
 
     expect(products).toEqual([
       {
@@ -270,9 +276,9 @@ describe('source snapshot service', () => {
   });
 
   test('resolves published snapshot version for default/latest/exact selectors', async () => {
-    const defaultRoot = path.join(testState.sourceSnapshotsDir, 'crm', 'v1.0.0');
-    const latestRoot = path.join(testState.sourceSnapshotsDir, 'crm', 'v2.0.0');
-    const exactRoot = path.join(testState.sourceSnapshotsDir, 'crm', 'v1.5.0');
+    const defaultRoot = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.0');
+    const latestRoot = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v2.0.0');
+    const exactRoot = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.5.0');
     productVersionFindFirstMock
       .mockResolvedValueOnce({
         version: 'v1.0.0',
@@ -302,9 +308,9 @@ describe('source snapshot service', () => {
         },
       });
 
-    const resolvedDefault = await resolvePublishedSnapshotVersion('crm', 'default');
-    const resolvedLatest = await resolvePublishedSnapshotVersion('crm', 'latest');
-    const resolvedExact = await resolvePublishedSnapshotVersion('crm', { exact: 'v1.5.0' });
+    const resolvedDefault = await resolvePublishedSnapshotVersion(mcpAccessScope, 'crm', 'default');
+    const resolvedLatest = await resolvePublishedSnapshotVersion(mcpAccessScope, 'crm', 'latest');
+    const resolvedExact = await resolvePublishedSnapshotVersion(mcpAccessScope, 'crm', { exact: 'v1.5.0' });
 
     expect(resolvedDefault).toEqual({
       version: 'v1.0.0',
@@ -327,7 +333,7 @@ describe('source snapshot service', () => {
   });
 
   test('gets source tree rooted at slash path', async () => {
-    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'crm', 'v1.0.0');
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.0');
     await fse.ensureDir(path.join(snapshotDir, 'src'));
     await fs.writeFile(path.join(snapshotDir, 'README.md'), '# Project');
     await fs.writeFile(path.join(snapshotDir, 'src', 'index.ts'), 'export {}');
@@ -341,7 +347,7 @@ describe('source snapshot service', () => {
       },
     });
 
-    const tree = await getSourceTree('crm', 'v1.0.0', '/', 1);
+    const tree = await getSourceTree(mcpAccessScope, 'crm', 'v1.0.0', '/', 1);
 
     expect(tree.path).toBe('.');
     expect(tree.type).toBe('directory');
@@ -356,7 +362,7 @@ describe('source snapshot service', () => {
   });
 
   test('reads a file by line range and reports truncated metadata', async () => {
-    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'crm', 'v1.0.0');
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.0');
     await fse.ensureDir(path.join(snapshotDir, 'src'));
     await fs.writeFile(path.join(snapshotDir, 'src', 'feature.ts'), 'line-1\nline-2\nline-3\nline-4\nline-5\nline-6');
     productVersionFindFirstMock.mockResolvedValue({
@@ -369,7 +375,7 @@ describe('source snapshot service', () => {
       },
     });
 
-    const result = await readSourceFile('crm', 'v1.0.0', 'src/feature.ts', { startLine: 2, endLine: 4 });
+    const result = await readSourceFile(mcpAccessScope, 'crm', 'v1.0.0', 'src/feature.ts', { startLine: 2, endLine: 4 });
 
     expect(result.path).toBe('src/feature.ts');
     expect(result.content).toBe('line-2\nline-3\nline-4');
@@ -380,7 +386,7 @@ describe('source snapshot service', () => {
   });
 
   test('reads requested lines beyond the previous prefix limit for large text files', async () => {
-    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'crm', 'v1.0.0');
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.0');
     await fse.ensureDir(path.join(snapshotDir, 'src'));
     const lineCount = 50000;
     const lines = Array.from({ length: lineCount }, (_, index) => `line-${index + 1}`);
@@ -395,7 +401,7 @@ describe('source snapshot service', () => {
       },
     });
 
-    const result = await readSourceFile('crm', 'v1.0.0', 'src/large-feature.ts', { startLine: 35000, endLine: 35002 });
+    const result = await readSourceFile(mcpAccessScope, 'crm', 'v1.0.0', 'src/large-feature.ts', { startLine: 35000, endLine: 35002 });
 
     expect(result.path).toBe('src/large-feature.ts');
     expect(result.content).toBe('line-35000\nline-35001\nline-35002');
@@ -406,7 +412,7 @@ describe('source snapshot service', () => {
   });
 
   test('searches only text files below the hard size limit', async () => {
-    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'crm', 'v1.0.0');
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.0');
     await fse.ensureDir(path.join(snapshotDir, 'src'));
     await fs.writeFile(path.join(snapshotDir, 'src', 'match.ts'), 'const token = "alpha-needle";\n');
     await fs.writeFile(path.join(snapshotDir, 'src', 'skip.bin'), Buffer.from([0, 159, 146, 150, 0, 255]));
@@ -421,7 +427,7 @@ describe('source snapshot service', () => {
       },
     });
 
-    const result = await searchSourceFiles('crm', 'v1.0.0', 'alpha-needle');
+    const result = await searchSourceFiles(mcpAccessScope, 'crm', 'v1.0.0', 'alpha-needle');
 
     expect(result.query).toBe('alpha-needle');
     expect(result.results).toEqual([
@@ -444,6 +450,51 @@ describe('source snapshot service', () => {
       },
     });
 
-    await expect(readSourceFile('crm', 'v1.0.0', 'src/index.ts')).rejects.toThrow('Published source snapshot not found');
+    await expect(readSourceFile(mcpAccessScope, 'crm', 'v1.0.0', 'src/index.ts')).rejects.toThrow('Published source snapshot not found');
+  });
+
+  test('scopes product and version queries to the authenticated mcp key user and allowed products', async () => {
+    productFindManyMock.mockResolvedValue([]);
+    productVersionFindManyMock.mockResolvedValue([]);
+    productVersionFindFirstMock.mockResolvedValue(null);
+
+    await listPublishedSnapshotProducts(mcpAccessScope);
+    await listPublishedSnapshotVersions(mcpAccessScope, 'crm');
+    await expect(resolvePublishedSnapshotVersion(mcpAccessScope, 'crm', 'default')).rejects.toThrow(
+      'Published source snapshot not found',
+    );
+
+    expect(productFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: { in: [11] },
+          ownerId: 'user-1',
+        }),
+      }),
+    );
+
+    expect(productVersionFindManyMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          product: {
+            key: 'crm',
+            ownerId: 'user-1',
+            id: { in: [11] },
+          },
+        }),
+      }),
+    );
+
+    expect(productVersionFindFirstMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          product: {
+            key: 'crm',
+            ownerId: 'user-1',
+            id: { in: [11] },
+          },
+        }),
+      }),
+    );
   });
 });

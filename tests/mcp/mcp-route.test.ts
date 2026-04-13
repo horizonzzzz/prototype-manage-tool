@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 const {
-  appConfigMock,
+  requirePrototypeMcpAuthMock,
   getSourceTreeMock,
   listPublishedSnapshotProductsMock,
   listPublishedSnapshotVersionsMock,
@@ -9,9 +9,7 @@ const {
   resolvePublishedSnapshotVersionMock,
   searchSourceFilesMock,
 } = vi.hoisted(() => ({
-  appConfigMock: {
-    mcpAuthToken: 'test-mcp-token',
-  },
+  requirePrototypeMcpAuthMock: vi.fn(),
   getSourceTreeMock: vi.fn(),
   listPublishedSnapshotProductsMock: vi.fn(),
   listPublishedSnapshotVersionsMock: vi.fn(),
@@ -20,8 +18,8 @@ const {
   searchSourceFilesMock: vi.fn(),
 }));
 
-vi.mock('@/lib/config', () => ({
-  appConfig: appConfigMock,
+vi.mock('@/lib/server/prototype-mcp-auth', () => ({
+  requirePrototypeMcpAuth: requirePrototypeMcpAuthMock,
 }));
 
 vi.mock('@/lib/server/source-snapshot-service', () => ({
@@ -38,10 +36,24 @@ import { DELETE, GET, POST } from '@/app/api/mcp/route';
 describe('POST /api/mcp', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    appConfigMock.mcpAuthToken = 'test-mcp-token';
+    requirePrototypeMcpAuthMock.mockResolvedValue({
+      userId: 'user-1',
+      apiKeyId: 101,
+      allowedProductIds: [11],
+    });
   });
 
   test('returns 401 for unauthorized requests', async () => {
+    requirePrototypeMcpAuthMock.mockResolvedValueOnce(
+      Response.json(
+        {
+          success: false,
+          message: 'Unauthorized',
+        },
+        { status: 401 },
+      ),
+    );
+
     const response = await POST(
       new Request('http://localhost/api/mcp', {
         method: 'POST',
@@ -70,14 +82,15 @@ describe('POST /api/mcp', () => {
       success: false,
       message: expect.stringMatching(/unauthorized/i),
     });
+    expect(requirePrototypeMcpAuthMock).toHaveBeenCalledTimes(1);
   });
 
-  test('initializes successfully when bearer token is valid', async () => {
+  test('initializes successfully when bearer token resolves to a valid api key scope', async () => {
     const response = await POST(
       new Request('http://localhost/api/mcp', {
         method: 'POST',
         headers: {
-          Authorization: 'Bearer test-mcp-token',
+          Authorization: 'Bearer user-scope-token',
           Accept: 'application/json, text/event-stream',
           'Content-Type': 'application/json',
         },
@@ -103,9 +116,10 @@ describe('POST /api/mcp', () => {
       id: 'init-1',
       result: expect.any(Object),
     });
+    expect(requirePrototypeMcpAuthMock).toHaveBeenCalledTimes(1);
   });
 
-  test('tools/call list_products includes crm when source snapshot service returns crm', async () => {
+  test('tools/call list_products passes mcp access scope into source snapshot service', async () => {
     listPublishedSnapshotProductsMock.mockResolvedValue([
       {
         productKey: 'crm',
@@ -120,7 +134,7 @@ describe('POST /api/mcp', () => {
       new Request('http://localhost/api/mcp', {
         method: 'POST',
         headers: {
-          Authorization: 'Bearer test-mcp-token',
+          Authorization: 'Bearer user-scope-token',
           Accept: 'application/json, text/event-stream',
           'Content-Type': 'application/json',
         },
@@ -139,13 +153,22 @@ describe('POST /api/mcp', () => {
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toSatisfy((payload: unknown) => JSON.stringify(payload).includes('crm'));
     expect(listPublishedSnapshotProductsMock).toHaveBeenCalledTimes(1);
+    expect(listPublishedSnapshotProductsMock).toHaveBeenCalledWith({
+      userId: 'user-1',
+      apiKeyId: 101,
+      allowedProductIds: [11],
+    });
   });
 });
 
 describe('non-POST /api/mcp methods', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    appConfigMock.mcpAuthToken = 'test-mcp-token';
+    requirePrototypeMcpAuthMock.mockResolvedValue({
+      userId: 'user-1',
+      apiKeyId: 101,
+      allowedProductIds: [11],
+    });
   });
 
   test('GET returns 405 method not allowed', async () => {

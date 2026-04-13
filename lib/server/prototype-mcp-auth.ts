@@ -1,5 +1,5 @@
 import { fail } from '@/lib/api';
-import { appConfig } from '@/lib/config';
+import { resolveMcpAccessScope } from '@/lib/server/mcp-api-key-service';
 
 function getBearerToken(request: Request) {
   const authorization = request.headers.get('authorization');
@@ -11,16 +11,16 @@ function getBearerToken(request: Request) {
   return match?.[1]?.trim() ?? null;
 }
 
-export function requirePrototypeMcpAuth(request: Request): Response | null {
-  const configuredToken = appConfig.mcpAuthToken.trim();
-  if (!configuredToken) {
-    return fail('MCP endpoint is disabled', 503);
-  }
-
+export async function requirePrototypeMcpAuth(request: Request) {
   const bearerToken = getBearerToken(request);
-  if (!bearerToken || bearerToken !== configuredToken) {
+  if (!bearerToken) {
     return fail('Unauthorized', 401);
   }
 
-  return null;
+  const scope = await resolveMcpAccessScope(bearerToken);
+  if (!scope) {
+    return fail('Unauthorized', 401);
+  }
+
+  return scope;
 }

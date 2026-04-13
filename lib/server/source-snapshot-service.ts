@@ -4,8 +4,9 @@ import path from 'node:path';
 import fse from 'fs-extra';
 
 import { appConfig } from '@/lib/config';
-import { ensureChildPath, ensureUserVersionPathInsideRoot, ensureVersionPathInsideRoot } from '@/lib/domain/path-safety';
+import { ensureChildPath, ensureUserVersionPathInsideRoot } from '@/lib/domain/path-safety';
 import { prisma } from '@/lib/prisma';
+import type { McpAccessScope } from '@/lib/server/mcp-api-key-service';
 
 type CreateSourceSnapshotInput = {
   userId: string;
@@ -100,8 +101,8 @@ function isProbablyText(buffer: Buffer) {
   return true;
 }
 
-async function resolvePublishedSnapshotRoot(productKey: string, version: string) {
-  const resolved = await resolvePublishedSnapshotVersion(productKey, { exact: version });
+async function resolvePublishedSnapshotRoot(scope: McpAccessScope, productKey: string, version: string) {
+  const resolved = await resolvePublishedSnapshotVersion(scope, productKey, { exact: version });
   return resolved.rootPath;
 }
 
@@ -203,9 +204,17 @@ export async function deleteSourceSnapshotsForProduct(userId: string, productKey
   await fse.remove(productSnapshotsDir);
 }
 
-export async function listPublishedSnapshotProducts() {
+export async function listPublishedSnapshotProducts(scope: McpAccessScope) {
+  if (!scope.allowedProductIds.length) {
+    return [];
+  }
+
   const products = await prisma.product.findMany({
     where: {
+      id: {
+        in: scope.allowedProductIds,
+      },
+      ownerId: scope.userId,
       versions: {
         some: {
           status: 'published',
@@ -256,10 +265,20 @@ export async function listPublishedSnapshotProducts() {
     }));
 }
 
-export async function listPublishedSnapshotVersions(productKey: string) {
+export async function listPublishedSnapshotVersions(scope: McpAccessScope, productKey: string) {
+  if (!scope.allowedProductIds.length) {
+    return [];
+  }
+
   const versions = await prisma.productVersion.findMany({
     where: {
-      product: { key: productKey },
+      product: {
+        key: productKey,
+        ownerId: scope.userId,
+        id: {
+          in: scope.allowedProductIds,
+        },
+      },
       status: 'published',
       sourceSnapshot: {
         is: {
@@ -288,9 +307,23 @@ export async function listPublishedSnapshotVersions(productKey: string) {
   }));
 }
 
-export async function resolvePublishedSnapshotVersion(productKey: string, selector: VersionSelector): Promise<PublishedSnapshotVersion> {
+export async function resolvePublishedSnapshotVersion(
+  scope: McpAccessScope,
+  productKey: string,
+  selector: VersionSelector,
+): Promise<PublishedSnapshotVersion> {
+  if (!scope.allowedProductIds.length) {
+    throw new Error(PUBLISHED_SNAPSHOT_MISSING_ERROR);
+  }
+
   const baseWhere = {
-    product: { key: productKey },
+    product: {
+      key: productKey,
+      ownerId: scope.userId,
+      id: {
+        in: scope.allowedProductIds,
+      },
+    },
     status: 'published',
     sourceSnapshot: {
       is: {
@@ -337,7 +370,10 @@ export async function resolvePublishedSnapshotVersion(productKey: string, select
     throw new Error(PUBLISHED_SNAPSHOT_MISSING_ERROR);
   }
 
-  const safeRootPath = ensureVersionPathInsideRoot(appConfig.sourceSnapshotsDir, productKey, resolved.version);
+  const safeRootPath = ensureUserVersionPathInsideRoot(appConfig.sourceSnapshotsDir, scope.userId, productKey, resolved.version);
+  if (path.resolve(resolved.sourceSnapshot.rootPath) !== path.resolve(safeRootPath)) {
+    throw new Error(PUBLISHED_SNAPSHOT_MISSING_ERROR);
+  }
 
   return {
     version: resolved.version,
@@ -347,8 +383,8 @@ export async function resolvePublishedSnapshotVersion(productKey: string, select
   };
 }
 
-export async function getSourceTree(productKey: string, version: string, requestedPath?: string, depth = 1) {
-  const rootPath = await resolvePublishedSnapshotRoot(productKey, version);
+export async function getSourceTree(scope: McpAccessScope, productKey: string, version: string, requestedPath?: string, depth = 1) {
+  const rootPath = await resolvePublishedSnapshotRoot(scope, productKey, version);
   const normalizedPath = normalizeSnapshotRelativePath(requestedPath);
   const targetPath = normalizedPath === '.' ? rootPath : ensureChildPath(rootPath, normalizedPath);
   const stats = await fs.stat(targetPath);
@@ -433,8 +469,14 @@ export async function getSourceTree(productKey: string, version: string, request
   };
 }
 
-export async function readSourceFile(productKey: string, version: string, filePath: string, options?: ReadSourceFileOptions) {
-  const rootPath = await resolvePublishedSnapshotRoot(productKey, version);
+export async function readSourceFile(
+  scope: McpAccessScope,
+  productKey: string,
+  version: string,
+  filePath: string,
+  options?: ReadSourceFileOptions,
+) {
+  const rootPath = await resolvePublishedSnapshotRoot(scope, productKey, version);
   const normalizedPath = normalizeSnapshotRelativePath(filePath);
   const absolutePath = normalizedPath === '.' ? rootPath : ensureChildPath(rootPath, normalizedPath);
   const stats = await fs.stat(absolutePath);
@@ -468,8 +510,8 @@ export async function readSourceFile(productKey: string, version: string, filePa
   };
 }
 
-export async function searchSourceFiles(productKey: string, version: string, query: string) {
-  const rootPath = await resolvePublishedSnapshotRoot(productKey, version);
+export async function searchSourceFiles(scope: McpAccessScope, productKey: string, version: string, query: string) {
+  const rootPath = await resolvePublishedSnapshotRoot(scope, productKey, version);
   const normalizedQuery = query.trim();
   if (!normalizedQuery) {
     return { query, results: [] as Array<{ path: string; matchCount: number }>, truncated: false };

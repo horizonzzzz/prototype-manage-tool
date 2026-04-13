@@ -14,8 +14,8 @@ It gives teams three working surfaces:
 The application stores and serves three different kinds of state:
 
 - metadata in SQLite through Prisma
-- published static artifacts in `data/prototypes/<productKey>/<version>/`
-- published source snapshots in `data/source-snapshots/<productKey>/<version>/`
+- published static artifacts in `data/prototypes/<userId>/<productKey>/<version>/`
+- published source snapshots in `data/source-snapshots/<userId>/<productKey>/<version>/`
 
 Two product rules shape the whole system:
 
@@ -40,8 +40,8 @@ This means preview and MCP both read from already-published outputs. They do not
 2. The platform creates a build job and extracts the archive into `data/build-jobs/`.
 3. The build job locates the effective project root, installs dependencies, and runs the project's `build` script.
 4. The build output is validated from `dist/`.
-5. Published files are copied into `data/prototypes/<productKey>/<version>/`.
-6. A source snapshot is copied into `data/source-snapshots/<productKey>/<version>/`.
+5. Published files are copied into `data/prototypes/<userId>/<productKey>/<version>/`.
+6. A source snapshot is copied into `data/source-snapshots/<userId>/<productKey>/<version>/`.
 7. The version becomes available to `/preview`, and the source snapshot becomes available to MCP after it is marked `ready`.
 
 ## Quick Start
@@ -128,7 +128,7 @@ Checked-in Prisma migrations are not the primary source of truth for local setup
 - `IMAGE_TAG` should be pinned to a released `vX.Y.Z` tag in production, for example `v1.4.0`
 - `APP_URL` should match the public URL users and MCP clients will reach
 - `APP_PORT` controls the host port
-- `MCP_AUTH_TOKEN` enables remote MCP access
+- `MCP_TOKEN_ENCRYPTION_KEY` is recommended so stored MCP tokens are encrypted with a stable deployment secret
 
 3. Initialize the database on first deployment.
 
@@ -178,8 +178,8 @@ Typical entry points after deployment:
 The repository exposes a remote MCP endpoint backed by published source snapshots.
 
 - Endpoint: `POST /api/mcp`
-- Authentication: `Authorization: Bearer <MCP_AUTH_TOKEN>`
-- Availability: when `MCP_AUTH_TOKEN` is empty, the endpoint returns `503`
+- Authentication: `Authorization: Bearer <user-managed MCP key>`
+- Key management: create MCP keys from `/settings`, choose expiration, and authorize products per key
 - Method contract: `GET /api/mcp` and `DELETE /api/mcp` intentionally return `405`
 
 Most MCP clients can register the server with a block like this:
@@ -199,6 +199,7 @@ Most MCP clients can register the server with a block like this:
 
 Use `http://localhost:3000/api/mcp` for local development unless you have real HTTPS configured.
 If you deploy behind a reverse proxy, make sure it forwards the `Authorization` header.
+Each MCP key is scoped to one user account, so the MCP tools only see products that user explicitly authorized on the key.
 
 ### Available MCP Tools
 
@@ -225,7 +226,7 @@ pnpm backfill:source-snapshots
 | `DATA_DIR` | `./data` | Base directory for SQLite, uploads, build jobs, published prototypes, and source snapshots |
 | `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
 | `APP_URL` | `http://localhost:3000` | Public application URL |
-| `MCP_AUTH_TOKEN` | _(empty)_ | Bearer token for `POST /api/mcp` |
+| `MCP_TOKEN_ENCRYPTION_KEY` | `AUTH_SECRET` fallback | Encryption secret for stored user MCP tokens |
 
 ### Docker Defaults
 
@@ -235,7 +236,7 @@ pnpm backfill:source-snapshots
 | `APP_URL` | `http://localhost` | Public application URL |
 | `APP_PORT` | `3000` | Host port mapped to the container |
 | `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
-| `MCP_AUTH_TOKEN` | _(empty)_ | Bearer token for `POST /api/mcp` |
+| `MCP_TOKEN_ENCRYPTION_KEY` | _(empty, falls back to `AUTH_SECRET`)_ | Encryption secret for stored user MCP tokens |
 
 `DATABASE_URL` remains the database source of truth for both Prisma CLI commands and runtime access.
 Relative local SQLite URLs are resolved via `prisma.config.ts` for CLI usage and normalized again in `lib/prisma.ts` at runtime.

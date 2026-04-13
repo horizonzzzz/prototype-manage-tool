@@ -15,6 +15,7 @@
       "admin": "原型管理",
       "preview": "原型预览",
       "users": "用户",
+      "mcp": "MCP",
       "settings": "设置"
     }
   },
@@ -63,6 +64,46 @@
     "description": "管理应用程序设置和偏好。",
     "languageTitle": "语言",
     "languageDescription": "选择您喜欢的界面语言。"
+  },
+  "mcp": {
+    "title": "MCP API Keys",
+    "description": "创建独立的 MCP token，并限制其可访问的产品范围。",
+    "mcpCreate": "创建 Key",
+    "mcpNameLabel": "Key 名称",
+    "mcpExpirationLabel": "过期时间",
+    "mcpProductsLabel": "授权产品",
+    "mcpSelectAll": "全选",
+    "mcpClearSelection": "清空",
+    "mcpNoProducts": "当前没有可授权的产品，请先创建产品。",
+    "mcpPermanent": "永久",
+    "mcpEmpty": "暂无 MCP key",
+    "mcpCreateSuccess": "MCP key 创建成功",
+    "mcpCreateError": "MCP key 创建失败",
+    "mcpDeleteSuccess": "MCP key 已删除",
+    "mcpDeleteError": "MCP key 删除失败",
+    "mcpTokenCopied": "MCP token 已复制",
+    "mcpTokenCopyFailed": "复制失败，请手动复制",
+    "mcpNameRequired": "请输入 Key 名称",
+    "mcpProductsRequired": "请至少选择一个产品",
+    "mcpDeleteTitle": "删除 MCP key",
+    "mcpDeleteTitleWithName": "删除 MCP key {name}",
+    "mcpDeleteDescription": "删除后该 token 将立即失效，请确认。",
+    "mcpDeleteConfirm": "删除",
+    "mcpColumns": {
+      "name": "名称",
+      "token": "Token",
+      "products": "授权产品",
+      "expiresAt": "过期时间",
+      "createdAt": "创建时间",
+      "actions": "操作"
+    },
+    "mcpExpirationOptions": {
+      "7d": "7天",
+      "30d": "30天",
+      "90d": "90天",
+      "1y": "1年",
+      "permanent": "永久"
+    }
   },
   "preview": {
     "missingProduct": {

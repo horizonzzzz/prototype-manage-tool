@@ -14,8 +14,8 @@ services:
       DATABASE_URL: file:/app/data/sqlite/app.db
       APP_URL: ${APP_URL:-http://localhost}
       AUTH_SECRET: ${AUTH_SECRET}
+      MCP_TOKEN_ENCRYPTION_KEY: ${MCP_TOKEN_ENCRYPTION_KEY:-}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
-      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
     ports:
       - "${APP_PORT:-3000}:3000"
     volumes:
@@ -35,8 +35,8 @@ services:
       DATABASE_URL: file:/app/data/sqlite/app.db
       APP_URL: ${APP_URL:-http://localhost}
       AUTH_SECRET: ${AUTH_SECRET}
+      MCP_TOKEN_ENCRYPTION_KEY: ${MCP_TOKEN_ENCRYPTION_KEY:-}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
-      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
     volumes:
       - ./docker-data:/app/data
     command: sh -c "pnpm prisma:generate && pnpm db:push"
@@ -54,8 +54,8 @@ services:
       DATABASE_URL: file:/app/data/sqlite/app.db
       APP_URL: ${APP_URL:-http://localhost}
       AUTH_SECRET: ${AUTH_SECRET}
+      MCP_TOKEN_ENCRYPTION_KEY: ${MCP_TOKEN_ENCRYPTION_KEY:-}
       UPLOAD_MAX_MB: ${UPLOAD_MAX_MB:-200}
-      MCP_AUTH_TOKEN: ${MCP_AUTH_TOKEN:-}
     volumes:
       - ./docker-data:/app/data
     command: sh -c "pnpm prisma:generate && pnpm db:push && pnpm db:seed"

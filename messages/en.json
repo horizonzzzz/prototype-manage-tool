@@ -15,6 +15,7 @@
       "admin": "Prototypes",
       "preview": "Previews",
       "users": "Users",
+      "mcp": "MCP",
       "settings": "Settings"
     }
   },
@@ -63,6 +64,46 @@
     "description": "Manage application settings and preferences.",
     "languageTitle": "Language",
     "languageDescription": "Select your preferred language for the interface."
+  },
+  "mcp": {
+    "title": "MCP API Keys",
+    "description": "Create per-user MCP tokens and limit each token to the products it can access.",
+    "mcpCreate": "Create key",
+    "mcpNameLabel": "Key name",
+    "mcpExpirationLabel": "Expiration",
+    "mcpProductsLabel": "Authorized products",
+    "mcpSelectAll": "Select all",
+    "mcpClearSelection": "Clear",
+    "mcpNoProducts": "No products are available yet. Create a product first.",
+    "mcpPermanent": "Permanent",
+    "mcpEmpty": "No MCP keys yet",
+    "mcpCreateSuccess": "MCP key created",
+    "mcpCreateError": "Failed to create MCP key",
+    "mcpDeleteSuccess": "MCP key deleted",
+    "mcpDeleteError": "Failed to delete MCP key",
+    "mcpTokenCopied": "MCP token copied",
+    "mcpTokenCopyFailed": "Copy failed. Please copy the token manually.",
+    "mcpNameRequired": "Enter a key name",
+    "mcpProductsRequired": "Select at least one product",
+    "mcpDeleteTitle": "Delete MCP key",
+    "mcpDeleteTitleWithName": "Delete MCP key {name}",
+    "mcpDeleteDescription": "Deleting this key invalidates the token immediately.",
+    "mcpDeleteConfirm": "Delete",
+    "mcpColumns": {
+      "name": "Name",
+      "token": "Token",
+      "products": "Authorized products",
+      "expiresAt": "Expires at",
+      "createdAt": "Created at",
+      "actions": "Actions"
+    },
+    "mcpExpirationOptions": {
+      "7d": "7 days",
+      "30d": "30 days",
+      "90d": "90 days",
+      "1y": "1 year",
+      "permanent": "Permanent"
+    }
   },
   "preview": {
     "missingProduct": {

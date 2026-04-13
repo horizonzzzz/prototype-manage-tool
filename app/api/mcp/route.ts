@@ -5,12 +5,12 @@ import { requirePrototypeMcpAuth } from '@/lib/server/prototype-mcp-auth';
 import { createPrototypeMcpServer } from '@/lib/server/prototype-mcp-server';
 
 async function handleMcpRequest(request: Request) {
-  const authFailureResponse = requirePrototypeMcpAuth(request);
-  if (authFailureResponse) {
-    return authFailureResponse;
+  const authResult = await requirePrototypeMcpAuth(request);
+  if (authResult instanceof Response) {
+    return authResult;
   }
 
-  const server = createPrototypeMcpServer();
+  const server = createPrototypeMcpServer(authResult);
   const transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: undefined,
     enableJsonResponse: true,

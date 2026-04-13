@@ -142,3 +142,19 @@ export type ManifestProduct = {
   versions: ProductVersionManifest[];
   createdAt: string;
 };
+
+export type McpAuthorizedProductItem = {
+  id: number;
+  key: string;
+  name: string;
+};
+
+export type McpApiKeyItem = {
+  id: number;
+  name: string;
+  token: string;
+  tokenPreview: string;
+  expiresAt: string | null;
+  createdAt: string;
+  products: McpAuthorizedProductItem[];
+};

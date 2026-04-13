@@ -123,6 +123,7 @@ Main models:
 - `ProductVersion`: version metadata, publish status, default flag, storage location, preview entry URL
 - `SourceSnapshot`: persisted source tree for a published version
 - `UploadRecord`: build-job state, logs, archive path, workspace path, published path
+- `McpApiKey`: per-user MCP credential with expiration and encrypted token storage
 
 Important status assumptions:
 
@@ -195,8 +196,9 @@ This repository exposes a remote MCP endpoint over stateless Streamable HTTP.
 Contract:
 
 - route: `POST /api/mcp`
-- auth: `Authorization: Bearer <MCP_AUTH_TOKEN>`
-- if `MCP_AUTH_TOKEN` is empty, endpoint returns `503`
+- auth: `Authorization: Bearer <user-scoped MCP key>`
+- MCP keys are created by logged-in users from `/settings`
+- each key is limited to the products explicitly authorized on that key
 - `GET /api/mcp` and `DELETE /api/mcp` intentionally return `405`
 
 Current MCP tools:
@@ -229,7 +231,7 @@ Important env vars:
 - `DATA_DIR`
 - `DATABASE_URL`
 - `UPLOAD_MAX_MB`
-- `MCP_AUTH_TOKEN`
+- `MCP_TOKEN_ENCRYPTION_KEY`
 
 Notes:
 

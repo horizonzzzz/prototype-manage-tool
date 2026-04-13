@@ -1,6 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import zod from 'zod/v4';
 
+import type { McpAccessScope } from '@/lib/server/mcp-api-key-service';
 import {
   getSourceTree,
   listPublishedSnapshotProducts,
@@ -21,7 +22,7 @@ function formatToolResult(payload: unknown) {
   };
 }
 
-export function createPrototypeMcpServer() {
+export function createPrototypeMcpServer(scope: McpAccessScope) {
   const server = new McpServer({
     name: 'prototype-manage-tool',
     version: '1.0.0',
@@ -32,7 +33,7 @@ export function createPrototypeMcpServer() {
     {
       description: 'List products with published source snapshots.',
     },
-    async () => formatToolResult(await listPublishedSnapshotProducts()),
+    async () => formatToolResult(await listPublishedSnapshotProducts(scope)),
   );
 
   server.registerTool(
@@ -43,7 +44,7 @@ export function createPrototypeMcpServer() {
         productKey: zod.string().min(1),
       },
     },
-    async ({ productKey }) => formatToolResult(await listPublishedSnapshotVersions(productKey)),
+    async ({ productKey }) => formatToolResult(await listPublishedSnapshotVersions(scope, productKey)),
   );
 
   server.registerTool(
@@ -58,7 +59,7 @@ export function createPrototypeMcpServer() {
     },
     async ({ productKey, selector, exactVersion }) => {
       const resolvedSelector = exactVersion ? { exact: exactVersion } : (selector ?? 'default');
-      return formatToolResult(await resolvePublishedSnapshotVersion(productKey, resolvedSelector));
+      return formatToolResult(await resolvePublishedSnapshotVersion(scope, productKey, resolvedSelector));
     },
   );
 
@@ -73,7 +74,8 @@ export function createPrototypeMcpServer() {
         depth: zod.number().int().min(0).optional(),
       },
     },
-    async ({ productKey, version, path, depth }) => formatToolResult(await getSourceTree(productKey, version, path, depth)),
+    async ({ productKey, version, path, depth }) =>
+      formatToolResult(await getSourceTree(scope, productKey, version, path, depth)),
   );
 
   server.registerTool(
@@ -89,7 +91,7 @@ export function createPrototypeMcpServer() {
       },
     },
     async ({ productKey, version, path, startLine, endLine }) =>
-      formatToolResult(await readSourceFile(productKey, version, path, { startLine, endLine })),
+      formatToolResult(await readSourceFile(scope, productKey, version, path, { startLine, endLine })),
   );
 
   server.registerTool(
@@ -102,7 +104,7 @@ export function createPrototypeMcpServer() {
         query: zod.string(),
       },
     },
-    async ({ productKey, version, query }) => formatToolResult(await searchSourceFiles(productKey, version, query)),
+    async ({ productKey, version, query }) => formatToolResult(await searchSourceFiles(scope, productKey, version, query)),
   );
 
   return server;
