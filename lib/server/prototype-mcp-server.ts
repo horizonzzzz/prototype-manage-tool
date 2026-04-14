@@ -6,7 +6,6 @@ import {
   getSourceIndexStatus,
   queryCodebaseSummary,
   queryComponentContext,
-  queryMockDataSummary,
   queryTypeDefinition,
   searchSourceWithContext,
 } from '@/lib/server/source-index-service';
@@ -173,20 +172,6 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
     },
     async ({ productKey, selector, exactVersion, typeName }) =>
       formatToolResult(await queryTypeDefinition(scope, { productKey, selector, exactVersion, typeName })),
-  );
-
-  server.registerTool(
-    'get_mock_data',
-    {
-      description: 'Get indexed mock-data and fixture summaries.',
-      inputSchema: {
-        productKey: zod.string().min(1),
-        selector: zod.enum(['default', 'latest']).optional(),
-        exactVersion: zod.string().min(1).optional(),
-      },
-    },
-    async ({ productKey, selector, exactVersion }) =>
-      formatToolResult(await queryMockDataSummary(scope, { productKey, selector, exactVersion })),
   );
 
   server.registerTool(

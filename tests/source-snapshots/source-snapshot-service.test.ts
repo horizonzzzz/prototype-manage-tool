@@ -364,12 +364,6 @@ describe('source snapshot service', () => {
             types: expect.arrayContaining([expect.objectContaining({ name: 'User', kind: 'interface' })]),
           }),
         }),
-        expect.objectContaining({
-          path: 'src/mocks.ts',
-          symbols: expect.objectContaining({
-            mocks: expect.arrayContaining([expect.objectContaining({ name: 'mockUsers' })]),
-          }),
-        }),
       ]),
     });
   });

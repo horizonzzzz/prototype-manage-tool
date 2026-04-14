@@ -180,7 +180,6 @@ Available tools:
 - `search_with_context`
 - `get_component_context`
 - `get_type_definitions`
-- `get_mock_data`
 - `get_source_index_status`
 
 ## Upload Rules

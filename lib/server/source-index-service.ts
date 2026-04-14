@@ -24,13 +24,6 @@ type IndexedTypeCandidate = {
   line: number;
 };
 
-type IndexedMockCandidate = {
-  name: string;
-  kind: string;
-  line: number;
-  reason: 'path-pattern' | 'name-pattern';
-};
-
 type SourceIndexFileEntry = {
   path: string;
   size: number;
@@ -41,7 +34,6 @@ type SourceIndexFileEntry = {
   symbols: {
     components: IndexedComponentCandidate[];
     types: IndexedTypeCandidate[];
-    mocks: IndexedMockCandidate[];
   };
 };
 
@@ -141,7 +133,6 @@ function collectKeyFiles(files: SourceIndexFileEntry[]) {
           file.path === 'package.json' ||
           file.symbols.components.length > 0 ||
           file.symbols.types.length > 0 ||
-          file.symbols.mocks.length > 0 ||
           /(?:^|\/)App\.(?:tsx|jsx|ts|js)$/.test(file.path),
       )
       .map((file) => file.path),
@@ -270,22 +261,6 @@ async function loadIndexContext(scope: McpAccessScope, input: SourceIndexSelecti
       warnings,
       errorMessage: 'Source index artifact content is invalid',
     };
-  }
-}
-
-async function estimateDatasetCount(rootPath: string, filePath: string, symbol: string) {
-  try {
-    const text = await fs.readFile(ensureChildPath(rootPath, filePath), 'utf8');
-    const symbolPattern = new RegExp(`\\b${symbol}\\b\\s*=\\s*\\[([\\s\\S]*?)\\]`, 'm');
-    const match = text.match(symbolPattern);
-    if (!match) {
-      return 1;
-    }
-
-    const itemMatches = match[1].match(/{/g);
-    return itemMatches?.length ?? 1;
-  } catch {
-    return 1;
   }
 }
 
@@ -442,61 +417,6 @@ export async function queryTypeDefinition(scope: McpAccessScope, input: TypeDefi
     definitionCandidates: Array<{ file: string; line: number; kind: IndexedTypeCandidate['kind'] }>;
     usedIn: string[];
     relatedFiles: string[];
-  }>;
-}
-
-export async function queryMockDataSummary(scope: McpAccessScope, input: SourceIndexSelection) {
-  const context = await loadIndexContext(scope, input);
-  if (context.status !== 'ready' || !context.artifact) {
-    return nonReadyResult<{
-      totalDatasets: number;
-      files: Array<{
-        file: string;
-        datasetCount: number;
-        datasets: Array<{ name: string; count: number; typeHint: string; line: number; reason: IndexedMockCandidate['reason'] }>;
-      }>;
-    }>(context.status, context.warnings);
-  }
-
-  const files = await Promise.all(
-    context.artifact.files
-      .filter((file) => file.symbols.mocks.length > 0)
-      .sort((left, right) => left.path.localeCompare(right.path))
-      .map(async (file) => {
-        const datasets = await Promise.all(
-          file.symbols.mocks.map(async (symbol) => ({
-            name: symbol.name,
-            count: await estimateDatasetCount(context.rootPath, file.path, symbol.name),
-            typeHint: symbol.kind,
-            line: symbol.line,
-            reason: symbol.reason,
-          })),
-        );
-
-        return {
-          file: file.path,
-          datasetCount: datasets.length,
-          datasets,
-        };
-      }),
-  );
-
-  const totalDatasets = files.reduce((sum, file) => sum + file.datasetCount, 0);
-
-  return {
-    status: 'ready',
-    warnings: context.warnings,
-    payload: {
-      totalDatasets,
-      files,
-    },
-  } satisfies QueryResult<{
-    totalDatasets: number;
-    files: Array<{
-      file: string;
-      datasetCount: number;
-      datasets: Array<{ name: string; count: number; typeHint: string; line: number; reason: IndexedMockCandidate['reason'] }>;
-    }>;
   }>;
 }
 

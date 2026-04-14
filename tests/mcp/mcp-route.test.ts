@@ -214,6 +214,36 @@ describe('POST /api/mcp', () => {
       },
     );
   });
+
+  test('tools/call get_mock_data returns unknown tool after removal', async () => {
+    const response = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-removed',
+          method: 'tools/call',
+          params: {
+            name: 'get_mock_data',
+            arguments: {
+              productKey: 'crm',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toSatisfy((payload: unknown) => {
+      const serialized = JSON.stringify(payload).toLowerCase();
+      return serialized.includes('get_mock_data') && (serialized.includes('unknown') || serialized.includes('not found'));
+    });
+  });
 });
 
 describe('non-POST /api/mcp methods', () => {

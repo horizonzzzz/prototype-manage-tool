@@ -29,7 +29,6 @@ import {
   getSourceIndexStatus,
   queryCodebaseSummary,
   queryComponentContext,
-  queryMockDataSummary,
   queryTypeDefinition,
   searchSourceWithContext,
 } from '@/lib/server/source-index-service';
@@ -64,7 +63,6 @@ describe('source index service', () => {
       symbols: {
         components: Array<{ name: string; line: number }>;
         types: Array<{ name: string; kind: 'interface' | 'type' | 'enum'; line: number }>;
-        mocks: Array<{ name: string; kind: string; line: number; reason: 'path-pattern' | 'name-pattern' }>;
       };
     }>;
   };
@@ -124,7 +122,6 @@ describe('source index service', () => {
           symbols: {
             components: [{ name: 'Button', line: 1 }],
             types: [],
-            mocks: [],
           },
         },
         {
@@ -137,7 +134,6 @@ describe('source index service', () => {
           symbols: {
             components: [],
             types: [{ name: 'User', kind: 'interface', line: 1 }],
-            mocks: [],
           },
         },
         {
@@ -150,7 +146,6 @@ describe('source index service', () => {
           symbols: {
             components: [],
             types: [],
-            mocks: [{ name: 'mockUsers', kind: 'const', line: 1, reason: 'name-pattern' }],
           },
         },
         {
@@ -163,7 +158,6 @@ describe('source index service', () => {
           symbols: {
             components: [{ name: 'Feature', line: 4 }],
             types: [],
-            mocks: [],
           },
         },
         {
@@ -176,7 +170,6 @@ describe('source index service', () => {
           symbols: {
             components: [],
             types: [],
-            mocks: [],
           },
         },
       ],
@@ -269,23 +262,6 @@ describe('source index service', () => {
     expect(resolvePublishedSnapshotVersionMock).toHaveBeenCalledWith(scope, 'crm', 'default');
   });
 
-  test('returns mock data summary from indexed mock candidates', async () => {
-    const result = await queryMockDataSummary(scope, { productKey: 'crm' });
-
-    expect(result.status).toBe('ready');
-    expect(result.payload).toEqual({
-      totalDatasets: 1,
-      files: [
-        {
-          file: 'src/mocks/users.ts',
-          datasetCount: 1,
-          datasets: [{ name: 'mockUsers', count: 1, typeHint: 'const', line: 1, reason: 'name-pattern' }],
-        },
-      ],
-    });
-    expect(resolvePublishedSnapshotVersionMock).toHaveBeenCalledWith(scope, 'crm', 'default');
-  });
-
   test('returns search results with line context from snapshot files', async () => {
     const result = await searchSourceWithContext(scope, {
       productKey: 'crm',
@@ -333,7 +309,6 @@ describe('source index service', () => {
         symbols: {
           components: [],
           types: [],
-          mocks: [],
         },
       },
       {
@@ -346,7 +321,6 @@ describe('source index service', () => {
         symbols: {
           components: [],
           types: [],
-          mocks: [],
         },
       },
     );

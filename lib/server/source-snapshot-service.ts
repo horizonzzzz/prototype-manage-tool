@@ -86,13 +86,6 @@ type IndexedTypeCandidate = {
   line: number;
 };
 
-type IndexedMockCandidate = {
-  name: string;
-  kind: string;
-  line: number;
-  reason: 'path-pattern' | 'name-pattern';
-};
-
 type SourceIndexFileEntry = {
   path: string;
   size: number;
@@ -103,7 +96,6 @@ type SourceIndexFileEntry = {
   symbols: {
     components: IndexedComponentCandidate[];
     types: IndexedTypeCandidate[];
-    mocks: IndexedMockCandidate[];
   };
 };
 
@@ -449,31 +441,6 @@ function parseTypeCandidates(source: string) {
   return types;
 }
 
-function parseMockCandidates(relativePath: string, source: string) {
-  const mocks: IndexedMockCandidate[] = [];
-  const loweredPath = relativePath.toLowerCase();
-  const pathSuggestsMock = /(^|\/)(?:__mocks__|mock|mocks|fixture|fixtures|stub|stubs|sample|samples)(\/|$)/.test(loweredPath);
-  const symbolRegex = /\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g;
-
-  let symbolMatch: RegExpExecArray | null;
-  while ((symbolMatch = symbolRegex.exec(source)) !== null) {
-    const symbolName = symbolMatch[1];
-    const looksLikeMockName = /(mock|fixture|dummy|fake|stub|sample)/i.test(symbolName);
-    if (!pathSuggestsMock && !looksLikeMockName) {
-      continue;
-    }
-
-    mocks.push({
-      name: symbolName,
-      kind: 'const',
-      line: getLineNumberForOffset(source, symbolMatch.index),
-      reason: pathSuggestsMock ? 'path-pattern' : 'name-pattern',
-    });
-  }
-
-  return mocks;
-}
-
 function resolveKnownImportPath(normalizedBase: string, knownFilePaths: Set<string>) {
   const candidates = [
     normalizedBase,
@@ -726,7 +693,6 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
         symbols: {
           components: [],
           types: [],
-          mocks: [],
         },
       };
 
@@ -748,7 +714,6 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
         entryRecord.symbols.components = parseComponentCandidates(source, extension);
         entryRecord.symbols.types = parseTypeCandidates(source);
       }
-      entryRecord.symbols.mocks = parseMockCandidates(relativePath, source);
 
       files.push(entryRecord);
     }

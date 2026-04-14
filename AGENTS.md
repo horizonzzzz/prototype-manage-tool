@@ -91,7 +91,7 @@ When investigating behavior, start here:
 - [lib/server/source-snapshot-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-snapshot-service.ts)
   Owns snapshot persistence and the MCP-facing read/search APIs.
 - [lib/server/source-index-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-index-service.ts)
-  Owns persisted source-index queries for codebase summary, component/type lookup, mock-data summary, and context search.
+  Owns persisted source-index queries for codebase summary, component/type lookup, and context search.
 - [lib/server/prototype-mcp-server.ts](/D:/Work/prototype-manage-tool/lib/server/prototype-mcp-server.ts)
   Registers MCP tools.
 - [app/api/mcp/route.ts](/D:/Work/prototype-manage-tool/app/api/mcp/route.ts)
@@ -221,7 +221,6 @@ Current MCP tools:
 - `search_with_context`
 - `get_component_context`
 - `get_type_definitions`
-- `get_mock_data`
 - `get_source_index_status`
 
 Current product decisions:
