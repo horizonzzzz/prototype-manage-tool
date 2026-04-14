@@ -3,7 +3,7 @@ import fs from 'node:fs/promises';
 import { ensureChildPath } from '@/lib/domain/path-safety';
 import { prisma } from '@/lib/prisma';
 import type { McpAccessScope } from '@/lib/server/mcp-api-key-service';
-import { resolvePublishedSnapshotVersion } from '@/lib/server/source-snapshot-service';
+import { ensureSourceIndexBackfillScheduled, resolvePublishedSnapshotVersion } from '@/lib/server/source-snapshot-service';
 
 const SOURCE_INDEX_ARTIFACT_KEY = 'source-tree-v1';
 const MAX_SEARCH_RESULTS = 50;
@@ -157,6 +157,7 @@ function nonReadyResult<T>(status: IndexStatus, warnings: string[]): QueryResult
 }
 
 async function loadIndexContext(scope: McpAccessScope, input: SourceIndexSelection): Promise<LoadedIndexContext> {
+  await ensureSourceIndexBackfillScheduled();
   const selector = resolveVersionSelector(input);
   const resolved = await resolvePublishedSnapshotVersion(scope, input.productKey, selector);
 

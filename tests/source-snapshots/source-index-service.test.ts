@@ -10,6 +10,7 @@ const { productVersionFindFirstMock } = vi.hoisted(() => ({
 }));
 
 const resolvePublishedSnapshotVersionMock = vi.hoisted(() => vi.fn());
+const ensureSourceIndexBackfillScheduledMock = vi.hoisted(() => vi.fn());
 
 vi.mock('@/lib/prisma', () => ({
   prisma: {
@@ -20,6 +21,7 @@ vi.mock('@/lib/prisma', () => ({
 }));
 
 vi.mock('@/lib/server/source-snapshot-service', () => ({
+  ensureSourceIndexBackfillScheduled: ensureSourceIndexBackfillScheduledMock,
   resolvePublishedSnapshotVersion: resolvePublishedSnapshotVersionMock,
 }));
 
@@ -69,6 +71,7 @@ describe('source index service', () => {
 
   beforeEach(async () => {
     vi.clearAllMocks();
+    ensureSourceIndexBackfillScheduledMock.mockResolvedValue(undefined);
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'source-index-service-'));
     snapshotDir = path.join(tmpDir, 'snapshot');
     await fse.ensureDir(path.join(snapshotDir, 'src', 'components'));
@@ -428,6 +431,33 @@ describe('source index service', () => {
       warnings: [],
       payload: null,
     });
+    expect(ensureSourceIndexBackfillScheduledMock).toHaveBeenCalledTimes(2);
+    expect(resolvePublishedSnapshotVersionMock).toHaveBeenCalledWith(scope, 'crm', 'latest');
+  });
+
+  test('triggers lazy source-index backfill for failed indexes without changing response contract', async () => {
+    productVersionFindFirstMock.mockResolvedValue({
+      sourceSnapshot: {
+        id: 802,
+        status: 'ready',
+        indexStatus: 'failed',
+        indexGeneratedAt: null,
+        indexErrorMessage: 'artifact creation failed',
+        indexArtifacts: [],
+      },
+    });
+
+    const statusResult = await getSourceIndexStatus(scope, { productKey: 'crm', selector: 'latest' });
+
+    expect(statusResult).toEqual({
+      status: 'failed',
+      warnings: ['artifact creation failed'],
+      payload: {
+        generatedAt: null,
+        errorMessage: 'artifact creation failed',
+      },
+    });
+    expect(ensureSourceIndexBackfillScheduledMock).toHaveBeenCalledTimes(1);
     expect(resolvePublishedSnapshotVersionMock).toHaveBeenCalledWith(scope, 'crm', 'latest');
   });
 });

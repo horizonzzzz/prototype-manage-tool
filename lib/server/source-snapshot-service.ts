@@ -36,6 +36,11 @@ type SourceIndexQueueState = {
   draining: boolean;
 };
 
+type SourceIndexBackfillState = {
+  status: 'idle' | 'running' | 'completed';
+  promise: Promise<void> | null;
+};
+
 type ImportResolutionConfig = {
   baseUrl: string | null;
   paths: Array<{
@@ -119,6 +124,7 @@ type SourceIndexArtifact = {
 
 const globalQueueState = globalThis as typeof globalThis & {
   __sourceIndexQueueState__?: SourceIndexQueueState;
+  __sourceIndexBackfillState__?: SourceIndexBackfillState;
 };
 
 function normalizeErrorMessage(error: unknown) {
@@ -139,6 +145,17 @@ function getSourceIndexQueueState(): SourceIndexQueueState {
   }
 
   return globalQueueState.__sourceIndexQueueState__;
+}
+
+function getSourceIndexBackfillState(): SourceIndexBackfillState {
+  if (!globalQueueState.__sourceIndexBackfillState__) {
+    globalQueueState.__sourceIndexBackfillState__ = {
+      status: 'idle',
+      promise: null,
+    };
+  }
+
+  return globalQueueState.__sourceIndexBackfillState__;
 }
 
 async function collectDirectoryStats(rootPath: string): Promise<{ fileCount: number; totalBytes: number }> {
@@ -210,6 +227,134 @@ function getLineNumberForOffset(source: string, offset: number) {
 
 function dedupeStrings(values: string[]) {
   return [...new Set(values)];
+}
+
+function stripJsonComments(source: string) {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+  let inLineComment = false;
+  let inBlockComment = false;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+    const next = source[index + 1];
+
+    if (inLineComment) {
+      if (char === '\n') {
+        inLineComment = false;
+        result += char;
+      }
+      continue;
+    }
+
+    if (inBlockComment) {
+      if (char === '\n') {
+        result += char;
+        continue;
+      }
+
+      if (char === '*' && next === '/') {
+        inBlockComment = false;
+        index += 1;
+      }
+      continue;
+    }
+
+    if (inString) {
+      result += char;
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      result += char;
+      continue;
+    }
+
+    if (char === '/' && next === '/') {
+      inLineComment = true;
+      index += 1;
+      continue;
+    }
+
+    if (char === '/' && next === '*') {
+      inBlockComment = true;
+      index += 1;
+      continue;
+    }
+
+    result += char;
+  }
+
+  return result;
+}
+
+function stripTrailingJsonCommas(source: string) {
+  let result = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const char = source[index];
+
+    if (inString) {
+      result += char;
+      if (escaped) {
+        escaped = false;
+        continue;
+      }
+
+      if (char === '\\') {
+        escaped = true;
+        continue;
+      }
+
+      if (char === '"') {
+        inString = false;
+      }
+      continue;
+    }
+
+    if (char === '"') {
+      inString = true;
+      result += char;
+      continue;
+    }
+
+    if (char === ',') {
+      let lookahead = index + 1;
+      while (lookahead < source.length && /\s/.test(source[lookahead])) {
+        lookahead += 1;
+      }
+
+      if (source[lookahead] === '}' || source[lookahead] === ']') {
+        continue;
+      }
+    }
+
+    result += char;
+  }
+
+  return result;
+}
+
+function parseJsonc<T>(source: string): T {
+  const normalized = source.replace(/^\uFEFF/, '');
+  return JSON.parse(stripTrailingJsonCommas(stripJsonComments(normalized))) as T;
 }
 
 function normalizePosixPath(value: string) {
@@ -388,12 +533,12 @@ async function loadImportResolutionConfig(rootPath: string): Promise<ImportResol
   }
 
   try {
-    const parsed = JSON.parse(configContent) as {
+    const parsed = parseJsonc<{
       compilerOptions?: {
         baseUrl?: string;
         paths?: Record<string, string[] | string>;
       };
-    };
+    }>(configContent);
     const compilerOptions = parsed.compilerOptions ?? {};
     const normalizedBaseUrl =
       typeof compilerOptions.baseUrl === 'string' && compilerOptions.baseUrl.trim()
@@ -843,6 +988,30 @@ async function drainSourceIndexQueue() {
   }
 }
 
+async function backfillPendingSourceIndexBuilds() {
+  const snapshots = await prisma.sourceSnapshot.findMany({
+    where: {
+      status: 'ready',
+      indexStatus: {
+        in: ['pending', 'failed'],
+      },
+      version: {
+        status: 'published',
+      },
+    },
+    select: {
+      versionId: true,
+    },
+    orderBy: {
+      versionId: 'asc',
+    },
+  });
+
+  for (const snapshot of snapshots) {
+    scheduleSourceSnapshotIndexBuild(snapshot.versionId);
+  }
+}
+
 export function scheduleSourceSnapshotIndexBuild(versionId: number) {
   const state = getSourceIndexQueueState();
   if (state.active.has(versionId) || state.queue.includes(versionId)) {
@@ -853,6 +1022,29 @@ export function scheduleSourceSnapshotIndexBuild(versionId: number) {
   setTimeout(() => {
     void drainSourceIndexQueue();
   }, 0);
+}
+
+export async function ensureSourceIndexBackfillScheduled() {
+  const state = getSourceIndexBackfillState();
+  if (state.status === 'completed') {
+    return;
+  }
+
+  if (!state.promise) {
+    state.status = 'running';
+    state.promise = (async () => {
+      try {
+        await backfillPendingSourceIndexBuilds();
+        state.status = 'completed';
+      } catch {
+        state.status = 'idle';
+      } finally {
+        state.promise = null;
+      }
+    })();
+  }
+
+  await state.promise;
 }
 
 export async function deleteSourceIndexForVersion(userId: string, productKey: string, version: string) {

@@ -8,6 +8,7 @@ import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 const {
   sourceSnapshotUpsertMock,
   sourceSnapshotFindUniqueMock,
+  sourceSnapshotFindManyMock,
   sourceSnapshotUpdateManyMock,
   sourceSnapshotUpdateMock,
   sourceIndexArtifactDeleteManyMock,
@@ -19,6 +20,7 @@ const {
 } = vi.hoisted(() => ({
   sourceSnapshotUpsertMock: vi.fn(),
   sourceSnapshotFindUniqueMock: vi.fn(),
+  sourceSnapshotFindManyMock: vi.fn(),
   sourceSnapshotUpdateManyMock: vi.fn(),
   sourceSnapshotUpdateMock: vi.fn(),
   sourceIndexArtifactDeleteManyMock: vi.fn(),
@@ -51,6 +53,7 @@ vi.mock('@/lib/prisma', () => ({
       findFirst: productVersionFindFirstMock,
     },
     sourceSnapshot: {
+      findMany: sourceSnapshotFindManyMock,
       findUnique: sourceSnapshotFindUniqueMock,
       upsert: sourceSnapshotUpsertMock,
       update: sourceSnapshotUpdateMock,
@@ -66,6 +69,7 @@ vi.mock('@/lib/prisma', () => ({
 
 import {
   createSourceSnapshot,
+  ensureSourceIndexBackfillScheduled,
   rebuildSourceSnapshotIndex,
   deleteSourceIndexForVersion,
   deleteSourceIndexesForProduct,
@@ -91,6 +95,7 @@ describe('source snapshot service', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     sourceSnapshotUpsertMock.mockResolvedValue({});
+    sourceSnapshotFindManyMock.mockResolvedValue([]);
     sourceSnapshotFindUniqueMock.mockResolvedValue(null);
     sourceSnapshotUpdateManyMock.mockResolvedValue({ count: 1 });
     sourceSnapshotUpdateMock.mockResolvedValue({});
@@ -112,6 +117,8 @@ describe('source snapshot service', () => {
     );
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'source-snapshot-service-'));
     testState.sourceSnapshotsDir = path.join(tmpDir, 'source-snapshots');
+    delete (globalThis as typeof globalThis & { __sourceIndexQueueState__?: unknown }).__sourceIndexQueueState__;
+    delete (globalThis as typeof globalThis & { __sourceIndexBackfillState__?: unknown }).__sourceIndexBackfillState__;
   });
 
   afterEach(async () => {
@@ -451,6 +458,66 @@ describe('source snapshot service', () => {
     );
   });
 
+  test('rebuilds source index with JSONC tsconfig alias paths and trailing commas', async () => {
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.1-jsonc');
+    await fse.ensureDir(path.join(snapshotDir, 'src', 'components'));
+    await fse.ensureDir(path.join(snapshotDir, 'src', 'types'));
+    await fs.writeFile(
+      path.join(snapshotDir, 'tsconfig.json'),
+      '{\n' +
+        '  // JSONC comments are valid in tsconfig files\n' +
+        '  "compilerOptions": {\n' +
+        '    "baseUrl": "src",\n' +
+        '    "paths": {\n' +
+        '      "@/*": ["*"],\n' +
+        '    },\n' +
+        '  },\n' +
+        '}\n',
+    );
+    await fs.writeFile(path.join(snapshotDir, 'src', 'types', 'model.ts'), 'export interface User { id: string }\n');
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'Button.tsx'),
+      'import type { User } from "types/model";\n' +
+        'export const Button: React.FC<{ user?: User }> = () => <button />;\n',
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'feature.tsx'),
+      'import { Button } from "@/components/Button";\n' +
+        'import type { User } from "@/types/model";\n' +
+        'const users: User[] = [];\n' +
+        'export function Feature() { return <Button user={users[0]} />; }\n',
+    );
+
+    sourceSnapshotFindUniqueMock.mockResolvedValue({
+      id: 5005,
+      status: 'ready',
+      rootPath: snapshotDir,
+    });
+
+    await rebuildSourceSnapshotIndex(705);
+
+    const createPayload = sourceIndexArtifactCreateMock.mock.calls[0]?.[0];
+    const parsedArtifact = JSON.parse(createPayload.data.contentJson as string) as {
+      summary: {
+        warnings: string[];
+      };
+      files: Array<{
+        path: string;
+        localDependencies: string[];
+      }>;
+    };
+
+    expect(parsedArtifact.summary.warnings).not.toContain('Unable to parse tsconfig.json');
+    expect(parsedArtifact.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'src/feature.tsx',
+          localDependencies: ['src/components/Button.tsx', 'src/types/model.ts'],
+        }),
+      ]),
+    );
+  });
+
   test('records a warning when tsconfig alias configuration cannot be parsed', async () => {
     const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.2');
     await fse.ensureDir(path.join(snapshotDir, 'src'));
@@ -508,6 +575,101 @@ describe('source snapshot service', () => {
         indexErrorMessage: 'artifact creation failed',
       },
     });
+  });
+
+  test('backfills pending and failed source indexes once per process', async () => {
+    const pendingSnapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v2.0.0');
+    const failedSnapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v2.0.1');
+    await fse.ensureDir(path.join(pendingSnapshotDir, 'src'));
+    await fse.ensureDir(path.join(failedSnapshotDir, 'src'));
+    await fs.writeFile(path.join(pendingSnapshotDir, 'src', 'index.ts'), 'export const pending = true;\n');
+    await fs.writeFile(path.join(failedSnapshotDir, 'src', 'index.ts'), 'export const failed = true;\n');
+
+    sourceSnapshotFindManyMock.mockResolvedValue([
+      { versionId: 801 },
+      { versionId: 802 },
+    ]);
+    sourceSnapshotFindUniqueMock.mockImplementation(async ({ where }: { where: { versionId: number } }) => {
+      if (where.versionId === 801) {
+        return {
+          id: 5801,
+          status: 'ready',
+          rootPath: pendingSnapshotDir,
+        };
+      }
+
+      if (where.versionId === 802) {
+        return {
+          id: 5802,
+          status: 'ready',
+          rootPath: failedSnapshotDir,
+        };
+      }
+    });
+
+    await ensureSourceIndexBackfillScheduled();
+    await ensureSourceIndexBackfillScheduled();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(sourceSnapshotFindManyMock).toHaveBeenCalledTimes(1);
+    expect(sourceSnapshotFindManyMock).toHaveBeenCalledWith({
+      where: {
+        status: 'ready',
+        indexStatus: {
+          in: ['pending', 'failed'],
+        },
+        version: {
+          status: 'published',
+        },
+      },
+      select: {
+        versionId: true,
+      },
+      orderBy: {
+        versionId: 'asc',
+      },
+    });
+    expect(sourceSnapshotFindUniqueMock).toHaveBeenCalledTimes(2);
+    expect(sourceSnapshotFindUniqueMock).toHaveBeenNthCalledWith(1, {
+      where: { versionId: 801 },
+      select: {
+        id: true,
+        status: true,
+        rootPath: true,
+      },
+    });
+    expect(sourceSnapshotFindUniqueMock).toHaveBeenNthCalledWith(2, {
+      where: { versionId: 802 },
+      select: {
+        id: true,
+        status: true,
+        rootPath: true,
+      },
+    });
+  });
+
+  test('skips index writes when a queued backfill snapshot is no longer ready', async () => {
+    sourceSnapshotFindManyMock.mockResolvedValue([{ versionId: 901 }]);
+    sourceSnapshotFindUniqueMock.mockResolvedValue({
+      id: 5901,
+      status: 'failed',
+      rootPath: path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v3.0.0'),
+    });
+
+    await ensureSourceIndexBackfillScheduled();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(sourceSnapshotFindUniqueMock).toHaveBeenCalledWith({
+      where: { versionId: 901 },
+      select: {
+        id: true,
+        status: true,
+        rootPath: true,
+      },
+    });
+    expect(sourceSnapshotUpdateMock).not.toHaveBeenCalled();
+    expect(sourceIndexArtifactCreateMock).not.toHaveBeenCalled();
+    expect(sourceSnapshotUpdateManyMock).not.toHaveBeenCalled();
   });
 
   test('removes partial snapshot and records failed metadata when snapshot creation fails', async () => {
