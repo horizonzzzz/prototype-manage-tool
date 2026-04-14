@@ -71,6 +71,7 @@ import {
   createSourceSnapshot,
   ensureSourceIndexBackfillScheduled,
   rebuildSourceSnapshotIndex,
+  __resetSourceIndexQueueState,
   deleteSourceIndexForVersion,
   deleteSourceIndexesForProduct,
   deleteSourceSnapshotForVersion,
@@ -643,6 +644,7 @@ describe('source snapshot service', () => {
   });
 
   test('skips index writes when a queued backfill snapshot is no longer ready', async () => {
+    __resetSourceIndexQueueState();
     sourceSnapshotFindManyMock.mockResolvedValue([{ versionId: 901 }]);
     sourceSnapshotFindUniqueMock.mockResolvedValue({
       id: 5901,

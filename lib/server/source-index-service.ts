@@ -3,54 +3,25 @@ import fs from 'node:fs/promises';
 import { ensureChildPath } from '@/lib/domain/path-safety';
 import { prisma } from '@/lib/prisma';
 import type { McpAccessScope } from '@/lib/server/mcp-api-key-service';
-import { ensureSourceIndexBackfillScheduled, resolvePublishedSnapshotVersion } from '@/lib/server/source-snapshot-service';
+import { ensureSourceIndexBackfillScheduled } from '@/lib/server/source-index-queue';
+import { resolvePublishedSnapshotVersion } from '@/lib/server/source-snapshot-service';
+import {
+  MAX_CONTEXT_LINES,
+  MAX_SEARCH_FILE_BYTES,
+  MAX_SEARCH_RESULTS,
+  SOURCE_INDEX_ARTIFACT_KEY,
+  type IndexStatus,
+  type SourceIndexArtifact,
+  type SourceIndexFileEntry,
+  dedupeStrings,
+  isProbablyText,
+} from '@/lib/server/source-index-types';
 
-const SOURCE_INDEX_ARTIFACT_KEY = 'source-tree-v1';
-const MAX_SEARCH_RESULTS = 50;
-const MAX_CONTEXT_LINES = 10;
-const MAX_SEARCH_FILE_BYTES = 128 * 1024;
+// Re-export for backward compatibility - import from source modules directly
+export { scheduleSourceSnapshotIndexBuild, ensureSourceIndexBackfillScheduled } from '@/lib/server/source-index-queue';
+export { rebuildSourceSnapshotIndex } from '@/lib/server/source-index-builder';
 
-type IndexStatus = 'pending' | 'indexing' | 'ready' | 'failed';
 type VersionSelectorInput = 'default' | 'latest' | { exact: string };
-
-type IndexedComponentCandidate = {
-  name: string;
-  line: number;
-};
-
-type IndexedTypeCandidate = {
-  name: string;
-  kind: 'interface' | 'type' | 'enum';
-  line: number;
-};
-
-type SourceIndexFileEntry = {
-  path: string;
-  size: number;
-  ext: string;
-  imports: string[];
-  exports: string[];
-  localDependencies: string[];
-  symbols: {
-    components: IndexedComponentCandidate[];
-    types: IndexedTypeCandidate[];
-  };
-};
-
-type SourceIndexArtifact = {
-  format: typeof SOURCE_INDEX_ARTIFACT_KEY;
-  snapshotVersionId: number;
-  generatedAt: string;
-  summary: {
-    fileCount: number;
-    totalBytes: number;
-    frameworkHints: string[];
-    routingMode: 'next-app-router' | 'next-pages-router' | 'react-router' | 'app-tsx-state' | 'unknown';
-    warnings: string[];
-    languages?: Record<string, number>;
-  };
-  files: SourceIndexFileEntry[];
-};
 
 type SourceIndexSelection = {
   productKey: string;
@@ -85,20 +56,6 @@ type SearchWithContextInput = SourceIndexSelection & {
   query: string;
   contextLines?: number;
 };
-
-function dedupeStrings(values: string[]) {
-  return [...new Set(values)];
-}
-
-function isProbablyText(buffer: Buffer) {
-  for (let index = 0; index < buffer.length; index += 1) {
-    if (buffer[index] === 0) {
-      return false;
-    }
-  }
-
-  return true;
-}
 
 function normalizeQueryStatus(status?: string | null): IndexStatus {
   if (status === 'indexing' || status === 'ready' || status === 'failed') {
@@ -382,7 +339,7 @@ export async function queryTypeDefinition(scope: McpAccessScope, input: TypeDefi
   if (context.status !== 'ready' || !context.artifact) {
     return nonReadyResult<{
       typeName: string;
-      definitionCandidates: Array<{ file: string; line: number; kind: IndexedTypeCandidate['kind'] }>;
+      definitionCandidates: Array<{ file: string; line: number; kind: 'interface' | 'type' | 'enum' }>;
       usedIn: string[];
       relatedFiles: string[];
     }>(context.status, context.warnings);
@@ -414,7 +371,7 @@ export async function queryTypeDefinition(scope: McpAccessScope, input: TypeDefi
     },
   } satisfies QueryResult<{
     typeName: string;
-    definitionCandidates: Array<{ file: string; line: number; kind: IndexedTypeCandidate['kind'] }>;
+    definitionCandidates: Array<{ file: string; line: number; kind: 'interface' | 'type' | 'enum' }>;
     usedIn: string[];
     relatedFiles: string[];
   }>;

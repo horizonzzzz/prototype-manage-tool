@@ -21,8 +21,11 @@ vi.mock('@/lib/prisma', () => ({
 }));
 
 vi.mock('@/lib/server/source-snapshot-service', () => ({
-  ensureSourceIndexBackfillScheduled: ensureSourceIndexBackfillScheduledMock,
   resolvePublishedSnapshotVersion: resolvePublishedSnapshotVersionMock,
+}));
+
+vi.mock('@/lib/server/source-index-queue', () => ({
+  ensureSourceIndexBackfillScheduled: ensureSourceIndexBackfillScheduledMock,
 }));
 
 import {

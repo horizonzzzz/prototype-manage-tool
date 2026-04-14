@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 const {
   requirePrototypeMcpAuthMock,
   getSourceTreeMock,
+  getSourceIndexStatusMock,
   queryCodebaseSummaryMock,
+  queryComponentContextMock,
+  queryTypeDefinitionMock,
+  searchSourceWithContextMock,
   listPublishedSnapshotProductsMock,
   listPublishedSnapshotVersionsMock,
   readSourceFileMock,
@@ -12,7 +16,11 @@ const {
 } = vi.hoisted(() => ({
   requirePrototypeMcpAuthMock: vi.fn(),
   getSourceTreeMock: vi.fn(),
+  getSourceIndexStatusMock: vi.fn(),
   queryCodebaseSummaryMock: vi.fn(),
+  queryComponentContextMock: vi.fn(),
+  queryTypeDefinitionMock: vi.fn(),
+  searchSourceWithContextMock: vi.fn(),
   listPublishedSnapshotProductsMock: vi.fn(),
   listPublishedSnapshotVersionsMock: vi.fn(),
   readSourceFileMock: vi.fn(),
@@ -34,7 +42,11 @@ vi.mock('@/lib/server/source-snapshot-service', () => ({
 }));
 
 vi.mock('@/lib/server/source-index-service', () => ({
+  getSourceIndexStatus: getSourceIndexStatusMock,
   queryCodebaseSummary: queryCodebaseSummaryMock,
+  queryComponentContext: queryComponentContextMock,
+  queryTypeDefinition: queryTypeDefinitionMock,
+  searchSourceWithContext: searchSourceWithContextMock,
 }));
 
 import { DELETE, GET, POST } from '@/app/api/mcp/route';
@@ -213,6 +225,322 @@ describe('POST /api/mcp', () => {
         exactVersion: undefined,
       },
     );
+  });
+
+  test('tools/call resolve_version rejects null exactVersion during validation', async () => {
+    const response = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-resolve-null',
+          method: 'tools/call',
+          params: {
+            name: 'resolve_version',
+            arguments: {
+              productKey: 'crm',
+              exactVersion: null,
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toSatisfy((payload: unknown) => {
+      const serialized = JSON.stringify(payload);
+      return serialized.includes('-32602') && serialized.includes('exactVersion');
+    });
+    expect(resolvePublishedSnapshotVersionMock).not.toHaveBeenCalled();
+  });
+
+  test('tools/call get_source_tree preserves undefined depth and coerces numeric strings', async () => {
+    getSourceTreeMock.mockResolvedValue({
+      path: '.',
+      type: 'directory',
+      depth: 1,
+      tree: { name: '.', path: '.', type: 'directory', entries: [] },
+    });
+
+    const noDepthResponse = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-tree-default-depth',
+          method: 'tools/call',
+          params: {
+            name: 'get_source_tree',
+            arguments: {
+              productKey: 'crm',
+              version: 'v1.0.0',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(noDepthResponse.status).toBe(200);
+    await expect(noDepthResponse.json()).resolves.toSatisfy((payload: unknown) => JSON.stringify(payload).includes('directory'));
+    expect(getSourceTreeMock).toHaveBeenNthCalledWith(
+      1,
+      {
+        userId: 'user-1',
+        apiKeyId: 101,
+        allowedProductIds: [11],
+      },
+      'crm',
+      'v1.0.0',
+      undefined,
+      undefined,
+    );
+
+    const stringDepthResponse = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-tree-string-depth',
+          method: 'tools/call',
+          params: {
+            name: 'get_source_tree',
+            arguments: {
+              productKey: 'crm',
+              version: 'v1.0.0',
+              depth: '2',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(stringDepthResponse.status).toBe(200);
+    await expect(stringDepthResponse.json()).resolves.toSatisfy((payload: unknown) => JSON.stringify(payload).includes('directory'));
+    expect(getSourceTreeMock).toHaveBeenNthCalledWith(
+      2,
+      {
+        userId: 'user-1',
+        apiKeyId: 101,
+        allowedProductIds: [11],
+      },
+      'crm',
+      'v1.0.0',
+      undefined,
+      2,
+    );
+  });
+
+  test('tools/call get_source_tree rejects null depth during validation', async () => {
+    const response = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-tree-null-depth',
+          method: 'tools/call',
+          params: {
+            name: 'get_source_tree',
+            arguments: {
+              productKey: 'crm',
+              version: 'v1.0.0',
+              depth: null,
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toSatisfy((payload: unknown) => {
+      const serialized = JSON.stringify(payload);
+      return serialized.includes('-32602') && serialized.includes('depth');
+    });
+    expect(getSourceTreeMock).not.toHaveBeenCalled();
+  });
+
+  test('tools/call read_source_file coerces numeric strings and rejects null startLine', async () => {
+    readSourceFileMock.mockResolvedValue({
+      path: 'src/app.ts',
+      content: 'line 2\nline 3',
+      startLine: 2,
+      endLine: 3,
+      totalLines: 10,
+      truncated: true,
+    });
+
+    const validResponse = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-read-string-lines',
+          method: 'tools/call',
+          params: {
+            name: 'read_source_file',
+            arguments: {
+              productKey: 'crm',
+              version: 'v1.0.0',
+              path: 'src/app.ts',
+              startLine: '2',
+              endLine: '3',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(validResponse.status).toBe(200);
+    await expect(validResponse.json()).resolves.toSatisfy((payload: unknown) => JSON.stringify(payload).includes('src/app.ts'));
+    expect(readSourceFileMock).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        apiKeyId: 101,
+        allowedProductIds: [11],
+      },
+      'crm',
+      'v1.0.0',
+      'src/app.ts',
+      { startLine: 2, endLine: 3 },
+    );
+
+    const invalidResponse = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-read-null-start',
+          method: 'tools/call',
+          params: {
+            name: 'read_source_file',
+            arguments: {
+              productKey: 'crm',
+              version: 'v1.0.0',
+              path: 'src/app.ts',
+              startLine: null,
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(invalidResponse.status).toBe(200);
+    await expect(invalidResponse.json()).resolves.toSatisfy((payload: unknown) => {
+      const serialized = JSON.stringify(payload);
+      return serialized.includes('-32602') && serialized.includes('startLine');
+    });
+  });
+
+  test('tools/call search_with_context coerces numeric strings and rejects object exactVersion', async () => {
+    searchSourceWithContextMock.mockResolvedValue({
+      status: 'ready',
+      warnings: [],
+      payload: {
+        query: 'Button',
+        results: [],
+        truncated: false,
+      },
+    });
+
+    const validResponse = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-search-context-valid',
+          method: 'tools/call',
+          params: {
+            name: 'search_with_context',
+            arguments: {
+              productKey: 'crm',
+              query: 'Button',
+              contextLines: '3',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(validResponse.status).toBe(200);
+    await expect(validResponse.json()).resolves.toSatisfy((payload: unknown) => JSON.stringify(payload).includes('Button'));
+    expect(searchSourceWithContextMock).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        apiKeyId: 101,
+        allowedProductIds: [11],
+      },
+      {
+        productKey: 'crm',
+        selector: undefined,
+        exactVersion: undefined,
+        query: 'Button',
+        contextLines: 3,
+      },
+    );
+
+    const invalidResponse = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-search-context-invalid',
+          method: 'tools/call',
+          params: {
+            name: 'search_with_context',
+            arguments: {
+              productKey: 'crm',
+              query: 'Button',
+              exactVersion: { value: 'v1.0.0' },
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(invalidResponse.status).toBe(200);
+    await expect(invalidResponse.json()).resolves.toSatisfy((payload: unknown) => {
+      const serialized = JSON.stringify(payload);
+      return serialized.includes('-32602') && serialized.includes('exactVersion');
+    });
   });
 
   test('tools/call get_mock_data returns unknown tool after removal', async () => {

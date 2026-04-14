@@ -18,6 +18,23 @@ import {
   searchSourceFiles,
 } from '@/lib/server/source-snapshot-service';
 
+function optionalIntegerInput(minimum: number) {
+  return zod.preprocess((value) => {
+    if (value === undefined) {
+      return undefined;
+    }
+
+    if (typeof value === 'string') {
+      const trimmed = value.trim();
+      if (/^\d+$/.test(trimmed)) {
+        return Number(trimmed);
+      }
+    }
+
+    return value;
+  }, zod.number().int().min(minimum).optional());
+}
+
 function formatToolResult(payload: unknown) {
   return {
     content: [
@@ -37,9 +54,7 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
 
   server.registerTool(
     'list_products',
-    {
-      description: 'List products with published source snapshots.',
-    },
+    { description: 'List products with published source snapshots.' },
     async () => formatToolResult(await listPublishedSnapshotProducts(scope)),
   );
 
@@ -47,9 +62,7 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
     'list_versions',
     {
       description: 'List published source-snapshot versions for a product.',
-      inputSchema: {
-        productKey: zod.string().min(1),
-      },
+      inputSchema: { productKey: zod.string().min(1) },
     },
     async ({ productKey }) => formatToolResult(await listPublishedSnapshotVersions(scope, productKey)),
   );
@@ -78,7 +91,7 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
         productKey: zod.string().min(1),
         version: zod.string().min(1),
         path: zod.string().optional(),
-        depth: zod.number().int().min(0).optional(),
+        depth: optionalIntegerInput(0),
       },
     },
     async ({ productKey, version, path, depth }) =>
@@ -93,8 +106,8 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
         productKey: zod.string().min(1),
         version: zod.string().min(1),
         path: zod.string().min(1),
-        startLine: zod.number().int().min(1).optional(),
-        endLine: zod.number().int().min(1).optional(),
+        startLine: optionalIntegerInput(1),
+        endLine: optionalIntegerInput(1),
       },
     },
     async ({ productKey, version, path, startLine, endLine }) =>
@@ -105,15 +118,12 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
     'search_source_files',
     {
       description: 'Search text in source snapshot files.',
-      inputSchema: {
-        productKey: zod.string().min(1),
-        version: zod.string().min(1),
-        query: zod.string(),
-      },
+      inputSchema: { productKey: zod.string().min(1), version: zod.string().min(1), query: zod.string() },
     },
     async ({ productKey, version, query }) => formatToolResult(await searchSourceFiles(scope, productKey, version, query)),
   );
 
+  // Indexed source tools
   server.registerTool(
     'get_codebase_summary',
     {
@@ -124,8 +134,7 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
         exactVersion: zod.string().min(1).optional(),
       },
     },
-    async ({ productKey, selector, exactVersion }) =>
-      formatToolResult(await queryCodebaseSummary(scope, { productKey, selector, exactVersion })),
+    async (input) => formatToolResult(await queryCodebaseSummary(scope, input)),
   );
 
   server.registerTool(
@@ -137,11 +146,10 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
         selector: zod.enum(['default', 'latest']).optional(),
         exactVersion: zod.string().min(1).optional(),
         query: zod.string(),
-        contextLines: zod.number().int().min(0).optional(),
+        contextLines: optionalIntegerInput(0),
       },
     },
-    async ({ productKey, selector, exactVersion, query, contextLines }) =>
-      formatToolResult(await searchSourceWithContext(scope, { productKey, selector, exactVersion, query, contextLines })),
+    async (input) => formatToolResult(await searchSourceWithContext(scope, input)),
   );
 
   server.registerTool(
@@ -155,8 +163,7 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
         componentName: zod.string().min(1),
       },
     },
-    async ({ productKey, selector, exactVersion, componentName }) =>
-      formatToolResult(await queryComponentContext(scope, { productKey, selector, exactVersion, componentName })),
+    async (input) => formatToolResult(await queryComponentContext(scope, input)),
   );
 
   server.registerTool(
@@ -170,8 +177,7 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
         typeName: zod.string().min(1),
       },
     },
-    async ({ productKey, selector, exactVersion, typeName }) =>
-      formatToolResult(await queryTypeDefinition(scope, { productKey, selector, exactVersion, typeName })),
+    async (input) => formatToolResult(await queryTypeDefinition(scope, input)),
   );
 
   server.registerTool(
@@ -184,8 +190,7 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
         exactVersion: zod.string().min(1).optional(),
       },
     },
-    async ({ productKey, selector, exactVersion }) =>
-      formatToolResult(await getSourceIndexStatus(scope, { productKey, selector, exactVersion })),
+    async (input) => formatToolResult(await getSourceIndexStatus(scope, input)),
   );
 
   return server;
