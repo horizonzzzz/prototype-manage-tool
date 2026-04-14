@@ -37,6 +37,8 @@ The system has three persistent layers:
 2. Published prototype files in `data/prototypes/<userId>/<productKey>/<version>/`
 3. Published source snapshots in `data/source-snapshots/<userId>/<productKey>/<version>/`
 
+Prisma metadata now also includes source-index lifecycle state and persisted source-index artifacts for published snapshots.
+
 Uploads are processed as build jobs. A successful job produces:
 
 - a published static prototype
@@ -64,7 +66,7 @@ Prisma CLI datasource resolution now also depends on `prisma.config.ts`, and run
 - [prisma/schema.prisma](/D:/Work/prototype-manage-tool/prisma/schema.prisma): database schema
 - [prisma.config.ts](/D:/Work/prototype-manage-tool/prisma.config.ts): Prisma 7 CLI datasource configuration
 - [pnpm-workspace.yaml](/D:/Work/prototype-manage-tool/pnpm-workspace.yaml): pnpm workspace settings, including approved native build scripts
-- [scripts](/D:/Work/prototype-manage-tool/scripts): seed and source-snapshot backfill scripts
+- [scripts](/D:/Work/prototype-manage-tool/scripts): seed plus source-snapshot/source-index backfill scripts
 - [tests](/D:/Work/prototype-manage-tool/tests): tests grouped by domain such as `admin/`, `preview/`, `build-jobs/`, `routes/`, and `upload/`
 - [data](/D:/Work/prototype-manage-tool/data): local runtime data, not source code
 
@@ -88,6 +90,8 @@ When investigating behavior, start here:
   Orchestrates product/version mutations, default/offline transitions, deletion, and archive downloadability.
 - [lib/server/source-snapshot-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-snapshot-service.ts)
   Owns snapshot persistence and the MCP-facing read/search APIs.
+- [lib/server/source-index-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-index-service.ts)
+  Owns persisted source-index queries for codebase summary, component/type lookup, mock-data summary, and context search.
 - [lib/server/prototype-mcp-server.ts](/D:/Work/prototype-manage-tool/lib/server/prototype-mcp-server.ts)
   Registers MCP tools.
 - [app/api/mcp/route.ts](/D:/Work/prototype-manage-tool/app/api/mcp/route.ts)
@@ -122,6 +126,7 @@ Main models:
 - `Product`: stable product identity keyed by `key`
 - `ProductVersion`: version metadata, publish status, default flag, storage location, preview entry URL
 - `SourceSnapshot`: persisted source tree for a published version
+- `SourceIndexArtifact`: persisted code-understanding artifact derived from a ready source snapshot
 - `UploadRecord`: build-job state, logs, archive path, workspace path, published path
 - `McpApiKey`: per-user MCP credential with expiration and encrypted token storage
 
@@ -129,6 +134,7 @@ Important status assumptions:
 
 - only `published` versions should appear in preview and MCP source browsing
 - a source snapshot is MCP-visible only when its status is `ready`
+- higher-level MCP index tools may return `pending`, `indexing`, or `failed` until the async source index becomes `ready`
 - default version must always point to a published version when one exists
 
 ## Upload and Publish Flow
@@ -150,6 +156,7 @@ Flow:
 8. Published files are copied into `data/prototypes/<userId>/<product>/<version>/`.
 9. A source snapshot is copied into `data/source-snapshots/<userId>/<product>/<version>/`.
 10. `ProductVersion` is marked `published`, and default version may be assigned automatically.
+11. A background source-index build persists summary and lookup artifacts for MCP high-level tools.
 
 Current upload constraints:
 
@@ -190,6 +197,7 @@ Relevant files:
 - [lib/server/prototype-mcp-auth.ts](/D:/Work/prototype-manage-tool/lib/server/prototype-mcp-auth.ts)
 - [lib/server/prototype-mcp-server.ts](/D:/Work/prototype-manage-tool/lib/server/prototype-mcp-server.ts)
 - [lib/server/source-snapshot-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-snapshot-service.ts)
+- [lib/server/source-index-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-index-service.ts)
 
 This repository exposes a remote MCP endpoint over stateless Streamable HTTP.
 
@@ -209,11 +217,18 @@ Current MCP tools:
 - `get_source_tree`
 - `read_source_file`
 - `search_source_files`
+- `get_codebase_summary`
+- `search_with_context`
+- `get_component_context`
+- `get_type_definitions`
+- `get_mock_data`
+- `get_source_index_status`
 
 Current product decisions:
 
 - only published versions are exposed
 - only snapshots with `status=ready` are exposed
+- source-index-backed MCP tools return index lifecycle status instead of throwing when async indexing is still pending
 - there is no page-to-file mapping yet
 - source access is filesystem-level, not semantic page-level
 
@@ -260,9 +275,9 @@ pnpm build
 
 There are targeted tests for the most important backend flows. If you change one of these areas, run the nearest targeted tests first:
 
-- source snapshots and MCP: `tests/source-snapshots/source-snapshot-service.test.ts`, `tests/mcp/mcp-route.test.ts`
+- source snapshots and MCP: `tests/source-snapshots/source-snapshot-service.test.ts`, `tests/source-snapshots/source-index-service.test.ts`, `tests/mcp/mcp-route.test.ts`
 - upload/build flow: `tests/upload/upload-service.test.ts`, `tests/build-jobs/build-job-service-source-snapshot.test.ts`
-- backfill: `tests/source-snapshots/backfill-source-snapshots.test.ts`
+- backfill: `tests/source-snapshots/backfill-source-snapshots.test.ts`, `tests/source-snapshots/backfill-source-indexes.test.ts`
 
 ## Release Rules
 
@@ -317,6 +332,7 @@ If the task is about:
 - locale-aware page routing or translation issues: start in [proxy.ts](/D:/Work/prototype-manage-tool/proxy.ts), [i18n/routing.ts](/D:/Work/prototype-manage-tool/i18n/routing.ts), [i18n/request.ts](/D:/Work/prototype-manage-tool/i18n/request.ts), and [app/[locale]/layout.tsx](/D:/Work/prototype-manage-tool/app/[locale]/layout.tsx)
 - MCP connectivity or tool behavior: start in [app/api/mcp/route.ts](/D:/Work/prototype-manage-tool/app/api/mcp/route.ts) and [lib/server/prototype-mcp-server.ts](/D:/Work/prototype-manage-tool/lib/server/prototype-mcp-server.ts)
 - source read/search correctness: start in [lib/server/source-snapshot-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-snapshot-service.ts)
+- source index summaries, context search, and component/type lookup: start in [lib/server/source-index-service.ts](/D:/Work/prototype-manage-tool/lib/server/source-index-service.ts)
 - admin UI bugs: start in [components/admin-dashboard.tsx](/D:/Work/prototype-manage-tool/components/admin-dashboard.tsx), then inspect `components/admin/hooks/*`, `components/admin/panels/*`, and `components/admin/dialogs/*` as needed
 - preview UI bugs: start in [components/preview/preview-product-list.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-product-list.tsx) and [components/preview/preview-viewer-dialog.tsx](/D:/Work/prototype-manage-tool/components/preview/preview-viewer-dialog.tsx)
 

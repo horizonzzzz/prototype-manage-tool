@@ -4,7 +4,12 @@ import { appConfig } from '@/lib/config';
 import { ensureChildPath, ensureUserVersionPathInsideRoot } from '@/lib/domain/path-safety';
 import { prisma } from '@/lib/prisma';
 import { createBuildJob } from '@/lib/server/build-job-service';
-import { deleteSourceSnapshotForVersion, deleteSourceSnapshotsForProduct } from '@/lib/server/source-snapshot-service';
+import {
+  deleteSourceIndexForVersion,
+  deleteSourceIndexesForProduct,
+  deleteSourceSnapshotForVersion,
+  deleteSourceSnapshotsForProduct,
+} from '@/lib/server/source-snapshot-service';
 
 type UploadInput = {
   userId: string;
@@ -129,6 +134,7 @@ export async function deleteVersion(userId: string, versionId: number) {
 
   const targetDir = ensureUserVersionPathInsideRoot(appConfig.prototypesDir, userId, version.product.key, version.version);
   await fse.remove(targetDir);
+  await deleteSourceIndexForVersion(userId, version.product.key, version.version);
   await deleteSourceSnapshotForVersion(userId, version.product.key, version.version);
 }
 
@@ -154,6 +160,7 @@ export async function deleteProduct(userId: string, productKey: string) {
 
   const targetDir = ensureChildPath(appConfig.prototypesDir, userId, productKey);
   await fse.remove(targetDir);
+  await deleteSourceIndexesForProduct(userId, productKey);
   await deleteSourceSnapshotsForProduct(userId, productKey);
 }
 

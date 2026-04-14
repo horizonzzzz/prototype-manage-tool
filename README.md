@@ -17,6 +17,8 @@ The application stores and serves three different kinds of state:
 - published static artifacts in `data/prototypes/<userId>/<productKey>/<version>/`
 - published source snapshots in `data/source-snapshots/<userId>/<productKey>/<version>/`
 
+Prisma metadata now also stores source-index lifecycle state plus persisted codebase-analysis artifacts for published snapshots.
+
 Two product rules shape the whole system:
 
 - only `published` versions appear in `/preview`
@@ -43,6 +45,7 @@ This means preview and MCP both read from already-published outputs. They do not
 5. Published files are copied into `data/prototypes/<userId>/<productKey>/<version>/`.
 6. A source snapshot is copied into `data/source-snapshots/<userId>/<productKey>/<version>/`.
 7. The version becomes available to `/preview`, and the source snapshot becomes available to MCP after it is marked `ready`.
+8. A background source-index build derives codebase summary, dependency, type, mock-data, and contextual-search artifacts for higher-level MCP tools.
 
 ## Quick Start
 
@@ -109,6 +112,7 @@ Unprefixed app routes render `zh`. English routes live under `/en/*`.
 | `pnpm typecheck` | Run TypeScript type checking |
 | `pnpm build` | Build the Next.js app |
 | `pnpm backfill:source-snapshots` | Create missing source snapshots for already-published versions |
+| `pnpm backfill:source-indexes` | Rebuild missing or failed source indexes for published ready snapshots |
 
 ### Schema Workflow Note
 
@@ -200,6 +204,7 @@ Most MCP clients can register the server with a block like this:
 Use `http://localhost:3000/api/mcp` for local development unless you have real HTTPS configured.
 If you deploy behind a reverse proxy, make sure it forwards the `Authorization` header.
 Each MCP key is scoped to one user account, so the MCP tools only see products that user explicitly authorized on the key.
+Low-level file tools continue to work from ready source snapshots. Higher-level code-understanding tools depend on the async source index and may return `pending`, `indexing`, or `failed` status until the index is ready.
 
 ### Available MCP Tools
 
@@ -209,11 +214,23 @@ Each MCP key is scoped to one user account, so the MCP tools only see products t
 - `get_source_tree`
 - `read_source_file`
 - `search_source_files`
+- `get_codebase_summary`
+- `search_with_context`
+- `get_component_context`
+- `get_type_definitions`
+- `get_mock_data`
+- `get_source_index_status`
 
 If you already had published versions before source snapshots existed, run:
 
 ```bash
 pnpm backfill:source-snapshots
+```
+
+If you added published versions before source indexing existed, or if async indexing was interrupted, run:
+
+```bash
+pnpm backfill:source-indexes
 ```
 
 ## Configuration Reference

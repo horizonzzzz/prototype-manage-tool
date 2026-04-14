@@ -3,6 +3,14 @@ import zod from 'zod/v4';
 
 import type { McpAccessScope } from '@/lib/server/mcp-api-key-service';
 import {
+  getSourceIndexStatus,
+  queryCodebaseSummary,
+  queryComponentContext,
+  queryMockDataSummary,
+  queryTypeDefinition,
+  searchSourceWithContext,
+} from '@/lib/server/source-index-service';
+import {
   getSourceTree,
   listPublishedSnapshotProducts,
   listPublishedSnapshotVersions,
@@ -105,6 +113,94 @@ export function createPrototypeMcpServer(scope: McpAccessScope) {
       },
     },
     async ({ productKey, version, query }) => formatToolResult(await searchSourceFiles(scope, productKey, version, query)),
+  );
+
+  server.registerTool(
+    'get_codebase_summary',
+    {
+      description: 'Get a high-level codebase summary for a published source snapshot.',
+      inputSchema: {
+        productKey: zod.string().min(1),
+        selector: zod.enum(['default', 'latest']).optional(),
+        exactVersion: zod.string().min(1).optional(),
+      },
+    },
+    async ({ productKey, selector, exactVersion }) =>
+      formatToolResult(await queryCodebaseSummary(scope, { productKey, selector, exactVersion })),
+  );
+
+  server.registerTool(
+    'search_with_context',
+    {
+      description: 'Search text in indexed source files and return contextual matches.',
+      inputSchema: {
+        productKey: zod.string().min(1),
+        selector: zod.enum(['default', 'latest']).optional(),
+        exactVersion: zod.string().min(1).optional(),
+        query: zod.string(),
+        contextLines: zod.number().int().min(0).optional(),
+      },
+    },
+    async ({ productKey, selector, exactVersion, query, contextLines }) =>
+      formatToolResult(await searchSourceWithContext(scope, { productKey, selector, exactVersion, query, contextLines })),
+  );
+
+  server.registerTool(
+    'get_component_context',
+    {
+      description: 'Get indexed context for a component or page-like module.',
+      inputSchema: {
+        productKey: zod.string().min(1),
+        selector: zod.enum(['default', 'latest']).optional(),
+        exactVersion: zod.string().min(1).optional(),
+        componentName: zod.string().min(1),
+      },
+    },
+    async ({ productKey, selector, exactVersion, componentName }) =>
+      formatToolResult(await queryComponentContext(scope, { productKey, selector, exactVersion, componentName })),
+  );
+
+  server.registerTool(
+    'get_type_definitions',
+    {
+      description: 'Get indexed type definition locations and usage context.',
+      inputSchema: {
+        productKey: zod.string().min(1),
+        selector: zod.enum(['default', 'latest']).optional(),
+        exactVersion: zod.string().min(1).optional(),
+        typeName: zod.string().min(1),
+      },
+    },
+    async ({ productKey, selector, exactVersion, typeName }) =>
+      formatToolResult(await queryTypeDefinition(scope, { productKey, selector, exactVersion, typeName })),
+  );
+
+  server.registerTool(
+    'get_mock_data',
+    {
+      description: 'Get indexed mock-data and fixture summaries.',
+      inputSchema: {
+        productKey: zod.string().min(1),
+        selector: zod.enum(['default', 'latest']).optional(),
+        exactVersion: zod.string().min(1).optional(),
+      },
+    },
+    async ({ productKey, selector, exactVersion }) =>
+      formatToolResult(await queryMockDataSummary(scope, { productKey, selector, exactVersion })),
+  );
+
+  server.registerTool(
+    'get_source_index_status',
+    {
+      description: 'Get source index build status for a published source snapshot.',
+      inputSchema: {
+        productKey: zod.string().min(1),
+        selector: zod.enum(['default', 'latest']).optional(),
+        exactVersion: zod.string().min(1).optional(),
+      },
+    },
+    async ({ productKey, selector, exactVersion }) =>
+      formatToolResult(await getSourceIndexStatus(scope, { productKey, selector, exactVersion })),
   );
 
   return server;

@@ -94,14 +94,34 @@ model SourceSnapshot {
   id          Int            @id @default(autoincrement())
   versionId   Int            @unique
   status      String
+  indexStatus String         @default("pending")
   rootPath    String
   fileCount   Int            @default(0)
   totalBytes  Int            @default(0)
   generatedAt DateTime?
   errorMessage String?
+  indexGeneratedAt DateTime?
+  indexErrorMessage String?
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   version     ProductVersion @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  indexArtifacts SourceIndexArtifact[]
+}
+
+model SourceIndexArtifact {
+  id            Int            @id @default(autoincrement())
+  snapshotId    Int
+  artifactKey   String
+  contentJson   String
+  status        String
+  generatedAt   DateTime?
+  errorMessage  String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  snapshot      SourceSnapshot @relation(fields: [snapshotId], references: [id], onDelete: Cascade)
+
+  @@unique([snapshotId, artifactKey])
+  @@index([snapshotId])
 }
 
 model UploadRecord {

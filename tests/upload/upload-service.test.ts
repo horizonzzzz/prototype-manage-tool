@@ -16,6 +16,8 @@ const {
   transactionMock,
   deleteSourceSnapshotForVersionMock,
   deleteSourceSnapshotsForProductMock,
+  deleteSourceIndexForVersionMock,
+  deleteSourceIndexesForProductMock,
 } =
   vi.hoisted(() => ({
     pathExistsMock: vi.fn(),
@@ -31,6 +33,8 @@ const {
     transactionMock: vi.fn(),
     deleteSourceSnapshotForVersionMock: vi.fn(),
     deleteSourceSnapshotsForProductMock: vi.fn(),
+    deleteSourceIndexForVersionMock: vi.fn(),
+    deleteSourceIndexesForProductMock: vi.fn(),
   }));
 
 vi.mock('fs-extra', () => ({
@@ -73,6 +77,8 @@ vi.mock('@/lib/server/build-job-service', () => ({
 vi.mock('@/lib/server/source-snapshot-service', () => ({
   deleteSourceSnapshotForVersion: deleteSourceSnapshotForVersionMock,
   deleteSourceSnapshotsForProduct: deleteSourceSnapshotsForProductMock,
+  deleteSourceIndexForVersion: deleteSourceIndexForVersionMock,
+  deleteSourceIndexesForProduct: deleteSourceIndexesForProductMock,
 }));
 
 import { deleteProduct, deleteVersion, getVersionDownloadabilityMap, getVersionSourceArchive } from '@/lib/server/upload-service';
@@ -105,6 +111,7 @@ describe('deleteVersion', () => {
     productVersionDeleteMock.mockResolvedValue({ id: 11 });
     removeMock.mockResolvedValue(undefined);
     deleteSourceSnapshotForVersionMock.mockResolvedValue(undefined);
+    deleteSourceIndexForVersionMock.mockResolvedValue(undefined);
 
     await deleteVersion('user-1', 11);
 
@@ -112,6 +119,7 @@ describe('deleteVersion', () => {
     expect(productVersionDeleteMock).toHaveBeenCalledWith({ where: { id: 11 } });
     expect(removeMock).toHaveBeenCalledWith(path.join('C:/prototypes-root', 'user-1', 'crm', 'v1.0.0'));
     expect(deleteSourceSnapshotForVersionMock).toHaveBeenCalledWith('user-1', 'crm', 'v1.0.0');
+    expect(deleteSourceIndexForVersionMock).toHaveBeenCalledWith('user-1', 'crm', 'v1.0.0');
   });
 });
 
@@ -140,6 +148,7 @@ describe('deleteProduct', () => {
     uploadRecordDeleteManyMock.mockResolvedValue({ count: 2 });
     productDeleteMock.mockResolvedValue({ id: 1 });
     removeMock.mockResolvedValue(undefined);
+    deleteSourceIndexesForProductMock.mockResolvedValue(undefined);
 
     await deleteProduct('user-1', 'crm');
 
@@ -156,6 +165,7 @@ describe('deleteProduct', () => {
     });
     expect(removeMock).toHaveBeenCalledWith(path.join('C:/prototypes-root', 'user-1', 'crm'));
     expect(deleteSourceSnapshotsForProductMock).toHaveBeenCalledWith('user-1', 'crm');
+    expect(deleteSourceIndexesForProductMock).toHaveBeenCalledWith('user-1', 'crm');
   });
 
   test('throws when deleting a missing product', async () => {
@@ -166,6 +176,7 @@ describe('deleteProduct', () => {
     expect(transactionMock).not.toHaveBeenCalled();
     expect(removeMock).not.toHaveBeenCalled();
     expect(deleteSourceSnapshotsForProductMock).not.toHaveBeenCalled();
+    expect(deleteSourceIndexesForProductMock).not.toHaveBeenCalled();
   });
 });
 

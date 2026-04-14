@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 const {
   requirePrototypeMcpAuthMock,
   getSourceTreeMock,
+  queryCodebaseSummaryMock,
   listPublishedSnapshotProductsMock,
   listPublishedSnapshotVersionsMock,
   readSourceFileMock,
@@ -11,6 +12,7 @@ const {
 } = vi.hoisted(() => ({
   requirePrototypeMcpAuthMock: vi.fn(),
   getSourceTreeMock: vi.fn(),
+  queryCodebaseSummaryMock: vi.fn(),
   listPublishedSnapshotProductsMock: vi.fn(),
   listPublishedSnapshotVersionsMock: vi.fn(),
   readSourceFileMock: vi.fn(),
@@ -29,6 +31,10 @@ vi.mock('@/lib/server/source-snapshot-service', () => ({
   readSourceFile: readSourceFileMock,
   resolvePublishedSnapshotVersion: resolvePublishedSnapshotVersionMock,
   searchSourceFiles: searchSourceFilesMock,
+}));
+
+vi.mock('@/lib/server/source-index-service', () => ({
+  queryCodebaseSummary: queryCodebaseSummaryMock,
 }));
 
 import { DELETE, GET, POST } from '@/app/api/mcp/route';
@@ -158,6 +164,55 @@ describe('POST /api/mcp', () => {
       apiKeyId: 101,
       allowedProductIds: [11],
     });
+  });
+
+  test('tools/call get_codebase_summary resolves selector and forwards mcp scope', async () => {
+    queryCodebaseSummaryMock.mockResolvedValue({
+      status: 'ready',
+      warnings: [],
+      payload: {
+        framework: 'react',
+      },
+    });
+
+    const response = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-2',
+          method: 'tools/call',
+          params: {
+            name: 'get_codebase_summary',
+            arguments: {
+              productKey: 'crm',
+              selector: 'latest',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toSatisfy((payload: unknown) => JSON.stringify(payload).includes('react'));
+    expect(queryCodebaseSummaryMock).toHaveBeenCalledTimes(1);
+    expect(queryCodebaseSummaryMock).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        apiKeyId: 101,
+        allowedProductIds: [11],
+      },
+      {
+        productKey: 'crm',
+        selector: 'latest',
+        exactVersion: undefined,
+      },
+    );
   });
 });
 

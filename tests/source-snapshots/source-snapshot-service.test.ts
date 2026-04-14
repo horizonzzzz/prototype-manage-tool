@@ -5,11 +5,28 @@ import path from 'node:path';
 import fse from 'fs-extra';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
-const { sourceSnapshotUpsertMock, productFindManyMock, productVersionFindManyMock, productVersionFindFirstMock } = vi.hoisted(() => ({
+const {
+  sourceSnapshotUpsertMock,
+  sourceSnapshotFindUniqueMock,
+  sourceSnapshotUpdateManyMock,
+  sourceSnapshotUpdateMock,
+  sourceIndexArtifactDeleteManyMock,
+  sourceIndexArtifactCreateMock,
+  productFindManyMock,
+  productVersionFindManyMock,
+  productVersionFindFirstMock,
+  transactionMock,
+} = vi.hoisted(() => ({
   sourceSnapshotUpsertMock: vi.fn(),
+  sourceSnapshotFindUniqueMock: vi.fn(),
+  sourceSnapshotUpdateManyMock: vi.fn(),
+  sourceSnapshotUpdateMock: vi.fn(),
+  sourceIndexArtifactDeleteManyMock: vi.fn(),
+  sourceIndexArtifactCreateMock: vi.fn(),
   productFindManyMock: vi.fn(),
   productVersionFindManyMock: vi.fn(),
   productVersionFindFirstMock: vi.fn(),
+  transactionMock: vi.fn(),
 }));
 
 const testState = vi.hoisted(() => ({
@@ -34,13 +51,24 @@ vi.mock('@/lib/prisma', () => ({
       findFirst: productVersionFindFirstMock,
     },
     sourceSnapshot: {
+      findUnique: sourceSnapshotFindUniqueMock,
       upsert: sourceSnapshotUpsertMock,
+      update: sourceSnapshotUpdateMock,
+      updateMany: sourceSnapshotUpdateManyMock,
     },
+    sourceIndexArtifact: {
+      deleteMany: sourceIndexArtifactDeleteManyMock,
+      create: sourceIndexArtifactCreateMock,
+    },
+    $transaction: transactionMock,
   },
 }));
 
 import {
   createSourceSnapshot,
+  rebuildSourceSnapshotIndex,
+  deleteSourceIndexForVersion,
+  deleteSourceIndexesForProduct,
   deleteSourceSnapshotForVersion,
   deleteSourceSnapshotsForProduct,
   getSourceTree,
@@ -63,9 +91,25 @@ describe('source snapshot service', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     sourceSnapshotUpsertMock.mockResolvedValue({});
+    sourceSnapshotFindUniqueMock.mockResolvedValue(null);
+    sourceSnapshotUpdateManyMock.mockResolvedValue({ count: 1 });
+    sourceSnapshotUpdateMock.mockResolvedValue({});
+    sourceIndexArtifactDeleteManyMock.mockResolvedValue({ count: 0 });
+    sourceIndexArtifactCreateMock.mockResolvedValue({});
     productFindManyMock.mockResolvedValue([]);
     productVersionFindManyMock.mockResolvedValue([]);
     productVersionFindFirstMock.mockResolvedValue(null);
+    transactionMock.mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) =>
+      callback({
+        sourceSnapshot: {
+          update: sourceSnapshotUpdateMock,
+        },
+        sourceIndexArtifact: {
+          deleteMany: sourceIndexArtifactDeleteManyMock,
+          create: sourceIndexArtifactCreateMock,
+        },
+      }),
+    );
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'source-snapshot-service-'));
     testState.sourceSnapshotsDir = path.join(tmpDir, 'source-snapshots');
   });
@@ -116,19 +160,25 @@ describe('source snapshot service', () => {
       create: {
         versionId: 1001,
         status: 'ready',
+        indexStatus: 'pending',
         rootPath: snapshotDir,
         fileCount: 2,
         totalBytes: 8,
         generatedAt: expect.any(Date),
         errorMessage: null,
+        indexGeneratedAt: null,
+        indexErrorMessage: null,
       },
       update: {
         status: 'ready',
+        indexStatus: 'pending',
         rootPath: snapshotDir,
         fileCount: 2,
         totalBytes: 8,
         generatedAt: expect.any(Date),
         errorMessage: null,
+        indexGeneratedAt: null,
+        indexErrorMessage: null,
       },
     });
   });
@@ -162,6 +212,196 @@ describe('source snapshot service', () => {
     await expect(fse.pathExists(otherProductDir)).resolves.toBe(true);
   });
 
+  test('deletes source index records for one version', async () => {
+    await deleteSourceIndexForVersion('user-1', 'crm', 'v1.0.0');
+
+    expect(sourceIndexArtifactDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        snapshot: {
+          version: {
+            version: 'v1.0.0',
+            product: {
+              key: 'crm',
+              ownerId: 'user-1',
+            },
+          },
+        },
+      },
+    });
+  });
+
+  test('deletes source index records for all versions under a product', async () => {
+    await deleteSourceIndexesForProduct('user-1', 'crm');
+
+    expect(sourceIndexArtifactDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        snapshot: {
+          version: {
+            product: {
+              key: 'crm',
+              ownerId: 'user-1',
+            },
+          },
+        },
+      },
+    });
+  });
+
+  test('rebuilds source index by versionId and applies indexing -> ready lifecycle', async () => {
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.0');
+    await fse.ensureDir(path.join(snapshotDir, 'src', 'components'));
+    await fs.writeFile(
+      path.join(snapshotDir, 'package.json'),
+      JSON.stringify(
+        {
+          name: 'crm-ui',
+          dependencies: {
+            react: '^19.0.0',
+            'react-router-dom': '^7.0.0',
+          },
+          devDependencies: {
+            vite: '^6.0.0',
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'App.tsx'),
+      'import { BrowserRouter } from "react-router-dom";\n' +
+        'import { Button } from "./components/Button";\n' +
+        'export function App() { return <BrowserRouter><Button /></BrowserRouter>; }\n',
+    );
+    await fs.writeFile(path.join(snapshotDir, 'src', 'components', 'Button.tsx'), 'export function Button() { return <button />; }\n');
+    await fs.writeFile(path.join(snapshotDir, 'src', 'types.ts'), 'export interface User { id: string }\n');
+    await fs.writeFile(path.join(snapshotDir, 'src', 'mocks.ts'), 'export const mockUsers = [{ id: "u-1" }];\n');
+
+    sourceSnapshotFindUniqueMock.mockResolvedValue({
+      id: 5001,
+      status: 'ready',
+      rootPath: snapshotDir,
+    });
+
+    await rebuildSourceSnapshotIndex(701);
+
+    expect(sourceSnapshotFindUniqueMock).toHaveBeenCalledWith({
+      where: { versionId: 701 },
+      select: {
+        id: true,
+        status: true,
+        rootPath: true,
+      },
+    });
+    expect(sourceSnapshotUpdateMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({
+        where: { id: 5001 },
+        data: {
+          indexStatus: 'indexing',
+          indexGeneratedAt: null,
+          indexErrorMessage: null,
+        },
+      }),
+    );
+    expect(sourceIndexArtifactDeleteManyMock).toHaveBeenCalledWith({
+      where: {
+        snapshotId: 5001,
+        artifactKey: 'source-tree-v1',
+      },
+    });
+    expect(sourceIndexArtifactCreateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          snapshotId: 5001,
+          artifactKey: 'source-tree-v1',
+          contentJson: expect.any(String),
+          status: 'ready',
+          generatedAt: expect.any(Date),
+          errorMessage: null,
+        }),
+      }),
+    );
+    expect(sourceSnapshotUpdateMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({
+        where: { id: 5001 },
+        data: expect.objectContaining({
+          indexStatus: 'ready',
+          indexGeneratedAt: expect.any(Date),
+          indexErrorMessage: null,
+        }),
+      }),
+    );
+    expect(sourceSnapshotUpdateMock.mock.invocationCallOrder[0]).toBeLessThan(sourceSnapshotUpdateMock.mock.invocationCallOrder[1]);
+
+    const createPayload = sourceIndexArtifactCreateMock.mock.calls[0]?.[0];
+    const parsedArtifact = JSON.parse(createPayload.data.contentJson as string) as Record<string, unknown>;
+    expect(parsedArtifact).toMatchObject({
+      format: 'source-tree-v1',
+      snapshotVersionId: 701,
+      summary: expect.objectContaining({
+        frameworkHints: expect.arrayContaining(['react', 'vite']),
+        routingMode: 'react-router',
+      }),
+      files: expect.arrayContaining([
+        expect.objectContaining({
+          path: 'src/components/Button.tsx',
+          symbols: expect.objectContaining({
+            components: expect.arrayContaining([expect.objectContaining({ name: 'Button' })]),
+          }),
+        }),
+        expect.objectContaining({
+          path: 'src/types.ts',
+          symbols: expect.objectContaining({
+            types: expect.arrayContaining([expect.objectContaining({ name: 'User', kind: 'interface' })]),
+          }),
+        }),
+        expect.objectContaining({
+          path: 'src/mocks.ts',
+          symbols: expect.objectContaining({
+            mocks: expect.arrayContaining([expect.objectContaining({ name: 'mockUsers' })]),
+          }),
+        }),
+      ]),
+    });
+  });
+
+  test('marks index status failed when rebuild fails after entering indexing', async () => {
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.1.0');
+    await fse.ensureDir(path.join(snapshotDir, 'src'));
+    await fs.writeFile(path.join(snapshotDir, 'package.json'), JSON.stringify({ name: 'crm-ui' }, null, 2));
+    await fs.writeFile(path.join(snapshotDir, 'src', 'index.ts'), 'export const ready = true;\n');
+
+    sourceSnapshotFindUniqueMock.mockResolvedValue({
+      id: 5002,
+      status: 'ready',
+      rootPath: snapshotDir,
+    });
+    sourceIndexArtifactCreateMock.mockRejectedValueOnce(new Error('artifact creation failed'));
+
+    await expect(rebuildSourceSnapshotIndex(702)).rejects.toThrow('artifact creation failed');
+
+    expect(sourceSnapshotUpdateMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 5002 },
+        data: {
+          indexStatus: 'indexing',
+          indexGeneratedAt: null,
+          indexErrorMessage: null,
+        },
+      }),
+    );
+    expect(sourceSnapshotUpdateManyMock).toHaveBeenCalledWith({
+      where: { versionId: 702 },
+      data: {
+        indexStatus: 'failed',
+        indexGeneratedAt: null,
+        indexErrorMessage: 'artifact creation failed',
+      },
+    });
+  });
+
   test('removes partial snapshot and records failed metadata when snapshot creation fails', async () => {
     const sourceDir = path.join(tmpDir, 'source-fail');
     await fse.ensureDir(sourceDir);
@@ -191,19 +431,25 @@ describe('source snapshot service', () => {
       create: {
         versionId: 2002,
         status: 'failed',
+        indexStatus: 'failed',
         rootPath: snapshotDir,
         fileCount: 0,
         totalBytes: 0,
         generatedAt: null,
         errorMessage: 'copy failed on purpose',
+        indexGeneratedAt: null,
+        indexErrorMessage: 'copy failed on purpose',
       },
       update: {
         status: 'failed',
+        indexStatus: 'failed',
         rootPath: snapshotDir,
         fileCount: 0,
         totalBytes: 0,
         generatedAt: null,
         errorMessage: 'copy failed on purpose',
+        indexGeneratedAt: null,
+        indexErrorMessage: 'copy failed on purpose',
       },
     });
 

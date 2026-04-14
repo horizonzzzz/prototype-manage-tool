@@ -30,7 +30,7 @@ import {
 } from '@/lib/server/build-job-log-stream';
 import { ensureAppDirectories, extractZipToTemp, findFileRoot, publishExtractedDir } from '@/lib/server/fs-utils';
 import { serializeUploadRecord } from '@/lib/server/serializers';
-import { createSourceSnapshot } from '@/lib/server/source-snapshot-service';
+import { createSourceSnapshot, scheduleSourceSnapshotIndexBuild } from '@/lib/server/source-snapshot-service';
 import { buildBuildJobStageText, isBuildJobLogStep, isBuildJobLogStreamStep } from '@/lib/ui/build-job-log';
 import type { BuildJobLogItem, BuildJobLogStep, BuildJobLogStreamStep } from '@/lib/types';
 
@@ -315,6 +315,7 @@ async function runBuildJob(jobId: number) {
   const { archivePath, extractPath, jobDir, workspacePath } = getJobPaths(job.id, job.fileName);
   let steps = parseJobSteps(job.stepsJson);
   let publishedPath: string | null = null;
+  let snapshotVersionId: number | null = null;
   let activeLogStep: BuildJobLogStreamStep | null = null;
   let activeLogSink: BuildJobLiveLogSink | null = null;
 
@@ -338,6 +339,7 @@ async function runBuildJob(jobId: number) {
     if (!targetVersion) {
       throw new Error('Version not found');
     }
+    snapshotVersionId = targetVersion.id;
     await createSourceSnapshot({
       userId: job.userId,
       versionId: targetVersion.id,
@@ -428,6 +430,13 @@ async function runBuildJob(jobId: number) {
     steps = await markStep(jobId, steps, 'publish', 'success', 'dist 已发布到预览目录');
 
     await finalizeBuildJobSuccess(jobId, publishedPath, steps);
+    if (snapshotVersionId !== null && typeof scheduleSourceSnapshotIndexBuild === 'function') {
+      try {
+        scheduleSourceSnapshotIndexBuild(snapshotVersionId);
+      } catch {
+        // Index scheduling is async best-effort and must not retroactively fail a published build.
+      }
+    }
   } catch (error) {
     const message = error instanceof Error ? error.message : '后台构建失败';
     if (activeLogSink) {
