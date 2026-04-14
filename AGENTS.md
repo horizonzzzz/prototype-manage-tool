@@ -312,6 +312,8 @@ Practical guidance:
 Prefer these rules when editing:
 
 - Before making code changes, re-read this `AGENTS.md` and update it in the same branch when the implementation or workflow conventions here become stale.
+- Keep code maintainable. If a file becomes too long, too dense, or starts mixing multiple responsibilities, split it into focused modules instead of continuing to grow a monolith.
+- After finishing code changes, do a final pass on this `AGENTS.md` and update it in the same branch if the implementation details, workflow conventions, or agent guidance changed.
 - Keep business rules in `lib/domain` or `lib/server`, not inside route handlers.
 - Keep route handlers thin. Validate input, call service layer, serialize output.
 - Preserve user isolation. Product/version/upload/build-job queries must scope by the authenticated user unless the task is explicitly MCP-related.
