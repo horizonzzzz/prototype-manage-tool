@@ -66,7 +66,7 @@ Prisma CLI datasource resolution now also depends on `prisma.config.ts`, and run
 - [prisma/schema.prisma](/D:/Work/prototype-manage-tool/prisma/schema.prisma): database schema
 - [prisma.config.ts](/D:/Work/prototype-manage-tool/prisma.config.ts): Prisma 7 CLI datasource configuration
 - [pnpm-workspace.yaml](/D:/Work/prototype-manage-tool/pnpm-workspace.yaml): pnpm workspace settings, including approved native build scripts
-- [scripts](/D:/Work/prototype-manage-tool/scripts): seed plus source-snapshot/source-index backfill scripts
+- [scripts](/D:/Work/prototype-manage-tool/scripts): seed and release-support scripts
 - [tests](/D:/Work/prototype-manage-tool/tests): tests grouped by domain such as `admin/`, `preview/`, `build-jobs/`, `routes/`, and `upload/`
 - [data](/D:/Work/prototype-manage-tool/data): local runtime data, not source code
 
@@ -277,7 +277,6 @@ There are targeted tests for the most important backend flows. If you change one
 
 - source snapshots and MCP: `tests/source-snapshots/source-snapshot-service.test.ts`, `tests/source-snapshots/source-index-service.test.ts`, `tests/mcp/mcp-route.test.ts`
 - upload/build flow: `tests/upload/upload-service.test.ts`, `tests/build-jobs/build-job-service-source-snapshot.test.ts`
-- backfill: `tests/source-snapshots/backfill-source-snapshots.test.ts`, `tests/source-snapshots/backfill-source-indexes.test.ts`
 
 ## Release Rules
 

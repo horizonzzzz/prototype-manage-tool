@@ -111,8 +111,6 @@ Unprefixed app routes render `zh`. English routes live under `/en/*`.
 | `pnpm test` | Run the Vitest suite with coverage |
 | `pnpm typecheck` | Run TypeScript type checking |
 | `pnpm build` | Build the Next.js app |
-| `pnpm backfill:source-snapshots` | Create missing source snapshots for already-published versions |
-| `pnpm backfill:source-indexes` | Rebuild missing or failed source indexes for published ready snapshots |
 
 ### Schema Workflow Note
 
@@ -220,18 +218,6 @@ Low-level file tools continue to work from ready source snapshots. Higher-level 
 - `get_type_definitions`
 - `get_mock_data`
 - `get_source_index_status`
-
-If you already had published versions before source snapshots existed, run:
-
-```bash
-pnpm backfill:source-snapshots
-```
-
-If you added published versions before source indexing existed, or if async indexing was interrupted, run:
-
-```bash
-pnpm backfill:source-indexes
-```
 
 ## Configuration Reference
 

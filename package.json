@@ -19,9 +19,7 @@
     "prisma:migrate": "prisma migrate dev --name init",
     "db:push": "prisma db push",
     "db:seed": "tsx scripts/seed.ts",
-    "init": "pnpm prisma:generate && pnpm db:push && pnpm db:seed",
-    "backfill:source-snapshots": "tsx scripts/backfill-source-snapshots.ts",
-    "backfill:source-indexes": "tsx scripts/backfill-source-indexes.ts"
+    "init": "pnpm prisma:generate && pnpm db:push && pnpm db:seed"
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.11.1",
