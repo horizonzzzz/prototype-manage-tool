@@ -36,6 +36,15 @@ type SourceIndexQueueState = {
   draining: boolean;
 };
 
+type ImportResolutionConfig = {
+  baseUrl: string | null;
+  paths: Array<{
+    pattern: string;
+    targets: string[];
+  }>;
+  warnings: string[];
+};
+
 const EXCLUDED_DIRECTORIES = new Set(['node_modules', '.git', '.next', 'dist', 'build', 'coverage']);
 const MAX_DIRECTORY_ENTRIES = 500;
 const MAX_TEXT_FILE_BYTES = 256 * 1024;
@@ -203,6 +212,15 @@ function dedupeStrings(values: string[]) {
   return [...new Set(values)];
 }
 
+function normalizePosixPath(value: string) {
+  const normalized = path.posix.normalize(value.replace(/\\/g, '/'));
+  if (normalized === '.') {
+    return normalized;
+  }
+
+  return normalized.replace(/^\.\/+/, '');
+}
+
 function parseImports(source: string) {
   const imports: string[] = [];
   const importRegex = /\bimport\s+(?:type\s+)?(?:[^'";]+?\s+from\s+)?["']([^"']+)["']/g;
@@ -249,7 +267,7 @@ function parseComponentCandidates(source: string, extension: string) {
 
   const components: IndexedComponentCandidate[] = [];
   const functionRegex = /\b(?:export\s+default\s+)?function\s+([A-Z][A-Za-z0-9_]*)\s*\(/g;
-  const constRegex = /\b(?:export\s+)?const\s+([A-Z][A-Za-z0-9_]*)\s*=\s*(?:async\s*)?(?:\(|<)/g;
+  const constRegex = /\b(?:export\s+)?const\s+([A-Z][A-Za-z0-9_]*)\s*(?::[\s\S]*?)?=\s*(?:async\s*)?(?:\(|<)/g;
 
   for (const regex of [functionRegex, constRegex]) {
     let match: RegExpExecArray | null;
@@ -311,13 +329,7 @@ function parseMockCandidates(relativePath: string, source: string) {
   return mocks;
 }
 
-function resolveLocalImportPath(fromPath: string, importPath: string, knownFilePaths: Set<string>) {
-  if (!importPath.startsWith('.')) {
-    return null;
-  }
-
-  const baseDir = path.posix.dirname(fromPath);
-  const normalizedBase = path.posix.normalize(path.posix.join(baseDir, importPath));
+function resolveKnownImportPath(normalizedBase: string, knownFilePaths: Set<string>) {
   const candidates = [
     normalizedBase,
     ...LOCAL_IMPORT_RESOLVE_EXTENSIONS.map((extension) => `${normalizedBase}${extension}`),
@@ -327,6 +339,135 @@ function resolveLocalImportPath(fromPath: string, importPath: string, knownFileP
   for (const candidate of candidates) {
     if (knownFilePaths.has(candidate)) {
       return candidate;
+    }
+  }
+
+  return null;
+}
+
+function matchesAliasPattern(pattern: string, importPath: string) {
+  const wildcardIndex = pattern.indexOf('*');
+  if (wildcardIndex < 0) {
+    return importPath === pattern ? '' : null;
+  }
+
+  const prefix = pattern.slice(0, wildcardIndex);
+  const suffix = pattern.slice(wildcardIndex + 1);
+  if (!importPath.startsWith(prefix) || !importPath.endsWith(suffix)) {
+    return null;
+  }
+
+  return importPath.slice(prefix.length, importPath.length - suffix.length);
+}
+
+async function loadImportResolutionConfig(rootPath: string): Promise<ImportResolutionConfig> {
+  const warnings: string[] = [];
+  const configCandidates = ['tsconfig.json', 'jsconfig.json'];
+  let configName: string | null = null;
+  let configContent: string | null = null;
+
+  for (const candidate of configCandidates) {
+    const candidatePath = path.join(rootPath, candidate);
+    try {
+      configContent = await fs.readFile(candidatePath, 'utf8');
+      configName = candidate;
+      break;
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+        warnings.push(`Unable to read ${candidate}`);
+      }
+    }
+  }
+
+  if (!configName || configContent === null) {
+    return {
+      baseUrl: null,
+      paths: [],
+      warnings,
+    };
+  }
+
+  try {
+    const parsed = JSON.parse(configContent) as {
+      compilerOptions?: {
+        baseUrl?: string;
+        paths?: Record<string, string[] | string>;
+      };
+    };
+    const compilerOptions = parsed.compilerOptions ?? {};
+    const normalizedBaseUrl =
+      typeof compilerOptions.baseUrl === 'string' && compilerOptions.baseUrl.trim()
+        ? normalizePosixPath(compilerOptions.baseUrl.trim())
+        : null;
+    const rawPaths = compilerOptions.paths ?? {};
+    const paths = Object.entries(rawPaths).flatMap(([pattern, targets]) => {
+      const normalizedTargets = (Array.isArray(targets) ? targets : [targets])
+        .filter((target): target is string => typeof target === 'string' && Boolean(target.trim()))
+        .map((target) => normalizePosixPath(target.trim()));
+      if (!pattern.trim() || normalizedTargets.length === 0) {
+        return [];
+      }
+
+      return [
+        {
+          pattern: pattern.trim(),
+          targets: normalizedTargets,
+        },
+      ];
+    });
+
+    return {
+      baseUrl: normalizedBaseUrl,
+      paths,
+      warnings,
+    };
+  } catch {
+    warnings.push(`Unable to parse ${configName}`);
+    return {
+      baseUrl: null,
+      paths: [],
+      warnings,
+    };
+  }
+}
+
+function resolveLocalImportPath(
+  fromPath: string,
+  importPath: string,
+  knownFilePaths: Set<string>,
+  importResolutionConfig: ImportResolutionConfig,
+) {
+  if (importPath.startsWith('.')) {
+    const baseDir = path.posix.dirname(fromPath);
+    const normalizedBase = normalizePosixPath(path.posix.join(baseDir, importPath));
+    return resolveKnownImportPath(normalizedBase, knownFilePaths);
+  }
+
+  for (const alias of importResolutionConfig.paths) {
+    const wildcardValue = matchesAliasPattern(alias.pattern, importPath);
+    if (wildcardValue === null) {
+      continue;
+    }
+
+    for (const target of alias.targets) {
+      const substitutedTarget = target.includes('*') ? target.replace('*', wildcardValue) : target;
+      const basePath = importResolutionConfig.baseUrl
+        ? normalizePosixPath(path.posix.join(importResolutionConfig.baseUrl, substitutedTarget))
+        : normalizePosixPath(substitutedTarget);
+      const resolved = resolveKnownImportPath(basePath, knownFilePaths);
+      if (resolved) {
+        return resolved;
+      }
+    }
+  }
+
+  if (importResolutionConfig.baseUrl) {
+    const resolved = resolveKnownImportPath(
+      normalizePosixPath(path.posix.join(importResolutionConfig.baseUrl, importPath)),
+      knownFilePaths,
+    );
+    if (resolved) {
+      return resolved;
     }
   }
 
@@ -398,6 +539,8 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
   const languageCounts = new Map<string, number>();
   let packageJsonContent: string | null = null;
   let totalBytes = 0;
+  const importResolutionConfig = await loadImportResolutionConfig(rootPath);
+  warnings.push(...importResolutionConfig.warnings);
 
   async function walk(currentPath: string): Promise<void> {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });
@@ -471,7 +614,7 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
   const knownFilePaths = new Set(files.map((file) => file.path));
   for (const file of files) {
     const dependencies = file.imports
-      .map((item) => resolveLocalImportPath(file.path, item, knownFilePaths))
+      .map((item) => resolveLocalImportPath(file.path, item, knownFilePaths, importResolutionConfig))
       .filter((item): item is string => Boolean(item));
     file.localDependencies = dedupeStrings(dependencies);
   }

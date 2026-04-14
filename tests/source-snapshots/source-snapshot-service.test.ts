@@ -367,6 +367,114 @@ describe('source snapshot service', () => {
     });
   });
 
+  test('rebuilds source index with tsconfig alias paths, baseUrl imports, and typed arrow components', async () => {
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.1');
+    await fse.ensureDir(path.join(snapshotDir, 'src', 'components'));
+    await fse.ensureDir(path.join(snapshotDir, 'src', 'types'));
+    await fs.writeFile(
+      path.join(snapshotDir, 'tsconfig.json'),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            baseUrl: 'src',
+            paths: {
+              '@/*': ['*'],
+            },
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    await fs.writeFile(path.join(snapshotDir, 'src', 'types', 'model.ts'), 'export interface User { id: string }\n');
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'Button.tsx'),
+      'import type { User } from "types/model";\n' +
+        'export const Button: React.FC<{ user?: User }> = () => <button />;\n',
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'feature.tsx'),
+      'import { Button } from "@/components/Button";\n' +
+        'import type { User } from "@/types/model";\n' +
+        'const users: User[] = [];\n' +
+        'export function Feature() { return <Button user={users[0]} />; }\n',
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'base-url-feature.tsx'),
+      'import { Button } from "components/Button";\n' +
+        'import type { User } from "types/model";\n' +
+        'const users: User[] = [];\n' +
+        'export const BaseUrlFeature = () => <Button user={users[0]} />;\n',
+    );
+
+    sourceSnapshotFindUniqueMock.mockResolvedValue({
+      id: 5003,
+      status: 'ready',
+      rootPath: snapshotDir,
+    });
+
+    await rebuildSourceSnapshotIndex(703);
+
+    const createPayload = sourceIndexArtifactCreateMock.mock.calls[0]?.[0];
+    const parsedArtifact = JSON.parse(createPayload.data.contentJson as string) as {
+      files: Array<{
+        path: string;
+        localDependencies: string[];
+        imports: string[];
+        symbols: {
+          components: Array<{ name: string }>;
+        };
+      }>;
+    };
+
+    expect(parsedArtifact.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'src/components/Button.tsx',
+          imports: ['types/model'],
+          localDependencies: ['src/types/model.ts'],
+          symbols: expect.objectContaining({
+            components: expect.arrayContaining([expect.objectContaining({ name: 'Button' })]),
+          }),
+        }),
+        expect.objectContaining({
+          path: 'src/feature.tsx',
+          imports: ['@/components/Button', '@/types/model'],
+          localDependencies: ['src/components/Button.tsx', 'src/types/model.ts'],
+        }),
+        expect.objectContaining({
+          path: 'src/base-url-feature.tsx',
+          imports: ['components/Button', 'types/model'],
+          localDependencies: ['src/components/Button.tsx', 'src/types/model.ts'],
+        }),
+      ]),
+    );
+  });
+
+  test('records a warning when tsconfig alias configuration cannot be parsed', async () => {
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.2');
+    await fse.ensureDir(path.join(snapshotDir, 'src'));
+    await fs.writeFile(path.join(snapshotDir, 'tsconfig.json'), '{"compilerOptions": ');
+    await fs.writeFile(path.join(snapshotDir, 'src', 'index.ts'), 'export const ready = true;\n');
+
+    sourceSnapshotFindUniqueMock.mockResolvedValue({
+      id: 5004,
+      status: 'ready',
+      rootPath: snapshotDir,
+    });
+
+    await rebuildSourceSnapshotIndex(704);
+
+    const createPayload = sourceIndexArtifactCreateMock.mock.calls[0]?.[0];
+    const parsedArtifact = JSON.parse(createPayload.data.contentJson as string) as {
+      summary: {
+        warnings: string[];
+      };
+    };
+
+    expect(parsedArtifact.summary.warnings).toContain('Unable to parse tsconfig.json');
+  });
+
   test('marks index status failed when rebuild fails after entering indexing', async () => {
     const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.1.0');
     await fse.ensureDir(path.join(snapshotDir, 'src'));

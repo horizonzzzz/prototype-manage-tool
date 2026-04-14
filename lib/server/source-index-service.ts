@@ -8,6 +8,7 @@ import { resolvePublishedSnapshotVersion } from '@/lib/server/source-snapshot-se
 const SOURCE_INDEX_ARTIFACT_KEY = 'source-tree-v1';
 const MAX_SEARCH_RESULTS = 50;
 const MAX_CONTEXT_LINES = 10;
+const MAX_SEARCH_FILE_BYTES = 128 * 1024;
 
 type IndexStatus = 'pending' | 'indexing' | 'ready' | 'failed';
 type VersionSelectorInput = 'default' | 'latest' | { exact: string };
@@ -95,6 +96,16 @@ type SearchWithContextInput = SourceIndexSelection & {
 
 function dedupeStrings(values: string[]) {
   return [...new Set(values)];
+}
+
+function isProbablyText(buffer: Buffer) {
+  for (let index = 0; index < buffer.length; index += 1) {
+    if (buffer[index] === 0) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function normalizeQueryStatus(status?: string | null): IndexStatus {
@@ -552,9 +563,18 @@ export async function searchSourceWithContext(scope: McpAccessScope, input: Sear
       break;
     }
 
+    if (file.size > MAX_SEARCH_FILE_BYTES) {
+      continue;
+    }
+
     let text: string;
     try {
-      text = await fs.readFile(ensureChildPath(context.rootPath, file.path), 'utf8');
+      const buffer = await fs.readFile(ensureChildPath(context.rootPath, file.path));
+      if (buffer.length > MAX_SEARCH_FILE_BYTES || !isProbablyText(buffer)) {
+        continue;
+      }
+
+      text = buffer.toString('utf8');
     } catch {
       warnings.push(`Unable to read ${file.path} while collecting search context`);
       continue;

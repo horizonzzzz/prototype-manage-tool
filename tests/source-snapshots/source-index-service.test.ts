@@ -41,6 +41,31 @@ const scope = {
 describe('source index service', () => {
   let tmpDir: string;
   let snapshotDir: string;
+  let artifact: {
+    format: string;
+    snapshotVersionId: number;
+    generatedAt: string;
+    summary: {
+      fileCount: number;
+      totalBytes: number;
+      frameworkHints: string[];
+      routingMode: string;
+      warnings: string[];
+    };
+    files: Array<{
+      path: string;
+      size: number;
+      ext: string;
+      imports: string[];
+      exports: string[];
+      localDependencies: string[];
+      symbols: {
+        components: Array<{ name: string; line: number }>;
+        types: Array<{ name: string; kind: 'interface' | 'type' | 'enum'; line: number }>;
+        mocks: Array<{ name: string; kind: string; line: number; reason: 'path-pattern' | 'name-pattern' }>;
+      };
+    }>;
+  };
 
   beforeEach(async () => {
     vi.clearAllMocks();
@@ -74,7 +99,7 @@ describe('source index service', () => {
       rootPath: snapshotDir,
     });
 
-    const artifact = {
+    artifact = {
       format: 'source-tree-v1',
       snapshotVersionId: 101,
       generatedAt: '2024-01-01T00:00:00.000Z',
@@ -288,6 +313,91 @@ describe('source index service', () => {
       },
     ]);
     expect(resolvePublishedSnapshotVersionMock).toHaveBeenCalledWith(scope, 'crm', 'default');
+  });
+
+  test('skips binary and oversized files when collecting contextual search results', async () => {
+    await fs.writeFile(path.join(snapshotDir, 'src', 'binary.bin'), Buffer.from('needle-here\0binary\0content', 'utf8'));
+    await fs.writeFile(path.join(snapshotDir, 'src', 'too-large.txt'), `${'x'.repeat(200 * 1024)} needle-here`);
+
+    artifact.files.push(
+      {
+        path: 'src/binary.bin',
+        size: 25,
+        ext: '.bin',
+        imports: [],
+        exports: [],
+        localDependencies: [],
+        symbols: {
+          components: [],
+          types: [],
+          mocks: [],
+        },
+      },
+      {
+        path: 'src/too-large.txt',
+        size: 200 * 1024 + 12,
+        ext: '.txt',
+        imports: [],
+        exports: [],
+        localDependencies: [],
+        symbols: {
+          components: [],
+          types: [],
+          mocks: [],
+        },
+      },
+    );
+
+    productVersionFindFirstMock.mockResolvedValue({
+      id: 101,
+      version: 'v1.0.0',
+      product: { key: 'crm', ownerId: 'user-1', id: 11 },
+      sourceSnapshot: {
+        id: 801,
+        status: 'ready',
+        indexStatus: 'ready',
+        indexGeneratedAt: new Date('2024-01-01T00:00:00.000Z'),
+        indexErrorMessage: null,
+        indexArtifacts: [
+          {
+            id: 901,
+            artifactKey: 'source-tree-v1',
+            status: 'ready',
+            generatedAt: new Date('2024-01-01T00:00:00.000Z'),
+            errorMessage: null,
+            contentJson: JSON.stringify(artifact),
+          },
+        ],
+      },
+    });
+
+    const result = await searchSourceWithContext(scope, {
+      productKey: 'crm',
+      selector: 'default',
+      query: 'needle-here',
+      contextLines: 1,
+    });
+
+    expect(result.status).toBe('ready');
+    expect(result.payload?.results).toEqual([
+      {
+        path: 'src/feature-search.tsx',
+        matches: [
+          {
+            line: 1,
+            content: 'const state = "needle-here";',
+            contextBefore: [],
+            contextAfter: ['const other = "needle-here";'],
+          },
+          {
+            line: 2,
+            content: 'const other = "needle-here";',
+            contextBefore: ['const state = "needle-here";'],
+            contextAfter: [''],
+          },
+        ],
+      },
+    ]);
   });
 
   test('returns structured non-ready status when index is pending', async () => {
