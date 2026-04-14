@@ -1,59 +1,59 @@
 # Prototype Manage Tool
 
-Prototype Manage Tool is a self-hosted platform for publishing static frontend prototypes by product and version.
-It gives teams three working surfaces:
+Self-hosted platform for publishing static frontend prototypes by product and version.
 
-- `/preview` to browse published prototypes and switch product/version
-- `/admin` to upload source archives, monitor build jobs, publish or offline versions, and manage defaults
-- `POST /api/mcp` to let agents inspect published source snapshots over MCP
+It provides three surfaces:
+
+- `/preview` for browsing published prototypes
+- `/admin` for uploading source archives, tracking build jobs, and managing versions
+- `POST /api/mcp` for exposing published source snapshots to MCP clients
 
 [简体中文](./README.zh-CN.md) | [MIT License](./LICENSE)
 
-## What It Is
+## Overview
 
-The application stores and serves three different kinds of state:
+Prototype Manage Tool is built for teams that want a lightweight way to publish internal frontend prototypes without standing up a full preview platform.
+
+Key behaviors:
+
+- every product, version, build job, and MCP key is owned by a user account
+- previews only serve already published static output
+- MCP only exposes published versions whose source snapshot status is `ready`
+- published files and source snapshots are stored separately for serving and code inspection
+
+Under the hood, the app stores:
 
 - metadata in SQLite through Prisma
-- published static artifacts in `data/prototypes/<userId>/<productKey>/<version>/`
-- published source snapshots in `data/source-snapshots/<userId>/<productKey>/<version>/`
+- published artifacts in `data/prototypes/<userId>/<productKey>/<version>/`
+- source snapshots in `data/source-snapshots/<userId>/<productKey>/<version>/`
 
-Prisma metadata now also stores source-index lifecycle state plus persisted codebase-analysis artifacts for published snapshots.
+## Features
 
-Two product rules shape the whole system:
+- Upload a `.zip` frontend project and build it with `pnpm` or `npm`
+- Publish product versions and manage default or offline states
+- Browse published versions from a dedicated preview UI
+- Expose published source trees through a remote MCP endpoint
+- Support `zh` and `en` routes with `next-intl`
 
-- only `published` versions appear in `/preview`
-- MCP only exposes versions whose source snapshot status is `ready`
-
-This means preview and MCP both read from already-published outputs. They do not build prototypes on demand.
+> [!NOTE]
+> The platform does not build previews on demand. Uploads are processed as build jobs, and preview/MCP read from already published outputs.
 
 ## Tech Stack
 
 - Next.js App Router
 - React 19
-- next-intl
 - TypeScript
-- Prisma 7 with SQLite via `@prisma/adapter-better-sqlite3`
-- filesystem-backed storage under `data/`
-- Vitest for tests
-
-## How It Works
-
-1. An admin uploads a `.zip` source archive.
-2. The platform creates a build job and extracts the archive into `data/build-jobs/`.
-3. The build job locates the effective project root, installs dependencies, and runs the project's `build` script.
-4. The build output is validated from `dist/`.
-5. Published files are copied into `data/prototypes/<userId>/<productKey>/<version>/`.
-6. A source snapshot is copied into `data/source-snapshots/<userId>/<productKey>/<version>/`.
-7. The version becomes available to `/preview`, and the source snapshot becomes available to MCP after it is marked `ready`.
-8. A background source-index build derives codebase summary, dependency, type, mock-data, and contextual-search artifacts for higher-level MCP tools.
+- next-intl
+- Prisma 7 with SQLite
+- Filesystem-backed artifact storage
+- Vitest
 
 ## Quick Start
 
 ### Prerequisites
 
-- Node.js 22 or newer
-- pnpm 10.33 or newer
-- Docker, if you want to use the containerized deployment flow
+- Node.js 22+
+- pnpm 10.33+
 
 ### Local Development
 
@@ -63,82 +63,72 @@ This means preview and MCP both read from already-published outputs. They do not
    pnpm install
    ```
 
-2. Create a local environment file.
+2. Create the local environment file.
 
    ```bash
    cp .env.example .env
    ```
 
-   PowerShell equivalent:
+   PowerShell:
 
    ```powershell
    Copy-Item .env.example .env
    ```
 
-3. Initialize the database and demo data.
-
-   ```bash
-   pnpm prisma:generate
-   pnpm db:push
-   pnpm db:seed
-   ```
-
-   Short form:
+3. Initialize Prisma and seed demo data.
 
    ```bash
    pnpm init
    ```
 
-4. Start the development server.
+4. Start the app.
 
    ```bash
    pnpm dev
    ```
 
-5. Open the app.
+5. Open:
 
-- Chinese default routes: `http://localhost:3000/preview` and `http://localhost:3000/admin`
-- English routes: `http://localhost:3000/en/preview` and `http://localhost:3000/en/admin`
+- `http://localhost:3000/preview`
+- `http://localhost:3000/admin`
+- `http://localhost:3000/en/preview`
+- `http://localhost:3000/en/admin`
 
-Unprefixed app routes render `zh`. English routes live under `/en/*`.
+> [!TIP]
+> Unprefixed routes default to `zh`. English routes live under `/en/*`.
 
-### Common Commands
+## Common Commands
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm dev` | Start the local development server |
+| `pnpm dev` | Start the development server |
 | `pnpm init` | Generate Prisma client, push schema, and seed demo data |
-| `pnpm test` | Run the Vitest suite with coverage |
-| `pnpm typecheck` | Run TypeScript type checking |
-| `pnpm build` | Build the Next.js app |
+| `pnpm test` | Run the test suite |
+| `pnpm typecheck` | Run TypeScript checks |
+| `pnpm build` | Build the app |
 
-### Schema Workflow Note
+## Docker
 
-This project currently initializes schema with `pnpm db:push`.
-Checked-in Prisma migrations are not the primary source of truth for local setup or runtime behavior.
-
-## Docker Deployment
-
-1. Create `.env.docker` from the example file.
+1. Create the Docker env file.
 
    ```bash
    cp .env.docker.example .env.docker
    ```
 
-2. Set the deployment values you care about:
+2. Set at least:
 
-- `IMAGE_TAG` should be pinned to a released `vX.Y.Z` tag in production, for example `v1.4.0`
-- `APP_URL` should match the public URL users and MCP clients will reach
-- `APP_PORT` controls the host port
-- `MCP_TOKEN_ENCRYPTION_KEY` is recommended so stored MCP tokens are encrypted with a stable deployment secret
+- `IMAGE_TAG` to a released `vX.Y.Z` tag for production
+- `APP_URL` to the public app URL
+- `AUTH_SECRET` to a long random secret
+- `MCP_TOKEN_ENCRYPTION_KEY` if you want stable MCP token encryption
 
-3. Initialize the database on first deployment.
+3. Initialize the database.
 
    ```bash
    docker compose --env-file .env.docker --profile init run --rm db-init
    ```
 
-4. Seed demo data if you want sample products.
+4. Optionally seed demo data.
 
    ```bash
    docker compose --env-file .env.docker --profile seed run --rm seed-demo
@@ -151,60 +141,34 @@ Checked-in Prisma migrations are not the primary source of truth for local setup
    docker compose --env-file .env.docker up -d
    ```
 
-### Upgrade An Existing Deployment
+> [!IMPORTANT]
+> This project uses `pnpm db:push` as the schema workflow. Checked-in Prisma migrations are not the local setup source of truth.
 
-1. Back up `docker-data/sqlite/app.db`.
-2. Update `IMAGE_TAG` in `.env.docker` to the target release tag.
-3. Pull the new image.
-4. Run `db-init` so Prisma schema changes are applied.
-5. Restart the app containers.
+## MCP Endpoint
 
-```bash
-docker compose --env-file .env.docker pull
-docker compose --env-file .env.docker --profile init run --rm db-init
-docker compose --env-file .env.docker up -d
-```
+The app exposes a remote MCP server over HTTP:
 
-`latest` is still convenient for evaluation, but production deployments should stay pinned to a specific release tag so upgrades and rollbacks are predictable.
-The provided `compose.yml` also keeps `ulimits.nofile=65535`; keep the same limit if you run the container another way.
+- endpoint: `POST /api/mcp`
+- auth: `Authorization: Bearer <user-scoped MCP key>`
+- key management: create keys from `/settings` and authorize products per key
+- method contract: `GET /api/mcp` and `DELETE /api/mcp` return `405`
 
-Typical entry points after deployment:
-
-- `http://<server>:3000/preview`
-- `http://<server>:3000/admin`
-- `http://<server>:3000/en/preview`
-- `http://<server>:3000/en/admin`
-
-## Connect An MCP Client
-
-The repository exposes a remote MCP endpoint backed by published source snapshots.
-
-- Endpoint: `POST /api/mcp`
-- Authentication: `Authorization: Bearer <user-managed MCP key>`
-- Key management: create MCP keys from `/settings`, choose expiration, and authorize products per key
-- Method contract: `GET /api/mcp` and `DELETE /api/mcp` intentionally return `405`
-
-Most MCP clients can register the server with a block like this:
+Example client config:
 
 ```json
 {
   "mcpServers": {
     "prototype-source": {
-      "url": "https://your-domain.example.com/api/mcp",
+      "url": "http://localhost:3000/api/mcp",
       "headers": {
-        "Authorization": "Bearer replace-with-your-mcp-auth-token"
+        "Authorization": "Bearer replace-with-your-mcp-token"
       }
     }
   }
 }
 ```
 
-Use `http://localhost:3000/api/mcp` for local development unless you have real HTTPS configured.
-If you deploy behind a reverse proxy, make sure it forwards the `Authorization` header.
-Each MCP key is scoped to one user account, so the MCP tools only see products that user explicitly authorized on the key.
-Low-level file tools continue to work from ready source snapshots. Higher-level code-understanding tools depend on the async source index and may return `pending`, `indexing`, or `failed` status until the index is ready.
-
-### Available MCP Tools
+Available tools:
 
 - `list_products`
 - `list_versions`
@@ -219,65 +183,35 @@ Low-level file tools continue to work from ready source snapshots. Higher-level 
 - `get_mock_data`
 - `get_source_index_status`
 
-## Configuration Reference
+## Upload Rules
 
-### Local Defaults
+Uploads are intentionally strict:
 
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `DATABASE_URL` | `file:../data/sqlite/app.db` | Prisma SQLite connection string |
-| `DATA_DIR` | `./data` | Base directory for SQLite, uploads, build jobs, published prototypes, and source snapshots |
-| `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
-| `APP_URL` | `http://localhost:3000` | Public application URL |
-| `MCP_TOKEN_ENCRYPTION_KEY` | `AUTH_SECRET` fallback | Encryption secret for stored user MCP tokens |
-
-### Docker Defaults
-
-| Variable | Default | Purpose |
-| --- | --- | --- |
-| `IMAGE_TAG` | `v1.4.0` | Released image tag used by `compose.yml` |
-| `APP_URL` | `http://localhost` | Public application URL |
-| `APP_PORT` | `3000` | Host port mapped to the container |
-| `UPLOAD_MAX_MB` | `200` | Maximum upload size in megabytes |
-| `MCP_TOKEN_ENCRYPTION_KEY` | _(empty, falls back to `AUTH_SECRET`)_ | Encryption secret for stored user MCP tokens |
-
-`DATABASE_URL` remains the database source of truth for both Prisma CLI commands and runtime access.
-Relative local SQLite URLs are resolved via `prisma.config.ts` for CLI usage and normalized again in `lib/prisma.ts` at runtime.
-
-## Prototype Upload Contract
-
-Uploads are intentionally strict so published previews stay predictable.
-
-- only `.zip` uploads are accepted
-- the archive must contain `package.json`
+- only `.zip` archives are accepted
+- the archive must include `package.json`
 - only `pnpm` and `npm` projects are supported
 - the project must define a `build` script
 - publishable output must come from `dist/`
 - `dist/index.html` must use relative asset paths
-- root-absolute asset references such as `/assets/...` are rejected
 
-## Repository Map
+## Project Layout
 
 ```text
-app/                    Next.js pages, routes, and API handlers
-app/[locale]/           Locale-aware routes for zh and en
-components/             Admin and preview UI
-components/admin/       Admin hooks, dialogs, forms, and panels
-components/preview/     Preview list, product cards, and fullscreen viewer
-i18n/                   next-intl routing and request configuration
-messages/               Translation catalogs
+app/                    Next.js routes and API handlers
+components/             Admin, preview, layout, and UI components
+i18n/                   Locale routing and request configuration
 lib/domain/             Business rules and validation helpers
-lib/server/             Build, upload, manifest, MCP, snapshot, and filesystem services
-lib/ui/                 Client-side view helpers and lightweight API utilities
-prisma/                 Prisma schema
+lib/server/             Build, upload, manifest, MCP, and snapshot services
+lib/ui/                 Client-side view helpers
+prisma/                 Prisma schema and configuration
 scripts/                Seed and maintenance scripts
-tests/                  Tests grouped by product area
-data/                   Runtime data, not source code
+tests/                  Vitest suites
+data/                   Runtime data directory
 ```
 
-## Verification And Contribution
+## Verification
 
-Before opening a pull request, run:
+Run these before opening a PR:
 
 ```bash
 pnpm test
@@ -285,15 +219,4 @@ pnpm typecheck
 pnpm build
 ```
 
-If you run `pnpm build` on Windows, Next.js standalone output may require Developer Mode or an elevated shell so symlink creation succeeds.
-
-If you contribute changes:
-
-- keep route handlers thin and push business rules into `lib/domain` or `lib/server`
-- update matching tests when behavior changes
-- call out deployment or operator-facing impact in your pull request
-- update documentation when workflow or configuration changes
-
-## License
-
-This project is licensed under the MIT License. See [LICENSE](./LICENSE).
+On Windows, `pnpm build` may require Developer Mode or an elevated shell so Next.js can create symlinks for standalone output.

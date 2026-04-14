@@ -300,8 +300,8 @@ Rules:
 
 Practical guidance:
 
-- Commit messages should follow Conventional Commits style such as `feat:`, `fix:`, `docs:`, `refactor:`, or `chore:`.
-- If you change user-visible behavior, deployment flow, packaging, or operator workflow, update `CHANGELOG.md` in the same branch.
+- All commits must use standard Conventional Commits messages such as `feat:`, `fix:`, `docs:`, `refactor:`, or `chore:`.
+- Only release-preparation or release commits may modify `CHANGELOG.md`. Routine feature, fix, refactor, docs, or chore commits must leave `CHANGELOG.md` unchanged.
 - If you introduce a new release version, update `package.json#version` and add the matching changelog section together.
 - When preparing a release version, review the commits since the previous released tag and ensure the target `CHANGELOG.md` section covers all user-visible and operator-visible changes from that range before tagging.
 - Do not add changelog entries for versions that do not have a real git tag in repository history.
