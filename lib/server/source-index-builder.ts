@@ -2,23 +2,17 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 
 import {
+  collectSemanticFileMetadata,
   detectFrameworkHints,
   detectRoutingMode,
   INDEXABLE_CODE_EXTENSIONS,
-  INDEXABLE_SOURCE_EXTENSIONS,
-  loadImportResolutionConfig,
-  parseComponentCandidates,
-  parseExports,
-  parseImportEntries,
-  parseImports,
-  parseReExportEntries,
-  parseTypeCandidates,
-  resolveLocalImportPath,
 } from '@/lib/server/code-analysis';
 import { prisma } from '@/lib/prisma';
+import { collectSemanticDefinitions } from '@/lib/server/source-index-semantic-definitions';
+import { createSemanticProject } from '@/lib/server/source-index-semantic-project';
+import { collectSemanticUsages } from '@/lib/server/source-index-semantic-usages';
 import {
   dedupeStrings,
-  isProbablyText,
   SOURCE_INDEX_ARTIFACT_KEY,
   type SourceIndexArtifact,
   type SourceIndexFileEntry,
@@ -41,8 +35,10 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
   const languageCounts = new Map<string, number>();
   let packageJsonContent: string | null = null;
   let totalBytes = 0;
-  const importResolutionConfig = await loadImportResolutionConfig(rootPath);
-  warnings.push(...importResolutionConfig.warnings);
+  const semanticProject = await createSemanticProject(rootPath);
+  warnings.push(...semanticProject.warnings);
+  const fileMetadataByPath = collectSemanticFileMetadata(semanticProject.sourceFileEntries);
+  const semanticCodePaths = new Set(semanticProject.sourceFileEntries.map((entry) => entry.relativePath));
 
   async function walk(currentPath: string): Promise<void> {
     const entries = await fs.readdir(currentPath, { withFileTypes: true });
@@ -73,66 +69,41 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
         packageJsonContent = await fs.readFile(absolutePath, 'utf8');
       }
 
-      const entryRecord: SourceIndexFileEntry = {
+      if (semanticCodePaths.has(relativePath) && INDEXABLE_CODE_EXTENSIONS.has(extension)) {
+        continue;
+      }
+
+      files.push({
         path: relativePath,
         size: stats.size,
         ext: extension,
         imports: [],
-        exports: [],
         localDependencies: [],
-        importEntries: [],
-        reExportEntries: [],
-        symbols: {
-          components: [],
-          types: [],
-        },
-      };
-
-      if (!INDEXABLE_SOURCE_EXTENSIONS.has(extension) || stats.size > MAX_INDEX_TEXT_FILE_BYTES) {
-        files.push(entryRecord);
-        continue;
-      }
-
-      const content = await fs.readFile(absolutePath);
-      if (!isProbablyText(content)) {
-        files.push(entryRecord);
-        continue;
-      }
-
-      const source = content.toString('utf8');
-      entryRecord.imports = parseImports(source);
-      entryRecord.exports = parseExports(source);
-      entryRecord.importEntries = parseImportEntries(source);
-      entryRecord.reExportEntries = parseReExportEntries(source);
-      if (INDEXABLE_CODE_EXTENSIONS.has(extension)) {
-        entryRecord.symbols.components = parseComponentCandidates(source, extension);
-        entryRecord.symbols.types = parseTypeCandidates(source);
-      }
-
-      files.push(entryRecord);
+      });
     }
   }
 
   await walk(rootPath);
 
-  const knownFilePaths = new Set(files.map((file) => file.path));
-  for (const file of files) {
-    file.importEntries = file.importEntries.map((entry) => ({
-      ...entry,
-      resolvedPath: resolveLocalImportPath(file.path, entry.source, knownFilePaths, importResolutionConfig),
-    }));
-    file.reExportEntries = file.reExportEntries.map((entry) => ({
-      ...entry,
-      resolvedPath: resolveLocalImportPath(file.path, entry.source, knownFilePaths, importResolutionConfig),
-    }));
+  for (const entry of semanticProject.sourceFileEntries) {
+    const filePath = path.join(rootPath, entry.relativePath);
+    const stats = await fs.stat(filePath);
+    const extension = path.extname(entry.relativePath).toLowerCase();
+    const fileMetadata = fileMetadataByPath.get(entry.relativePath);
 
-    const dependencies = [...file.importEntries.map((entry) => entry.resolvedPath), ...file.reExportEntries.map((entry) => entry.resolvedPath)]
-      .filter((item): item is string => Boolean(item));
-    file.localDependencies = dedupeStrings(dependencies);
+    files.push({
+      path: entry.relativePath,
+      size: stats.size,
+      ext: extension,
+      imports: fileMetadata?.imports ?? [],
+      localDependencies: fileMetadata?.localDependencies ?? [],
+    });
   }
 
   const frameworkDetection = detectFrameworkHints(packageJsonContent);
   warnings.push(...frameworkDetection.warnings);
+  const definitions = collectSemanticDefinitions(semanticProject);
+  const usages = collectSemanticUsages(semanticProject, definitions);
   const routingMode = detectRoutingMode(files);
   if (routingMode === 'unknown') {
     warnings.push('Routing mode is unknown');
@@ -151,6 +122,8 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
       languages: Object.fromEntries([...languageCounts.entries()].sort(([left], [right]) => left.localeCompare(right))),
     },
     files: files.sort((left, right) => left.path.localeCompare(right.path)),
+    definitions,
+    usages,
   };
 }
 

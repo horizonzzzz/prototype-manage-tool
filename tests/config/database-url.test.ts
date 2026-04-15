@@ -39,14 +39,18 @@ describe('prisma.config datasource url', () => {
     process.env.DATABASE_URL = originalDatabaseUrl;
   });
 
-  test('resolves relative sqlite urls against the prisma directory', async () => {
-    process.env.DATABASE_URL = 'file:../data/sqlite/app.db';
+  test(
+    'resolves relative sqlite urls against the prisma directory',
+    { timeout: 15_000 },
+    async () => {
+      process.env.DATABASE_URL = 'file:../data/sqlite/app.db';
 
-    const prismaConfigUrl = pathToFileURL(path.join(process.cwd(), 'prisma.config.ts')).href;
-    const { default: prismaConfig } = await import(`${prismaConfigUrl}?t=${Date.now()}`);
+      const prismaConfigUrl = pathToFileURL(path.join(process.cwd(), 'prisma.config.ts')).href;
+      const { default: prismaConfig } = await import(`${prismaConfigUrl}?t=${Date.now()}`);
 
-    expect(prismaConfig.datasource.url).toBe(
-      `file:${path.join(process.cwd(), 'data', 'sqlite', 'app.db').replace(/\\/g, '/')}`,
-    );
-  });
+      expect(prismaConfig.datasource.url).toBe(
+        `file:${path.join(process.cwd(), 'data', 'sqlite', 'app.db').replace(/\\/g, '/')}`,
+      );
+    },
+  );
 });

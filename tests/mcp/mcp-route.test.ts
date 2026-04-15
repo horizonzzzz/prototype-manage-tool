@@ -227,6 +227,157 @@ describe('POST /api/mcp', () => {
     );
   });
 
+  test('tools/call get_component_context forwards semantic tool arguments and scope', async () => {
+    queryComponentContextMock.mockResolvedValue({
+      status: 'ready',
+      warnings: [],
+      payload: {
+        component: 'Button',
+      },
+    });
+
+    const response = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-component-context',
+          method: 'tools/call',
+          params: {
+            name: 'get_component_context',
+            arguments: {
+              productKey: 'crm',
+              exactVersion: 'v1.0.0',
+              componentName: 'Button',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toSatisfy((payload: unknown) => JSON.stringify(payload).includes('Button'));
+    expect(queryComponentContextMock).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        apiKeyId: 101,
+        allowedProductIds: [11],
+      },
+      {
+        productKey: 'crm',
+        selector: undefined,
+        exactVersion: 'v1.0.0',
+        componentName: 'Button',
+      },
+    );
+  });
+
+  test('tools/call get_type_definitions forwards semantic tool arguments and scope', async () => {
+    queryTypeDefinitionMock.mockResolvedValue({
+      status: 'ready',
+      warnings: [],
+      payload: {
+        typeName: 'ButtonProps',
+      },
+    });
+
+    const response = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-type-definitions',
+          method: 'tools/call',
+          params: {
+            name: 'get_type_definitions',
+            arguments: {
+              productKey: 'crm',
+              selector: 'default',
+              typeName: 'ButtonProps',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toSatisfy((payload: unknown) => JSON.stringify(payload).includes('ButtonProps'));
+    expect(queryTypeDefinitionMock).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        apiKeyId: 101,
+        allowedProductIds: [11],
+      },
+      {
+        productKey: 'crm',
+        selector: 'default',
+        exactVersion: undefined,
+        typeName: 'ButtonProps',
+      },
+    );
+  });
+
+  test('tools/call get_source_index_status forwards semantic status requests and scope', async () => {
+    getSourceIndexStatusMock.mockResolvedValue({
+      status: 'ready',
+      warnings: [],
+      payload: {
+        generatedAt: '2024-01-01T00:00:00.000Z',
+        errorMessage: null,
+      },
+    });
+
+    const response = await POST(
+      new Request('http://localhost/api/mcp', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer user-scope-token',
+          Accept: 'application/json, text/event-stream',
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 'tool-index-status',
+          method: 'tools/call',
+          params: {
+            name: 'get_source_index_status',
+            arguments: {
+              productKey: 'crm',
+              selector: 'latest',
+            },
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toSatisfy((payload: unknown) =>
+      JSON.stringify(payload).includes('2024-01-01T00:00:00.000Z'),
+    );
+    expect(getSourceIndexStatusMock).toHaveBeenCalledWith(
+      {
+        userId: 'user-1',
+        apiKeyId: 101,
+        allowedProductIds: [11],
+      },
+      {
+        productKey: 'crm',
+        selector: 'latest',
+        exactVersion: undefined,
+      },
+    );
+  });
+
   test('tools/call resolve_version rejects null exactVersion during validation', async () => {
     const response = await POST(
       new Request('http://localhost/api/mcp', {

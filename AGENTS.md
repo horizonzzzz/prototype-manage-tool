@@ -229,7 +229,7 @@ Current product decisions:
 - only snapshots with `status=ready` are exposed
 - source-index-backed MCP tools return index lifecycle status instead of throwing when async indexing is still pending
 - there is no page-to-file mapping yet
-- source access is filesystem-level, not semantic page-level
+- source access includes semantic source-index queries for codebase summary, component context, type definitions, and contextual usage lookup
 
 ## Configuration and Storage
 
@@ -341,6 +341,6 @@ If the task is about:
 These are not implemented right now, so do not assume they exist:
 
 - page-to-source-file mapping
-- semantic source understanding beyond filesystem tree, file reads, and text search
+- semantic source understanding beyond the current source-index-backed MCP summaries, component/type lookup, and contextual usage graph
 - exposing unpublished or draft versions over MCP
 - migration-driven deployment as the primary workflow

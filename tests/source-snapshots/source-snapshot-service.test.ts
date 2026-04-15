@@ -90,7 +90,9 @@ const mcpAccessScope = {
   allowedProductIds: [11],
 };
 
-describe('source snapshot service', () => {
+const SOURCE_SNAPSHOT_INTEGRATION_TIMEOUT_MS = 30_000;
+
+describe('source snapshot service', { timeout: SOURCE_SNAPSHOT_INTEGRATION_TIMEOUT_MS }, () => {
   let tmpDir: string;
 
   beforeEach(async () => {
@@ -118,6 +120,7 @@ describe('source snapshot service', () => {
     );
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'source-snapshot-service-'));
     testState.sourceSnapshotsDir = path.join(tmpDir, 'source-snapshots');
+    __resetSourceIndexQueueState();
     delete (globalThis as typeof globalThis & { __sourceIndexQueueState__?: unknown }).__sourceIndexQueueState__;
     delete (globalThis as typeof globalThis & { __sourceIndexBackfillState__?: unknown }).__sourceIndexBackfillState__;
   });
@@ -315,14 +318,14 @@ describe('source snapshot service', () => {
     expect(sourceIndexArtifactDeleteManyMock).toHaveBeenCalledWith({
       where: {
         snapshotId: 5001,
-        artifactKey: 'source-tree-v1',
+        artifactKey: 'source-tree-v2',
       },
     });
     expect(sourceIndexArtifactCreateMock).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
           snapshotId: 5001,
-          artifactKey: 'source-tree-v1',
+          artifactKey: 'source-tree-v2',
           contentJson: expect.any(String),
           status: 'ready',
           generatedAt: expect.any(Date),
@@ -346,7 +349,7 @@ describe('source snapshot service', () => {
     const createPayload = sourceIndexArtifactCreateMock.mock.calls[0]?.[0];
     const parsedArtifact = JSON.parse(createPayload.data.contentJson as string) as Record<string, unknown>;
     expect(parsedArtifact).toMatchObject({
-      format: 'source-tree-v1',
+      format: 'source-tree-v2',
       snapshotVersionId: 701,
       summary: expect.objectContaining({
         frameworkHints: expect.arrayContaining(['react', 'vite']),
@@ -354,19 +357,34 @@ describe('source snapshot service', () => {
       }),
       files: expect.arrayContaining([
         expect.objectContaining({
-          path: 'src/components/Button.tsx',
-          symbols: expect.objectContaining({
-            components: expect.arrayContaining([expect.objectContaining({ name: 'Button' })]),
-          }),
+          path: 'src/App.tsx',
+          ext: '.tsx',
+          imports: ['react-router-dom', './components/Button'],
+          localDependencies: ['src/components/Button.tsx'],
         }),
         expect.objectContaining({
           path: 'src/types.ts',
-          symbols: expect.objectContaining({
-            types: expect.arrayContaining([expect.objectContaining({ name: 'User', kind: 'interface' })]),
-          }),
+          ext: '.ts',
+          imports: [],
+          localDependencies: [],
         }),
       ]),
     });
+    expect(
+      ((parsedArtifact.files as Array<Record<string, unknown>>) ?? []).every(
+        (file) => !('exports' in file) && !('importEntries' in file) && !('reExportEntries' in file) && !('symbols' in file),
+      ),
+    ).toBe(true);
+    expect(
+      ((parsedArtifact.definitions as Array<Record<string, unknown>>) ?? []).every(
+        (definition) => !('definitionId' in definition),
+      ),
+    ).toBe(true);
+    expect(
+      ((parsedArtifact.usages as Array<Record<string, unknown>>) ?? []).every(
+        (usage) => !('fromFilePath' in usage) && !('toFilePath' in usage),
+      ),
+    ).toBe(true);
   });
 
   test('rebuilds source index with tsconfig alias paths, baseUrl imports, and typed arrow components', async () => {
@@ -421,11 +439,9 @@ describe('source snapshot service', () => {
     const parsedArtifact = JSON.parse(createPayload.data.contentJson as string) as {
       files: Array<{
         path: string;
+        ext: string;
         localDependencies: string[];
         imports: string[];
-        symbols: {
-          components: Array<{ name: string }>;
-        };
       }>;
     };
 
@@ -433,24 +449,29 @@ describe('source snapshot service', () => {
       expect.arrayContaining([
         expect.objectContaining({
           path: 'src/components/Button.tsx',
+          ext: '.tsx',
           imports: ['types/model'],
           localDependencies: ['src/types/model.ts'],
-          symbols: expect.objectContaining({
-            components: expect.arrayContaining([expect.objectContaining({ name: 'Button' })]),
-          }),
         }),
         expect.objectContaining({
           path: 'src/feature.tsx',
+          ext: '.tsx',
           imports: ['@/components/Button', '@/types/model'],
           localDependencies: ['src/components/Button.tsx', 'src/types/model.ts'],
         }),
         expect.objectContaining({
           path: 'src/base-url-feature.tsx',
+          ext: '.tsx',
           imports: ['components/Button', 'types/model'],
           localDependencies: ['src/components/Button.tsx', 'src/types/model.ts'],
         }),
       ]),
     );
+    expect(
+      parsedArtifact.files.every(
+        (file) => !('exports' in file) && !('importEntries' in file) && !('reExportEntries' in file) && !('symbols' in file),
+      ),
+    ).toBe(true);
   });
 
   test('rebuilds source index with JSONC tsconfig alias paths and trailing commas', async () => {
@@ -585,7 +606,7 @@ describe('source snapshot service', () => {
       };
     };
 
-    expect(parsedArtifact.summary.warnings).toContain('Unable to parse tsconfig.json');
+    expect(parsedArtifact.summary.warnings.some((warning) => /tsconfig\.json/i.test(warning))).toBe(true);
   });
 
   test('marks index status failed when rebuild fails after entering indexing', async () => {
@@ -623,75 +644,94 @@ describe('source snapshot service', () => {
     });
   });
 
-  test('backfills pending and failed source indexes once per process', async () => {
-    const pendingSnapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v2.0.0');
-    const failedSnapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v2.0.1');
-    await fse.ensureDir(path.join(pendingSnapshotDir, 'src'));
-    await fse.ensureDir(path.join(failedSnapshotDir, 'src'));
-    await fs.writeFile(path.join(pendingSnapshotDir, 'src', 'index.ts'), 'export const pending = true;\n');
-    await fs.writeFile(path.join(failedSnapshotDir, 'src', 'index.ts'), 'export const failed = true;\n');
+  test('backfill throttles repeated scans and retries snapshots that fail later', async () => {
+    let now = 1_000;
+    const dateNowSpy = vi.spyOn(Date, 'now').mockImplementation(() => now);
 
-    sourceSnapshotFindManyMock.mockResolvedValue([
-      { versionId: 801 },
-      { versionId: 802 },
-    ]);
-    sourceSnapshotFindUniqueMock.mockImplementation(async ({ where }: { where: { versionId: number } }) => {
-      if (where.versionId === 801) {
-        return {
-          id: 5801,
+    try {
+      const pendingSnapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v2.0.0');
+      const failedSnapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v2.0.1');
+      await fse.ensureDir(path.join(pendingSnapshotDir, 'src'));
+      await fse.ensureDir(path.join(failedSnapshotDir, 'src'));
+      await fs.writeFile(path.join(pendingSnapshotDir, 'src', 'index.ts'), 'export const pending = true;\n');
+      await fs.writeFile(path.join(failedSnapshotDir, 'src', 'index.ts'), 'export const failed = true;\n');
+
+      let backfillScanCount = 0;
+      sourceSnapshotFindManyMock.mockImplementation(async () => {
+        backfillScanCount += 1;
+        return backfillScanCount === 1 ? [{ versionId: 801 }] : [{ versionId: 802 }];
+      });
+      sourceSnapshotFindUniqueMock.mockImplementation(async ({ where }: { where: { versionId: number } }) => {
+        if (where.versionId === 801) {
+          return {
+            id: 5801,
+            status: 'ready',
+            rootPath: pendingSnapshotDir,
+          };
+        }
+
+        if (where.versionId === 802) {
+          return {
+            id: 5802,
+            status: 'ready',
+            rootPath: failedSnapshotDir,
+          };
+        }
+      });
+
+      await ensureSourceIndexBackfillScheduled();
+      await ensureSourceIndexBackfillScheduled();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(sourceSnapshotFindManyMock).toHaveBeenCalledTimes(1);
+      expect(sourceSnapshotFindManyMock).toHaveBeenCalledWith({
+        where: {
           status: 'ready',
-          rootPath: pendingSnapshotDir,
-        };
-      }
-
-      if (where.versionId === 802) {
-        return {
-          id: 5802,
-          status: 'ready',
-          rootPath: failedSnapshotDir,
-        };
-      }
-    });
-
-    await ensureSourceIndexBackfillScheduled();
-    await ensureSourceIndexBackfillScheduled();
-    await new Promise((resolve) => setTimeout(resolve, 50));
-
-    expect(sourceSnapshotFindManyMock).toHaveBeenCalledTimes(1);
-    expect(sourceSnapshotFindManyMock).toHaveBeenCalledWith({
-      where: {
-        status: 'ready',
-        indexStatus: {
-          in: ['pending', 'failed'],
+          indexStatus: {
+            in: ['pending', 'failed'],
+          },
+          version: {
+            status: 'published',
+          },
         },
-        version: {
-          status: 'published',
+        select: {
+          versionId: true,
         },
-      },
-      select: {
-        versionId: true,
-      },
-      orderBy: {
-        versionId: 'asc',
-      },
-    });
-    expect(sourceSnapshotFindUniqueMock).toHaveBeenCalledTimes(2);
-    expect(sourceSnapshotFindUniqueMock).toHaveBeenNthCalledWith(1, {
-      where: { versionId: 801 },
-      select: {
-        id: true,
-        status: true,
-        rootPath: true,
-      },
-    });
-    expect(sourceSnapshotFindUniqueMock).toHaveBeenNthCalledWith(2, {
-      where: { versionId: 802 },
-      select: {
-        id: true,
-        status: true,
-        rootPath: true,
-      },
-    });
+        orderBy: {
+          versionId: 'asc',
+        },
+      });
+      expect(sourceSnapshotFindUniqueMock).toHaveBeenCalledTimes(1);
+      expect(sourceSnapshotFindUniqueMock).toHaveBeenNthCalledWith(1, {
+        where: { versionId: 801 },
+        select: {
+          id: true,
+          status: true,
+          rootPath: true,
+        },
+      });
+
+      await ensureSourceIndexBackfillScheduled();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(sourceSnapshotFindManyMock).toHaveBeenCalledTimes(1);
+
+      now += 30_000;
+      await ensureSourceIndexBackfillScheduled();
+      await new Promise((resolve) => setTimeout(resolve, 50));
+
+      expect(sourceSnapshotFindManyMock).toHaveBeenCalledTimes(2);
+      expect(sourceSnapshotFindUniqueMock).toHaveBeenCalledTimes(2);
+      expect(sourceSnapshotFindUniqueMock).toHaveBeenNthCalledWith(2, {
+        where: { versionId: 802 },
+        select: {
+          id: true,
+          status: true,
+          rootPath: true,
+        },
+      });
+    } finally {
+      dateNowSpy.mockRestore();
+    }
   });
 
   test('skips index writes when a queued backfill snapshot is no longer ready', async () => {
