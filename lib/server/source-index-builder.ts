@@ -9,7 +9,9 @@ import {
   loadImportResolutionConfig,
   parseComponentCandidates,
   parseExports,
+  parseImportEntries,
   parseImports,
+  parseReExportEntries,
   parseTypeCandidates,
   resolveLocalImportPath,
 } from '@/lib/server/code-analysis';
@@ -78,6 +80,8 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
         imports: [],
         exports: [],
         localDependencies: [],
+        importEntries: [],
+        reExportEntries: [],
         symbols: {
           components: [],
           types: [],
@@ -98,6 +102,8 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
       const source = content.toString('utf8');
       entryRecord.imports = parseImports(source);
       entryRecord.exports = parseExports(source);
+      entryRecord.importEntries = parseImportEntries(source);
+      entryRecord.reExportEntries = parseReExportEntries(source);
       if (INDEXABLE_CODE_EXTENSIONS.has(extension)) {
         entryRecord.symbols.components = parseComponentCandidates(source, extension);
         entryRecord.symbols.types = parseTypeCandidates(source);
@@ -111,8 +117,16 @@ async function buildSourceIndexArtifact(rootPath: string, snapshotVersionId: num
 
   const knownFilePaths = new Set(files.map((file) => file.path));
   for (const file of files) {
-    const dependencies = file.imports
-      .map((item) => resolveLocalImportPath(file.path, item, knownFilePaths, importResolutionConfig))
+    file.importEntries = file.importEntries.map((entry) => ({
+      ...entry,
+      resolvedPath: resolveLocalImportPath(file.path, entry.source, knownFilePaths, importResolutionConfig),
+    }));
+    file.reExportEntries = file.reExportEntries.map((entry) => ({
+      ...entry,
+      resolvedPath: resolveLocalImportPath(file.path, entry.source, knownFilePaths, importResolutionConfig),
+    }));
+
+    const dependencies = [...file.importEntries.map((entry) => entry.resolvedPath), ...file.reExportEntries.map((entry) => entry.resolvedPath)]
       .filter((item): item is string => Boolean(item));
     file.localDependencies = dedupeStrings(dependencies);
   }

@@ -513,6 +513,57 @@ describe('source snapshot service', () => {
     );
   });
 
+  test('rebuilds source index with export-from dependencies in localDependencies', async () => {
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.3');
+    await fse.ensureDir(path.join(snapshotDir, 'src', 'components'));
+    await fse.ensureDir(path.join(snapshotDir, 'src', 'types'));
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'Button.tsx'),
+      'export function Button() { return <button />; }\n',
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'index.ts'),
+      'export { Button } from "./Button";\n',
+    );
+    await fs.writeFile(path.join(snapshotDir, 'src', 'types', 'model.ts'), 'export interface User { id: string }\n');
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'types', 'index.ts'),
+      'export * from "./model";\n',
+    );
+
+    sourceSnapshotFindUniqueMock.mockResolvedValue({
+      id: 5006,
+      status: 'ready',
+      rootPath: snapshotDir,
+    });
+
+    await rebuildSourceSnapshotIndex(706);
+
+    const createPayload = sourceIndexArtifactCreateMock.mock.calls[0]?.[0];
+    const parsedArtifact = JSON.parse(createPayload.data.contentJson as string) as {
+      files: Array<{
+        path: string;
+        imports: string[];
+        localDependencies: string[];
+      }>;
+    };
+
+    expect(parsedArtifact.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'src/components/index.ts',
+          imports: ['./Button'],
+          localDependencies: ['src/components/Button.tsx'],
+        }),
+        expect.objectContaining({
+          path: 'src/types/index.ts',
+          imports: ['./model'],
+          localDependencies: ['src/types/model.ts'],
+        }),
+      ]),
+    );
+  });
+
   test('records a warning when tsconfig alias configuration cannot be parsed', async () => {
     const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1.0.2');
     await fse.ensureDir(path.join(snapshotDir, 'src'));

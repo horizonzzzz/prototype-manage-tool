@@ -1,5 +1,6 @@
 import path from 'node:path';
 
+import type { IndexedImportEntry, IndexedReExportEntry } from '@/lib/server/source-index-types';
 import { dedupeStrings } from '@/lib/server/source-index-types';
 
 export const INDEXABLE_SOURCE_EXTENSIONS = new Set([
@@ -180,20 +181,232 @@ export function parseJsonc<T>(source: string): T {
 
 // --- Import / Export parsing ---
 
-export function parseImports(source: string) {
-  const imports: string[] = [];
-  const importRegex = /\bimport\s+(?:type\s+)?(?:[^'";]+?\s+from\s+)?["']([^"']+)["']/g;
+function splitTopLevelCommaList(source: string) {
+  return source
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseImportedBindingItem(rawItem: string, defaultTypeOnly: boolean) {
+  const typeOnly = defaultTypeOnly || rawItem.startsWith('type ');
+  const item = typeOnly && rawItem.startsWith('type ') ? rawItem.slice(5).trim() : rawItem.trim();
+  const [importedName, localName] = item.split(/\s+as\s+/i).map((part) => part.trim());
+  return {
+    kind: 'named' as const,
+    importedName,
+    localName: localName ?? importedName,
+    isTypeOnly: typeOnly,
+  };
+}
+
+function parseExportedBindingItem(rawItem: string, defaultTypeOnly: boolean) {
+  const typeOnly = defaultTypeOnly || rawItem.startsWith('type ');
+  const item = typeOnly && rawItem.startsWith('type ') ? rawItem.slice(5).trim() : rawItem.trim();
+  const [importedName, exportedName] = item.split(/\s+as\s+/i).map((part) => part.trim());
+  return {
+    kind: 'named' as const,
+    importedName,
+    exportedName: exportedName ?? importedName,
+    isTypeOnly: typeOnly,
+  };
+}
+
+export function parseImportEntries(source: string): IndexedImportEntry[] {
+  const entries: IndexedImportEntry[] = [];
+  const importFromRegex = /\bimport\s+([\s\S]*?)\s+from\s+["']([^"']+)["']/g;
+  const sideEffectImportRegex = /\bimport\s+["']([^"']+)["']/g;
   const dynamicImportRegex = /\bimport\s*\(\s*["']([^"']+)["']\s*\)/g;
   const requireRegex = /\brequire\s*\(\s*["']([^"']+)["']\s*\)/g;
 
-  for (const regex of [importRegex, dynamicImportRegex, requireRegex]) {
-    let match: RegExpExecArray | null;
-    while ((match = regex.exec(source)) !== null) {
-      imports.push(match[1]);
+  let match: RegExpExecArray | null;
+  while ((match = importFromRegex.exec(source)) !== null) {
+    const clause = match[1].trim();
+    const moduleSource = match[2];
+
+    if (!clause) {
+      continue;
     }
+
+    let defaultTypeOnly = false;
+    let normalizedClause = clause;
+    if (normalizedClause.startsWith('type ')) {
+      defaultTypeOnly = true;
+      normalizedClause = normalizedClause.slice(5).trim();
+    }
+
+    if (normalizedClause.startsWith('{') && normalizedClause.endsWith('}')) {
+      const namedBindings = normalizedClause.slice(1, -1);
+      entries.push(
+        ...splitTopLevelCommaList(namedBindings).map((item) => {
+          const parsed = parseImportedBindingItem(item, defaultTypeOnly);
+          return {
+            source: moduleSource,
+            resolvedPath: null,
+            ...parsed,
+          };
+        }),
+      );
+      continue;
+    }
+
+    if (normalizedClause.startsWith('* as ')) {
+      entries.push({
+        source: moduleSource,
+        resolvedPath: null,
+        kind: 'namespace',
+        importedName: null,
+        localName: normalizedClause.slice(5).trim(),
+        isTypeOnly: defaultTypeOnly,
+      });
+      continue;
+    }
+
+    const commaIndex = normalizedClause.indexOf(',');
+    if (commaIndex >= 0) {
+      const defaultBinding = normalizedClause.slice(0, commaIndex).trim();
+      const remainder = normalizedClause.slice(commaIndex + 1).trim();
+
+      if (defaultBinding) {
+        entries.push({
+          source: moduleSource,
+          resolvedPath: null,
+          kind: 'default',
+          importedName: 'default',
+          localName: defaultBinding,
+          isTypeOnly: defaultTypeOnly,
+        });
+      }
+
+      if (remainder.startsWith('{') && remainder.endsWith('}')) {
+        entries.push(
+          ...splitTopLevelCommaList(remainder.slice(1, -1)).map((item) => {
+            const parsed = parseImportedBindingItem(item, defaultTypeOnly);
+            return {
+              source: moduleSource,
+              resolvedPath: null,
+              ...parsed,
+            };
+          }),
+        );
+      } else if (remainder.startsWith('* as ')) {
+        entries.push({
+          source: moduleSource,
+          resolvedPath: null,
+          kind: 'namespace',
+          importedName: null,
+          localName: remainder.slice(5).trim(),
+          isTypeOnly: defaultTypeOnly,
+        });
+      }
+      continue;
+    }
+
+    entries.push({
+      source: moduleSource,
+      resolvedPath: null,
+      kind: 'default',
+      importedName: 'default',
+      localName: normalizedClause,
+      isTypeOnly: defaultTypeOnly,
+    });
   }
 
-  return dedupeStrings(imports);
+  while ((match = sideEffectImportRegex.exec(source)) !== null) {
+    const start = match.index;
+    const before = source.slice(Math.max(0, start - 20), start);
+    if (/\sfrom\s*$/.test(before)) {
+      continue;
+    }
+
+    entries.push({
+      source: match[1],
+      resolvedPath: null,
+      kind: 'side-effect',
+      importedName: null,
+      localName: null,
+      isTypeOnly: false,
+    });
+  }
+
+  while ((match = dynamicImportRegex.exec(source)) !== null) {
+    entries.push({
+      source: match[1],
+      resolvedPath: null,
+      kind: 'dynamic',
+      importedName: null,
+      localName: null,
+      isTypeOnly: false,
+    });
+  }
+
+  while ((match = requireRegex.exec(source)) !== null) {
+    entries.push({
+      source: match[1],
+      resolvedPath: null,
+      kind: 'require',
+      importedName: null,
+      localName: null,
+      isTypeOnly: false,
+    });
+  }
+
+  return entries;
+}
+
+export function parseReExportEntries(source: string): IndexedReExportEntry[] {
+  const entries: IndexedReExportEntry[] = [];
+  const namedReExportRegex = /\bexport\s+(type\s+)?{\s*([^}]+)\s*}\s*from\s*["']([^"']+)["']/g;
+  const exportAllRegex = /\bexport\s+(type\s+)?\*\s*from\s*["']([^"']+)["']/g;
+  const namespaceReExportRegex = /\bexport\s+(type\s+)?\*\s+as\s+([A-Za-z_$][\w$]*)\s*from\s*["']([^"']+)["']/g;
+
+  let match: RegExpExecArray | null;
+  while ((match = namedReExportRegex.exec(source)) !== null) {
+    const defaultTypeOnly = Boolean(match[1]);
+    const namedBindings = match[2];
+    const moduleSource = match[3];
+    entries.push(
+      ...splitTopLevelCommaList(namedBindings).map((item) => {
+        const parsed = parseExportedBindingItem(item, defaultTypeOnly);
+        return {
+          source: moduleSource,
+          resolvedPath: null,
+          ...parsed,
+        };
+      }),
+    );
+  }
+
+  while ((match = exportAllRegex.exec(source)) !== null) {
+    entries.push({
+      source: match[2],
+      resolvedPath: null,
+      kind: 'all',
+      importedName: null,
+      exportedName: null,
+      isTypeOnly: Boolean(match[1]),
+    });
+  }
+
+  while ((match = namespaceReExportRegex.exec(source)) !== null) {
+    entries.push({
+      source: match[3],
+      resolvedPath: null,
+      kind: 'namespace',
+      importedName: null,
+      exportedName: match[2],
+      isTypeOnly: Boolean(match[1]),
+    });
+  }
+
+  return entries;
+}
+
+export function parseImports(source: string) {
+  return dedupeStrings([
+    ...parseImportEntries(source).map((entry) => entry.source),
+    ...parseReExportEntries(source).map((entry) => entry.source),
+  ]);
 }
 
 export function parseExports(source: string) {

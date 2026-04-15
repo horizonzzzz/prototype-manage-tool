@@ -16,6 +16,24 @@ export type IndexedTypeCandidate = {
   line: number;
 };
 
+export type IndexedImportEntry = {
+  source: string;
+  resolvedPath: string | null;
+  kind: 'named' | 'default' | 'namespace' | 'side-effect' | 'dynamic' | 'require';
+  importedName: string | null;
+  localName: string | null;
+  isTypeOnly: boolean;
+};
+
+export type IndexedReExportEntry = {
+  source: string;
+  resolvedPath: string | null;
+  kind: 'named' | 'all' | 'namespace';
+  importedName: string | null;
+  exportedName: string | null;
+  isTypeOnly: boolean;
+};
+
 export type SourceIndexFileEntry = {
   path: string;
   size: number;
@@ -23,6 +41,8 @@ export type SourceIndexFileEntry = {
   imports: string[];
   exports: string[];
   localDependencies: string[];
+  importEntries: IndexedImportEntry[];
+  reExportEntries: IndexedReExportEntry[];
   symbols: {
     components: IndexedComponentCandidate[];
     types: IndexedTypeCandidate[];
