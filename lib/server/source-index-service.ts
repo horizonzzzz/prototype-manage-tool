@@ -191,6 +191,21 @@ function sortDefinitions(definitions: SourceIndexDefinition[]) {
   });
 }
 
+function dedupeFileLineCandidates<T extends { file: string; line: number }>(candidates: T[]) {
+  const deduped = new Map<string, T>();
+  for (const candidate of candidates) {
+    deduped.set(`${candidate.file}:${candidate.line}`, candidate);
+  }
+
+  return [...deduped.values()].sort((left, right) => {
+    if (left.file !== right.file) {
+      return left.file.localeCompare(right.file);
+    }
+
+    return left.line - right.line;
+  });
+}
+
 function selectDefinitionsByName(
   artifact: LoadedSourceIndexArtifact,
   symbolName: string,
@@ -430,7 +445,9 @@ export async function queryComponentContext(scope: McpAccessScope, input: Compon
   }
 
   const definitions = selectDefinitionsByName(context.artifact, input.componentName, (definition) => definition.kind === 'component');
-  const definitionCandidates = definitions.map((definition) => ({ file: definition.file, line: definition.line }));
+  const definitionCandidates = dedupeFileLineCandidates(
+    definitions.map((definition) => ({ file: definition.file, line: definition.line })),
+  );
   const definitionPaths = new Set(definitions.map((definition) => definition.file));
   const definitionIds = new Set(definitions.map((definition) => definition.id));
   const referencedDefinitions = collectReferencedDefinitions(context.artifact, definitionPaths, definitionIds);
@@ -445,7 +462,9 @@ export async function queryComponentContext(scope: McpAccessScope, input: Compon
     referencedDefinitions.flatMap((definition) => (definition.exportNames.length > 0 ? definition.exportNames : [definition.name])),
   ).sort((left, right) => left.localeCompare(right));
   const exports = dedupeStrings(
-    definitions.flatMap((definition) => (definition.exportNames.length > 0 ? definition.exportNames : [definition.name])),
+    definitions
+      .filter((definition) => definition.exportNames.length > 0)
+      .flatMap((definition) => definition.exportNames),
   ).sort((left, right) => left.localeCompare(right));
 
   return {
@@ -487,11 +506,13 @@ export async function queryTypeDefinition(scope: McpAccessScope, input: TypeDefi
   const definitions = selectDefinitionsByName(context.artifact, input.typeName, (definition) =>
     TYPE_DEFINITION_KINDS.has(definition.kind),
   );
-  const definitionCandidates = definitions.map((definition) => ({
-    file: definition.file,
-    line: definition.line,
-    kind: definition.kind as 'interface' | 'type' | 'enum',
-  }));
+  const definitionCandidates = dedupeFileLineCandidates(
+    definitions.map((definition) => ({
+      file: definition.file,
+      line: definition.line,
+      kind: definition.kind as 'interface' | 'type' | 'enum',
+    })),
+  );
   const definitionPaths = new Set(definitions.map((definition) => definition.file));
   const usedIn = collectUsageFiles(context.artifact.usages, definitions);
   const relatedFiles = dedupeStrings(usedIn.filter((filePath) => !definitionPaths.has(filePath))).sort((left, right) =>

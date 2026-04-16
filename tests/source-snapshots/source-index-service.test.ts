@@ -296,6 +296,191 @@ describe('source index service', { timeout: SOURCE_INDEX_INTEGRATION_TIMEOUT_MS 
     expect(result.payload?.relatedFiles).toEqual(['src/types/button-types.ts']);
   });
 
+  test('returns context for a non-exported local component without reporting it as exported', async () => {
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'LocalCard.tsx'),
+      'type LocalCardProps = { label: string };\n' +
+        '\n' +
+        'function LocalCard(props: LocalCardProps) {\n' +
+        '  return <section>{props.label}</section>;\n' +
+        '}\n' +
+        '\n' +
+        'export function LocalCardHost() {\n' +
+        '  return <LocalCard label="Hi" />;\n' +
+        '}\n',
+    );
+    mockReadySnapshot(await createSemanticArtifact());
+
+    const result = await queryComponentContext(scope, {
+      productKey: 'crm',
+      exactVersion: 'v1.0.0',
+      componentName: 'LocalCard',
+    });
+
+    expect(result.status).toBe('ready');
+    expect(result.payload).toEqual({
+      component: 'LocalCard',
+      file: 'src/components/LocalCard.tsx',
+      definitionCandidates: [{ file: 'src/components/LocalCard.tsx', line: 3 }],
+      dependencies: ['src/components/LocalCard.tsx'],
+      usedBy: [],
+      relatedFiles: [],
+      imports: ['LocalCardProps'],
+      exports: [],
+    });
+  });
+
+  test('returns definitions for a non-exported local type alias', async () => {
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'LocalCard.tsx'),
+      'type LocalCardProps = { label: string };\n' +
+        '\n' +
+        'function LocalCard(props: LocalCardProps) {\n' +
+        '  return <section>{props.label}</section>;\n' +
+        '}\n' +
+        '\n' +
+        'export function LocalCardHost() {\n' +
+        '  return <LocalCard label="Hi" />;\n' +
+        '}\n',
+    );
+    mockReadySnapshot(await createSemanticArtifact());
+
+    const result = await queryTypeDefinition(scope, {
+      productKey: 'crm',
+      exactVersion: 'v1.0.0',
+      typeName: 'LocalCardProps',
+    });
+
+    expect(result.status).toBe('ready');
+    expect(result.payload).toEqual({
+      typeName: 'LocalCardProps',
+      definitionCandidates: [{ file: 'src/components/LocalCard.tsx', line: 1, kind: 'type' }],
+      usedIn: [],
+      relatedFiles: [],
+    });
+  });
+
+  test('tracks dynamic import consumers in file metadata and component context', async () => {
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'LazyButton.tsx'),
+      'export function LazyButton() {\n' + '  return <button />;\n' + '}\n',
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'screens', 'LazyHost.tsx'),
+      'import { lazy } from "react";\n' +
+        '\n' +
+        'const LazyButton = lazy(() => import("../components/LazyButton").then((module) => ({ default: module.LazyButton })));\n' +
+        '\n' +
+        'export function LazyHost() {\n' +
+        '  return <LazyButton />;\n' +
+        '}\n',
+    );
+
+    const artifact = await createSemanticArtifact();
+    mockReadySnapshot(artifact);
+
+    expect(artifact.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'src/screens/LazyHost.tsx',
+          imports: ['react', '../components/LazyButton'],
+          localDependencies: ['src/components/LazyButton.tsx'],
+        }),
+      ]),
+    );
+
+    const result = await queryComponentContext(scope, {
+      productKey: 'crm',
+      exactVersion: 'v1.0.0',
+      componentName: 'LazyButton',
+    });
+
+    expect(result.status).toBe('ready');
+    expect(result.payload?.usedBy).toEqual(['src/screens/LazyHost.tsx']);
+    expect(result.payload?.relatedFiles).toContain('src/screens/LazyHost.tsx');
+  });
+
+  test('does not report dynamic import consumers for untouched sibling exports', async () => {
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'LazyWidgets.tsx'),
+      'export function UsedWidget() {\n' +
+        '  return <button />;\n' +
+        '}\n' +
+        '\n' +
+        'export function UnusedWidget() {\n' +
+        '  return <aside />;\n' +
+        '}\n',
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'screens', 'LazyWidgetsHost.tsx'),
+      'import { lazy } from "react";\n' +
+        '\n' +
+        'const UsedWidget = lazy(() => import("../components/LazyWidgets").then((module) => ({ default: module.UsedWidget })));\n' +
+        '\n' +
+        'export function LazyWidgetsHost() {\n' +
+        '  return <UsedWidget />;\n' +
+        '}\n',
+    );
+
+    const artifact = await createSemanticArtifact();
+    mockReadySnapshot(artifact);
+
+    const usedResult = await queryComponentContext(scope, {
+      productKey: 'crm',
+      exactVersion: 'v1.0.0',
+      componentName: 'UsedWidget',
+    });
+    const unusedResult = await queryComponentContext(scope, {
+      productKey: 'crm',
+      exactVersion: 'v1.0.0',
+      componentName: 'UnusedWidget',
+    });
+
+    expect(usedResult.status).toBe('ready');
+    expect(usedResult.payload?.usedBy).toEqual(['src/screens/LazyWidgetsHost.tsx']);
+    expect(unusedResult.status).toBe('ready');
+    expect(unusedResult.payload?.usedBy).toEqual([]);
+    expect(unusedResult.payload?.relatedFiles).not.toContain('src/screens/LazyWidgetsHost.tsx');
+  });
+
+  test('tracks require consumers in file metadata and component context', async () => {
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'LegacyWidget.tsx'),
+      'export function LegacyWidget() {\n' + '  return <aside />;\n' + '}\n',
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'screens', 'RequireHost.tsx'),
+      'const { LegacyWidget } = require("../components/LegacyWidget");\n' +
+        '\n' +
+        'export function RequireHost() {\n' +
+        '  return <LegacyWidget />;\n' +
+        '}\n',
+    );
+
+    const artifact = await createSemanticArtifact();
+    mockReadySnapshot(artifact);
+
+    expect(artifact.files).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          path: 'src/screens/RequireHost.tsx',
+          imports: ['../components/LegacyWidget'],
+          localDependencies: ['src/components/LegacyWidget.tsx'],
+        }),
+      ]),
+    );
+
+    const result = await queryComponentContext(scope, {
+      productKey: 'crm',
+      exactVersion: 'v1.0.0',
+      componentName: 'LegacyWidget',
+    });
+
+    expect(result.status).toBe('ready');
+    expect(result.payload?.usedBy).toEqual(['src/screens/RequireHost.tsx']);
+    expect(result.payload?.relatedFiles).toContain('src/screens/RequireHost.tsx');
+  });
+
   test('returns failed status when the ready artifact is missing semantic arrays', async () => {
     const invalidArtifact = {
       format: 'source-tree-v2',

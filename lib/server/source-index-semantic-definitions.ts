@@ -14,7 +14,7 @@ import type { SourceIndexDefinition } from '@/lib/server/source-index-types';
 
 type DefinitionSite = {
   exporterFile: string;
-  exportName: string;
+  exportName: string | null;
   declaration: SemanticExportDeclaration;
   declarationFile: string;
   declarationLine: number;
@@ -309,7 +309,7 @@ function isVariableHookLikeInitializer(node: MorphNode) {
 
 function createDefinitionId(
   exporterFile: string,
-  exportName: string,
+  exportName: string | null,
   declarationFile: string,
   declarationLine: number,
   resolvedName: string,
@@ -328,9 +328,13 @@ function createDefinitionId(
 
 function resolveExportSiteLine(
   sourceFile: SemanticProjectBootstrap['sourceFileEntries'][number]['sourceFile'],
-  exportName: string,
+  exportName: string | null,
   declaration: SemanticExportDeclaration,
 ) {
+  if (exportName === null) {
+    return getNodeLine(declaration);
+  }
+
   for (const exportDeclaration of sourceFile.getExportDeclarations()) {
     const namespaceExport = exportDeclaration.getNamespaceExport();
     if (namespaceExport && namespaceExport.getName() === exportName) {
@@ -363,6 +367,37 @@ function resolveExportSiteLine(
   return getNodeLine(declaration);
 }
 
+function collectTopLevelDeclarations(sourceFile: SourceFile): SemanticExportDeclaration[] {
+  return [
+    ...sourceFile.getFunctions(),
+    ...sourceFile.getClasses(),
+    ...sourceFile.getInterfaces(),
+    ...sourceFile.getTypeAliases(),
+    ...sourceFile.getEnums(),
+    ...sourceFile.getModules(),
+    ...sourceFile.getVariableStatements().flatMap((statement) => statement.getDeclarations()),
+  ];
+}
+
+function isTopLevelDeclarationExported(declaration: SemanticExportDeclaration) {
+  if (Node.isVariableDeclaration(declaration)) {
+    return declaration.getFirstAncestorByKind(SyntaxKind.VariableStatement)?.hasExportKeyword() ?? false;
+  }
+
+  if (
+    Node.isFunctionDeclaration(declaration) ||
+    Node.isClassDeclaration(declaration) ||
+    Node.isInterfaceDeclaration(declaration) ||
+    Node.isTypeAliasDeclaration(declaration) ||
+    Node.isEnumDeclaration(declaration) ||
+    Node.isModuleDeclaration(declaration)
+  ) {
+    return declaration.hasExportKeyword();
+  }
+
+  return false;
+}
+
 export function collectSemanticDefinitions(
   semanticProject: Pick<SemanticProjectBootstrap, 'sourceFileEntries'>,
 ): SourceIndexDefinition[] {
@@ -376,7 +411,7 @@ export function collectSemanticDefinitions(
     const exportedDeclarations = entry.sourceFile.getExportedDeclarations();
     const exporterFile = entry.relativePath;
 
-    const collectFromDeclaration = (exportName: string, declaration: SemanticExportDeclaration) => {
+    const collectFromDeclaration = (exportName: string | null, declaration: SemanticExportDeclaration) => {
       const declarationFile = relativePathByAbsolute.get(declaration.getSourceFile().getFilePath());
       if (!declarationFile) {
         return;
@@ -384,7 +419,9 @@ export function collectSemanticDefinitions(
 
       const declarationName = getDeclarationName(declaration);
       const resolvedName =
-        exportName === 'default'
+        exportName === null
+          ? declarationName
+          : exportName === 'default'
           ? (declarationName ?? deriveDefaultExportName(exporterFile))
           : exportName;
       if (!resolvedName) {
@@ -417,15 +454,17 @@ export function collectSemanticDefinitions(
         id,
         name: resolvedName,
         kind,
-        file: exporterFile,
+        file: exportName === null ? declarationFile : exporterFile,
         line: exportLine,
-        exportNames: [exportName],
+        exportNames: exportName === null ? [] : [exportName],
         isDefaultExport: exportName === 'default',
         filePath: declarationFile,
         exportedAs:
-          declarationName && declarationName !== exportName
+          exportName !== null && declarationName && declarationName !== exportName
             ? [exportName, declarationName]
-            : [exportName],
+            : exportName !== null
+              ? [exportName]
+              : undefined,
       });
     };
 
@@ -442,6 +481,14 @@ export function collectSemanticDefinitions(
 
       collectFromDeclaration('default', exportAssignment as unknown as ExportedDeclarations);
     }
+
+    for (const declaration of collectTopLevelDeclarations(entry.sourceFile)) {
+      if (isTopLevelDeclarationExported(declaration)) {
+        continue;
+      }
+
+      collectFromDeclaration(null, declaration);
+    }
   }
 
   return definitions
@@ -455,8 +502,8 @@ export function collectSemanticDefinitions(
       if (left.name !== right.name) {
         return left.name.localeCompare(right.name);
       }
-      if (left.exportNames[0] !== right.exportNames[0]) {
-        return left.exportNames[0].localeCompare(right.exportNames[0]);
+      if ((left.exportNames[0] ?? '') !== (right.exportNames[0] ?? '')) {
+        return (left.exportNames[0] ?? '').localeCompare(right.exportNames[0] ?? '');
       }
       return left.id.localeCompare(right.id);
     });

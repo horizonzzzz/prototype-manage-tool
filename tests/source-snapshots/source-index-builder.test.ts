@@ -1081,4 +1081,76 @@ describe('source index semantic project bootstrap', () => {
       },
     ]);
   });
+
+  test('narrows dynamic import and require usage edges to the accessed export', async () => {
+    const rootPath = await fs.mkdtemp(path.join(os.tmpdir(), 'source-index-semantic-dynamic-exports-'));
+    tempRoots.push(rootPath);
+
+    await fse.ensureDir(path.join(rootPath, 'src'));
+    await fs.writeFile(
+      path.join(rootPath, 'tsconfig.json'),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            jsx: 'preserve',
+            target: 'ES2020',
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    await fs.writeFile(
+      path.join(rootPath, 'src', 'widgets.tsx'),
+      'export function A() { return <div />; }\n' + 'export function B() { return <div />; }\n',
+    );
+    await fs.writeFile(
+      path.join(rootPath, 'src', 'lazy-host.tsx'),
+      'import { lazy } from "react";\n' +
+        'const LazyA = lazy(() => import("./widgets").then((module) => ({ default: module.A })));\n' +
+        'export function LazyHost() { return <LazyA />; }\n',
+    );
+    await fs.writeFile(
+      path.join(rootPath, 'src', 'require-host.tsx'),
+      'const { A } = require("./widgets");\n' + 'export function RequireHost() { return <A />; }\n',
+    );
+
+    const artifact = await buildSourceIndexArtifact(rootPath, 97);
+
+    const aDefinition = artifact.definitions?.find(
+      (definition) => definition.name === 'A' && definition.file === 'src/widgets.tsx',
+    );
+    const bDefinition = artifact.definitions?.find(
+      (definition) => definition.name === 'B' && definition.file === 'src/widgets.tsx',
+    );
+
+    expect(aDefinition).toBeTruthy();
+    expect(bDefinition).toBeTruthy();
+    expect(
+      (artifact.usages ?? [])
+        .filter((usage) => usage.kind === 'import' && usage.targetFile === 'src/widgets.tsx')
+        .map(pickUsageFields),
+    ).toEqual([
+      {
+        kind: 'import',
+        file: 'src/lazy-host.tsx',
+        symbol: 'A',
+        targetFile: 'src/widgets.tsx',
+        line: 2,
+        importedAs: undefined,
+        namespaceAlias: undefined,
+        definitionId: aDefinition?.id,
+      },
+      {
+        kind: 'import',
+        file: 'src/require-host.tsx',
+        symbol: 'A',
+        targetFile: 'src/widgets.tsx',
+        line: 1,
+        importedAs: undefined,
+        namespaceAlias: undefined,
+        definitionId: aDefinition?.id,
+      },
+    ]);
+  });
 });

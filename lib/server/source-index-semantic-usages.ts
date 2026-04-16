@@ -1,5 +1,6 @@
 import { Node, SyntaxKind, type SourceFile, type Symbol as MorphSymbol } from 'ts-morph';
 
+import { collectSemanticModuleReferences } from '@/lib/server/code-analysis';
 import type { SemanticProjectBootstrap } from '@/lib/server/source-index-semantic-project';
 import { getNodeLine, unwrapAliasedSymbol } from '@/lib/server/source-index-semantic-symbols';
 import type { SourceIndexDefinition, SourceIndexUsage } from '@/lib/server/source-index-types';
@@ -163,6 +164,19 @@ function selectDefinitionCandidate(
   })[0] ?? null;
 }
 
+function filterDefinitionCandidatesByName(candidates: SourceIndexDefinition[], preferredName: string | null) {
+  if (preferredName === null) {
+    return candidates;
+  }
+
+  return candidates.filter(
+    (definition) =>
+      definition.name === preferredName ||
+      definition.exportNames.includes(preferredName) ||
+      definition.exportedAs?.includes(preferredName),
+  );
+}
+
 function resolveModuleRelativePath(
   moduleSourceFile: SourceFile | undefined,
   relativePathByAbsolute: Map<string, string>,
@@ -270,11 +284,13 @@ function resolveDefinitionFromSymbol(
       continue;
     }
 
-    if (fallbackName) {
-      const matchingDefinition = selectDefinitionCandidate(definitions, usageKind, fallbackName);
-      if (matchingDefinition) {
-        return matchingDefinition;
-      }
+    const matchingDefinitions = filterDefinitionCandidatesByName(definitions, fallbackName);
+    if (fallbackName && matchingDefinitions.length === 0) {
+      continue;
+    }
+
+    if (matchingDefinitions.length > 0) {
+      return selectDefinitionCandidate(matchingDefinitions, usageKind, fallbackName);
     }
 
     const directDefinitions = definitions.filter((definition) => definition.file === declarationFile);
@@ -352,9 +368,74 @@ function isImportBindingIdentifier(identifier: Node) {
   return Node.isImportClause(parent) || Node.isImportSpecifier(parent) || Node.isNamespaceImport(parent);
 }
 
+function isDeclarationNameIdentifier(identifier: Node) {
+  const parent = identifier.getParent();
+  return (
+    (Node.isVariableDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isFunctionDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isFunctionExpression(parent) && parent.getNameNode() === identifier) ||
+    (Node.isClassDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isClassExpression(parent) && parent.getNameNode() === identifier) ||
+    (Node.isInterfaceDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isTypeAliasDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isEnumDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isModuleDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isParameterDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isTypeParameterDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isBindingElement(parent) &&
+      (parent.getNameNode() === identifier || parent.getPropertyNameNode() === identifier))
+  );
+}
+
 function isNamespacePropertyAccess(identifier: Node) {
   const parent = identifier.getParent();
   return Node.isPropertyAccessExpression(parent) && parent.getNameNode() === identifier;
+}
+
+function isQualifiedNameIdentifier(identifier: Node) {
+  return Boolean(identifier.getFirstAncestorByKind(SyntaxKind.QualifiedName));
+}
+
+function isExportSyntaxIdentifier(identifier: Node) {
+  const parent = identifier.getParent();
+  return Node.isExportSpecifier(parent) || Node.isNamespaceExport(parent);
+}
+
+function isPropertyNameIdentifier(identifier: Node) {
+  const parent = identifier.getParent();
+  return (
+    (Node.isPropertyAssignment(parent) && parent.getNameNode() === identifier) ||
+    (Node.isShorthandPropertyAssignment(parent) && parent.getNameNode() === identifier) ||
+    (Node.isPropertySignature(parent) && parent.getNameNode() === identifier) ||
+    (Node.isPropertyDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isMethodSignature(parent) && parent.getNameNode() === identifier) ||
+    (Node.isMethodDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isGetAccessorDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isSetAccessorDeclaration(parent) && parent.getNameNode() === identifier) ||
+    (Node.isEnumMember(parent) && parent.getNameNode() === identifier) ||
+    (Node.isJsxAttribute(parent) && parent.getNameNode() === identifier)
+  );
+}
+
+function isSupportedUnboundUsageKind(usageKind: SourceIndexUsage['kind']) {
+  return usageKind !== 'reference';
+}
+
+function resolveModuleReferenceDefinition(
+  resolvedPath: string,
+  exportName: string,
+  lookups: DefinitionLookups,
+) {
+  const candidates =
+    lookups.byExportSite
+      .get(createExportSiteKey(resolvedPath, exportName))
+      ?.filter((definition) => isRuntimeDefinition(definition)) ?? [];
+
+  if (candidates.length === 0) {
+    return null;
+  }
+
+  return selectDefinitionCandidate(candidates, 'import', exportName);
 }
 
 function isTypePositionIdentifier(identifier: Node) {
@@ -462,6 +543,10 @@ function isTypeSideDefinition(definition: SourceIndexDefinition) {
     definition.kind === 'class' ||
     definition.kind === 'namespace'
   );
+}
+
+function isRuntimeDefinition(definition: SourceIndexDefinition) {
+  return definition.kind !== 'interface' && definition.kind !== 'type';
 }
 
 function resolveWildcardReExportDefinitions(
@@ -573,6 +658,30 @@ export function collectSemanticUsages(
             getNodeLine(bindingNode),
             'type-import',
             binding.localName,
+          ),
+        );
+      }
+    }
+
+    for (const reference of collectSemanticModuleReferences(entry.sourceFile, relativePathByAbsolute)) {
+      if (!reference.resolvedPath || reference.accessedExports.length === 0) {
+        continue;
+      }
+
+      for (const exportName of reference.accessedExports) {
+        const definition = resolveModuleReferenceDefinition(reference.resolvedPath, exportName, lookups);
+        if (!definition) {
+          continue;
+        }
+
+        pushUsage(
+          createUsageRecord(
+            definition,
+            entry.relativePath,
+            exportName === 'default' ? definition.name : exportName,
+            definition.file,
+            reference.line,
+            'import',
           ),
         );
       }
@@ -731,6 +840,22 @@ export function collectSemanticUsages(
         continue;
       }
 
+      if (isDeclarationNameIdentifier(identifier)) {
+        continue;
+      }
+
+      if (isExportSyntaxIdentifier(identifier)) {
+        continue;
+      }
+
+      if (isQualifiedNameIdentifier(identifier)) {
+        continue;
+      }
+
+      if (isPropertyNameIdentifier(identifier)) {
+        continue;
+      }
+
       const parent = identifier.getParent();
       if (Node.isPropertyAccessExpression(parent) && parent.getExpression() === identifier) {
         continue;
@@ -793,7 +918,41 @@ export function collectSemanticUsages(
 
       const symbol = semanticProject.checker.getSymbolAtLocation(identifier);
       const binding = resolveBindingFromSymbol(symbol, relativePathByAbsolute);
-      if (!binding || binding.kind === 'namespace') {
+      if (!binding) {
+        const usageKind = inferUsageKind(identifier);
+        if (!isSupportedUnboundUsageKind(usageKind)) {
+          continue;
+        }
+
+        const definition = resolveDefinitionFromSymbol(
+          symbol,
+          identifier.getText(),
+          lookups,
+          relativePathByAbsolute,
+          usageKind,
+        );
+        if (!definition) {
+          continue;
+        }
+
+        if (usageKind === 'jsx' && definition.kind !== 'component') {
+          continue;
+        }
+
+        pushUsage(
+          createUsageRecord(
+            definition,
+            entry.relativePath,
+            identifier.getText(),
+            definition.filePath ?? definition.file,
+            getNodeLine(identifier),
+            usageKind,
+          ),
+        );
+        continue;
+      }
+
+      if (binding.kind === 'namespace') {
         continue;
       }
 
