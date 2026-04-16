@@ -315,11 +315,43 @@ describe('source index service', { timeout: SOURCE_INDEX_INTEGRATION_TIMEOUT_MS 
       component: 'LocalCard',
       file: 'src/components/LocalCard.tsx',
       definitionCandidates: [{ file: 'src/components/LocalCard.tsx', line: 3 }],
-      dependencies: ['src/components/LocalCard.tsx'],
+      dependencies: [],
       usedBy: [],
       relatedFiles: [],
-      imports: ['LocalCardProps'],
+      imports: [],
       exports: [],
+    });
+  });
+
+  test('does not report same-file props definitions as component dependencies or imports', async () => {
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'PopupPage.tsx'),
+      'export interface PopupPageProps {\n' +
+        '  title: string;\n' +
+        '}\n' +
+        '\n' +
+        'export function PopupPage(props: PopupPageProps) {\n' +
+        '  return <section>{props.title}</section>;\n' +
+        '}\n',
+    );
+    mockReadySnapshot(await createSemanticArtifact());
+
+    const result = await queryComponentContext(scope, {
+      productKey: 'crm',
+      exactVersion: 'v1.0.0',
+      componentName: 'PopupPage',
+    });
+
+    expect(result.status).toBe('ready');
+    expect(result.payload).toEqual({
+      component: 'PopupPage',
+      file: 'src/components/PopupPage.tsx',
+      definitionCandidates: [{ file: 'src/components/PopupPage.tsx', line: 5 }],
+      dependencies: [],
+      usedBy: [],
+      relatedFiles: [],
+      imports: [],
+      exports: ['PopupPage'],
     });
   });
 

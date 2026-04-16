@@ -251,6 +251,10 @@ function collectReferencedDefinitions(
       continue;
     }
 
+    if (sourceFiles.has(definition.file)) {
+      continue;
+    }
+
     collected.set(definition.id, definition);
   }
 
