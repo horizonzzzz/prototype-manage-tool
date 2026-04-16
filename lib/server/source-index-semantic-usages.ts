@@ -664,11 +664,18 @@ export function collectSemanticUsages(
     }
 
     for (const reference of collectSemanticModuleReferences(entry.sourceFile, relativePathByAbsolute)) {
-      if (!reference.resolvedPath || reference.accessedExports.length === 0) {
+      if (!reference.resolvedPath) {
         continue;
       }
 
-      for (const exportName of reference.accessedExports) {
+      const exportNames =
+        reference.accessedExports.length > 0
+          ? reference.accessedExports
+          : reference.kind === 'dynamic-import'
+            ? ['default']
+            : [];
+
+      for (const exportName of exportNames) {
         const definition = resolveModuleReferenceDefinition(reference.resolvedPath, exportName, lookups);
         if (!definition) {
           continue;

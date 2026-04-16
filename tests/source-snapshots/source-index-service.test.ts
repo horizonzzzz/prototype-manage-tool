@@ -393,6 +393,70 @@ describe('source index service', { timeout: SOURCE_INDEX_INTEGRATION_TIMEOUT_MS 
     expect(result.payload?.relatedFiles).toContain('src/screens/LazyHost.tsx');
   });
 
+  test('tracks bare dynamic import consumers for default-exported lazy components', async () => {
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'BareLazyButton.tsx'),
+      'export default function BareLazyButton() {\n' + '  return <button />;\n' + '}\n',
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'screens', 'BareLazyHost.tsx'),
+      'import { lazy } from "react";\n' +
+        '\n' +
+        'const BareLazyButton = lazy(() => import("../components/BareLazyButton"));\n' +
+        '\n' +
+        'export function BareLazyHost() {\n' +
+        '  return <BareLazyButton />;\n' +
+        '}\n',
+    );
+
+    const artifact = await createSemanticArtifact();
+    mockReadySnapshot(artifact);
+
+    const result = await queryComponentContext(scope, {
+      productKey: 'crm',
+      exactVersion: 'v1.0.0',
+      componentName: 'BareLazyButton',
+    });
+
+    expect(result.status).toBe('ready');
+    expect(result.payload?.usedBy).toEqual(['src/screens/BareLazyHost.tsx']);
+    expect(result.payload?.relatedFiles).toContain('src/screens/BareLazyHost.tsx');
+  });
+
+  test('returns context for lazy wrapped exported components', async () => {
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'components', 'Dashboard.tsx'),
+      'export default function Dashboard() {\n' + '  return <main />;\n' + '}\n',
+    );
+    await fs.writeFile(
+      path.join(snapshotDir, 'src', 'screens', 'RouteEntries.tsx'),
+      'import { lazy } from "react";\n' +
+        '\n' +
+        'export const DashboardPage = lazy(() => import("../components/Dashboard"));\n',
+    );
+
+    const artifact = await createSemanticArtifact();
+    mockReadySnapshot(artifact);
+
+    const result = await queryComponentContext(scope, {
+      productKey: 'crm',
+      exactVersion: 'v1.0.0',
+      componentName: 'DashboardPage',
+    });
+
+    expect(result.status).toBe('ready');
+    expect(result.payload).toEqual({
+      component: 'DashboardPage',
+      file: 'src/screens/RouteEntries.tsx',
+      definitionCandidates: [{ file: 'src/screens/RouteEntries.tsx', line: 3 }],
+      dependencies: ['src/components/Dashboard.tsx'],
+      usedBy: [],
+      relatedFiles: ['src/components/Dashboard.tsx'],
+      imports: ['default'],
+      exports: ['DashboardPage'],
+    });
+  });
+
   test('does not report dynamic import consumers for untouched sibling exports', async () => {
     await fs.writeFile(
       path.join(snapshotDir, 'src', 'components', 'LazyWidgets.tsx'),

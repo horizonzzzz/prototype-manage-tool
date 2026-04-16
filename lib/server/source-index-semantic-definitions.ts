@@ -135,7 +135,11 @@ function inferDefinitionKind(
       return 'function';
     }
 
-    if (initializer && Node.isCallExpression(initializer) && isComponentWrapperCall(initializer)) {
+    if (
+      initializer &&
+      Node.isCallExpression(initializer) &&
+      (isComponentWrapperCall(initializer) || (site.exportName !== null && isLazyComponentWrapperCall(initializer)))
+    ) {
       return 'component';
     }
 
@@ -160,7 +164,10 @@ function inferDefinitionKind(
       return isClassComponentDeclaration(expression) ? 'component' : 'class';
     }
 
-    if (Node.isCallExpression(expression) && isComponentWrapperCall(expression)) {
+    if (
+      Node.isCallExpression(expression) &&
+      (isComponentWrapperCall(expression) || (site.exportName !== null && isLazyComponentWrapperCall(expression)))
+    ) {
       return 'component';
     }
 
@@ -277,6 +284,23 @@ function isComponentWrapperCall(node: MorphNode) {
   if (Node.isPropertyAccessExpression(expression)) {
     const propertyName = expression.getNameNode().getText();
     return propertyName === 'memo' || propertyName === 'forwardRef';
+  }
+
+  return false;
+}
+
+function isLazyComponentWrapperCall(node: MorphNode) {
+  if (!Node.isCallExpression(node)) {
+    return false;
+  }
+
+  const expression = node.getExpression();
+  if (Node.isIdentifier(expression)) {
+    return expression.getText() === 'lazy';
+  }
+
+  if (Node.isPropertyAccessExpression(expression)) {
+    return expression.getNameNode().getText() === 'lazy';
   }
 
   return false;

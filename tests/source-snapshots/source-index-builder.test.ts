@@ -1153,4 +1153,93 @@ describe('source index semantic project bootstrap', () => {
       },
     ]);
   });
+
+  test('keeps bare dynamic import edges for default-exported lazy components', async () => {
+    const rootPath = await fs.mkdtemp(path.join(os.tmpdir(), 'source-index-semantic-bare-dynamic-import-'));
+    tempRoots.push(rootPath);
+
+    await fse.ensureDir(path.join(rootPath, 'src'));
+    await fs.writeFile(
+      path.join(rootPath, 'tsconfig.json'),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            jsx: 'preserve',
+            target: 'ES2020',
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    await fs.writeFile(
+      path.join(rootPath, 'src', 'Widget.tsx'),
+      'export default function Widget() { return <div />; }\n',
+    );
+    await fs.writeFile(
+      path.join(rootPath, 'src', 'lazy-host.tsx'),
+      'import { lazy } from "react";\n' +
+        'const Widget = lazy(() => import("./Widget"));\n' +
+        'export function LazyHost() { return <Widget />; }\n',
+    );
+
+    const artifact = await buildSourceIndexArtifact(rootPath, 98);
+    const widgetDefinition = artifact.definitions?.find(
+      (definition) => definition.name === 'Widget' && definition.file === 'src/Widget.tsx',
+    );
+
+    expect(widgetDefinition).toBeTruthy();
+    expect(
+      (artifact.usages ?? [])
+        .filter((usage) => usage.kind === 'import' && usage.targetFile === 'src/Widget.tsx')
+        .map(pickUsageFields),
+    ).toEqual([
+      {
+        kind: 'import',
+        file: 'src/lazy-host.tsx',
+        symbol: 'Widget',
+        targetFile: 'src/Widget.tsx',
+        line: 2,
+        importedAs: undefined,
+        namespaceAlias: undefined,
+        definitionId: widgetDefinition?.id,
+      },
+    ]);
+  });
+
+  test('treats lazy wrapped exports as components', async () => {
+    const rootPath = await fs.mkdtemp(path.join(os.tmpdir(), 'source-index-semantic-lazy-wrapper-'));
+    tempRoots.push(rootPath);
+
+    await fse.ensureDir(path.join(rootPath, 'src'));
+    await fs.writeFile(
+      path.join(rootPath, 'tsconfig.json'),
+      JSON.stringify(
+        {
+          compilerOptions: {
+            jsx: 'preserve',
+            target: 'ES2020',
+          },
+        },
+        null,
+        2,
+      ),
+    );
+    await fs.writeFile(path.join(rootPath, 'src', 'Dashboard.tsx'), 'export default function Dashboard() { return <div />; }\n');
+    await fs.writeFile(
+      path.join(rootPath, 'src', 'routes.tsx'),
+      'import { lazy } from "react";\n' + 'export const DashboardPage = lazy(() => import("./Dashboard"));\n',
+    );
+
+    const artifact = await buildSourceIndexArtifact(rootPath, 99);
+    const dashboardPageDefinition = artifact.definitions?.find(
+      (definition) => definition.name === 'DashboardPage' && definition.file === 'src/routes.tsx',
+    );
+
+    expect(dashboardPageDefinition).toMatchObject({
+      kind: 'component',
+      exportNames: ['DashboardPage'],
+      isDefaultExport: false,
+    });
+  });
 });
