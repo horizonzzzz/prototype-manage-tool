@@ -51,7 +51,7 @@
     "react-hook-form": "^7.72.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.5.0",
-    "ts-morph": "^26.0.0",
+    "ts-morph": "^28.0.0",
     "typescript": "^6.0.2",
     "yauzl": "^3.3.0",
     "zod": "^4.3.6"
