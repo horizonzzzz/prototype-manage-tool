@@ -10,8 +10,6 @@ const { productVersionFindFirstMock } = vi.hoisted(() => ({
 }));
 
 const resolvePublishedSnapshotVersionMock = vi.hoisted(() => vi.fn());
-const ensureSourceIndexBackfillScheduledMock = vi.hoisted(() => vi.fn());
-
 vi.mock('@/lib/prisma', () => ({
   prisma: {
     productVersion: {
@@ -22,10 +20,6 @@ vi.mock('@/lib/prisma', () => ({
 
 vi.mock('@/lib/server/source-snapshot-service', () => ({
   resolvePublishedSnapshotVersion: resolvePublishedSnapshotVersionMock,
-}));
-
-vi.mock('@/lib/server/source-index-queue', () => ({
-  ensureSourceIndexBackfillScheduled: ensureSourceIndexBackfillScheduledMock,
 }));
 
 import {
@@ -78,7 +72,6 @@ describe('source index service', { timeout: SOURCE_INDEX_INTEGRATION_TIMEOUT_MS 
 
   beforeEach(async () => {
     vi.clearAllMocks();
-    ensureSourceIndexBackfillScheduledMock.mockResolvedValue(undefined);
     tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'source-index-service-'));
     snapshotDir = path.join(tmpDir, 'snapshot');
 
@@ -597,7 +590,7 @@ describe('source index service', { timeout: SOURCE_INDEX_INTEGRATION_TIMEOUT_MS 
     expect(resolvePublishedSnapshotVersionMock).toHaveBeenCalledWith(scope, 'crm', 'default');
   });
 
-  test('returns structured non-ready status when index is pending', async () => {
+  test('returns structured non-ready status when index is pending without scheduling a backfill from the query path', async () => {
     productVersionFindFirstMock.mockResolvedValue({
       sourceSnapshot: {
         id: 801,
@@ -625,7 +618,6 @@ describe('source index service', { timeout: SOURCE_INDEX_INTEGRATION_TIMEOUT_MS 
       warnings: [],
       payload: null,
     });
-    expect(ensureSourceIndexBackfillScheduledMock).toHaveBeenCalledTimes(2);
     expect(resolvePublishedSnapshotVersionMock).toHaveBeenCalledWith(scope, 'crm', 'latest');
   });
 });

@@ -2,6 +2,13 @@ import path from 'node:path';
 
 import { isSafeRouteSegment } from '@/lib/domain/route-segment';
 
+function isPathInsideRoot(rootDir: string, candidatePath: string) {
+  const resolvedRoot = path.resolve(rootDir);
+  const resolvedCandidate = path.resolve(candidatePath);
+  const relative = path.relative(resolvedRoot, resolvedCandidate);
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
+}
+
 export function ensureVersionPathInsideRoot(rootDir: string, productKey: string, version: string) {
   if (!isSafeRouteSegment(productKey)) {
     throw new Error('Invalid product key');
@@ -13,7 +20,7 @@ export function ensureVersionPathInsideRoot(rootDir: string, productKey: string,
 
   const resolved = path.resolve(rootDir, productKey, version);
 
-  if (!resolved.startsWith(path.resolve(rootDir))) {
+  if (!isPathInsideRoot(rootDir, resolved)) {
     throw new Error('Resolved path escapes root directory');
   }
 
@@ -30,7 +37,7 @@ export function ensureUserVersionPathInsideRoot(rootDir: string, userId: string,
 
 export function ensureChildPath(rootDir: string, ...segments: string[]) {
   const resolved = path.resolve(rootDir, ...segments);
-  if (!resolved.startsWith(path.resolve(rootDir))) {
+  if (!isPathInsideRoot(rootDir, resolved)) {
     throw new Error('Resolved child path escapes root directory');
   }
   return resolved;

@@ -74,6 +74,8 @@ Prisma CLI datasource resolution now also depends on `prisma.config.ts`, and run
 
 When investigating behavior, start here:
 
+- [instrumentation.ts](/D:/Work/prototype-manage-tool/instrumentation.ts)
+  Starts the process-level source-index backfill loop for published snapshots on Node.js server boot.
 - [proxy.ts](/D:/Work/prototype-manage-tool/proxy.ts)
   Owns locale negotiation and route matching for internationalized pages.
 - [i18n/routing.ts](/D:/Work/prototype-manage-tool/i18n/routing.ts)
@@ -156,7 +158,8 @@ Flow:
 8. Published files are copied into `data/prototypes/<userId>/<product>/<version>/`.
 9. A source snapshot is copied into `data/source-snapshots/<userId>/<product>/<version>/`.
 10. `ProductVersion` is marked `published`, and default version may be assigned automatically.
-11. A background source-index build persists summary and lookup artifacts for MCP high-level tools.
+11. The publish path schedules a source-index build for the version.
+12. A process-level background source-index loop rescans `pending` and `failed` published snapshots and persists summary and lookup artifacts for MCP high-level tools.
 
 Current upload constraints:
 
@@ -228,6 +231,8 @@ Current product decisions:
 - only published versions are exposed
 - only snapshots with `status=ready` are exposed
 - source-index-backed MCP tools return index lifecycle status instead of throwing when async indexing is still pending
+- MCP read/query requests must not synchronously trigger source-index backfill scans
+- MCP source file and tree paths must stay rooted to the resolved snapshot directory; sibling-version traversal such as `../v10/...` must be rejected
 - there is no page-to-file mapping yet
 - source access includes semantic source-index queries for codebase summary, component context, type definitions, and contextual usage lookup
 

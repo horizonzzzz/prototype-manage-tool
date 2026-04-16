@@ -70,6 +70,7 @@ vi.mock('@/lib/prisma', () => ({
 import {
   createSourceSnapshot,
   ensureSourceIndexBackfillScheduled,
+  startSourceIndexBackfillLoop,
   rebuildSourceSnapshotIndex,
   __resetSourceIndexQueueState,
   deleteSourceIndexForVersion,
@@ -734,6 +735,24 @@ describe('source snapshot service', { timeout: SOURCE_SNAPSHOT_INTEGRATION_TIMEO
     }
   });
 
+  test('starts a single background backfill loop that rescans pending snapshots on an interval', async () => {
+    vi.useFakeTimers();
+    try {
+      sourceSnapshotFindManyMock.mockResolvedValue([]);
+
+      startSourceIndexBackfillLoop();
+      startSourceIndexBackfillLoop();
+      await vi.advanceTimersByTimeAsync(0);
+
+      expect(sourceSnapshotFindManyMock).toHaveBeenCalledTimes(1);
+
+      await vi.advanceTimersByTimeAsync(30_000);
+      expect(sourceSnapshotFindManyMock).toHaveBeenCalledTimes(2);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   test('skips index writes when a queued backfill snapshot is no longer ready', async () => {
     __resetSourceIndexQueueState();
     sourceSnapshotFindManyMock.mockResolvedValue([{ versionId: 901 }]);
@@ -986,6 +1005,28 @@ describe('source snapshot service', { timeout: SOURCE_SNAPSHOT_INTEGRATION_TIMEO
     expect(result.endLine).toBe(4);
     expect(result.totalLines).toBe(6);
     expect(result.truncated).toBe(true);
+  });
+
+  test('rejects source file paths that escape into a sibling snapshot directory', async () => {
+    const snapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v1');
+    const siblingSnapshotDir = path.join(testState.sourceSnapshotsDir, 'user-1', 'crm', 'v10');
+    await fse.ensureDir(path.join(snapshotDir, 'src'));
+    await fse.ensureDir(path.join(siblingSnapshotDir, 'src'));
+    await fs.writeFile(path.join(snapshotDir, 'src', 'safe.ts'), 'export const safe = true;\n');
+    await fs.writeFile(path.join(siblingSnapshotDir, 'src', 'secret.ts'), 'export const secret = true;\n');
+    productVersionFindFirstMock.mockResolvedValue({
+      version: 'v1',
+      isDefault: true,
+      createdAt: new Date('2024-01-01T00:00:00.000Z'),
+      sourceSnapshot: {
+        status: 'ready',
+        rootPath: snapshotDir,
+      },
+    });
+
+    await expect(readSourceFile(mcpAccessScope, 'crm', 'v1', '../v10/src/secret.ts')).rejects.toThrow(
+      'Resolved child path escapes root directory',
+    );
   });
 
   test('reads requested lines beyond the previous prefix limit for large text files', async () => {

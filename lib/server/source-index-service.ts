@@ -3,7 +3,6 @@ import fs from 'node:fs/promises';
 import { ensureChildPath } from '@/lib/domain/path-safety';
 import { prisma } from '@/lib/prisma';
 import type { McpAccessScope } from '@/lib/server/mcp-api-key-service';
-import { ensureSourceIndexBackfillScheduled } from '@/lib/server/source-index-queue';
 import { resolvePublishedSnapshotVersion } from '@/lib/server/source-snapshot-service';
 import {
   MAX_CONTEXT_LINES,
@@ -20,7 +19,7 @@ import {
 } from '@/lib/server/source-index-types';
 
 // Re-export for backward compatibility - import from source modules directly
-export { scheduleSourceSnapshotIndexBuild, ensureSourceIndexBackfillScheduled } from '@/lib/server/source-index-queue';
+export { scheduleSourceSnapshotIndexBuild, ensureSourceIndexBackfillScheduled, startSourceIndexBackfillLoop } from '@/lib/server/source-index-queue';
 export { rebuildSourceSnapshotIndex } from '@/lib/server/source-index-builder';
 
 type VersionSelectorInput = 'default' | 'latest' | { exact: string };
@@ -259,7 +258,6 @@ function collectReferencedDefinitions(
 }
 
 async function loadIndexContext(scope: McpAccessScope, input: SourceIndexSelection): Promise<LoadedIndexContext> {
-  await ensureSourceIndexBackfillScheduled();
   const selector = resolveVersionSelector(input);
   const resolved = await resolvePublishedSnapshotVersion(scope, input.productKey, selector);
 

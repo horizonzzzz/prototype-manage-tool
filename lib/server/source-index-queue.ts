@@ -10,6 +10,8 @@ type SourceIndexQueueState = {
 type SourceIndexBackfillState = {
   promise: Promise<void> | null;
   lastRunAt: number | null;
+  interval: ReturnType<typeof setInterval> | null;
+  bootTimer: ReturnType<typeof setTimeout> | null;
 };
 
 const SOURCE_INDEX_BACKFILL_RESCAN_INTERVAL_MS = 30_000;
@@ -34,6 +36,8 @@ function getSourceIndexBackfillState(): SourceIndexBackfillState {
     backfillState = {
       promise: null,
       lastRunAt: null,
+      interval: null,
+      bootTimer: null,
     };
   }
 
@@ -69,6 +73,7 @@ async function drainSourceIndexQueue() {
 }
 
 export function scheduleSourceSnapshotIndexBuild(versionId: number) {
+  startSourceIndexBackfillLoop();
   const state = getSourceIndexQueueState();
   if (state.active.has(versionId) || state.queue.includes(versionId)) {
     return;
@@ -82,8 +87,36 @@ export function scheduleSourceSnapshotIndexBuild(versionId: number) {
 
 /** Reset queue and backfill state. Exported for test isolation only. */
 export function __resetSourceIndexQueueState() {
+  if (backfillState?.interval) {
+    clearInterval(backfillState.interval);
+  }
+  if (backfillState?.bootTimer) {
+    clearTimeout(backfillState.bootTimer);
+  }
   queueState = undefined;
   backfillState = undefined;
+}
+
+export function startSourceIndexBackfillLoop() {
+  const state = getSourceIndexBackfillState();
+  if (state.interval) {
+    return;
+  }
+
+  state.bootTimer = setTimeout(() => {
+    state.bootTimer = null;
+    void ensureSourceIndexBackfillScheduled();
+  }, 0);
+  state.interval = setInterval(() => {
+    void ensureSourceIndexBackfillScheduled();
+  }, SOURCE_INDEX_BACKFILL_RESCAN_INTERVAL_MS);
+
+  if (typeof state.bootTimer === 'object' && typeof state.bootTimer.unref === 'function') {
+    state.bootTimer.unref();
+  }
+  if (typeof state.interval === 'object' && typeof state.interval.unref === 'function') {
+    state.interval.unref();
+  }
 }
 
 export async function ensureSourceIndexBackfillScheduled() {

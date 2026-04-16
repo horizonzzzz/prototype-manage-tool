@@ -11,7 +11,12 @@ import { isProbablyText } from '@/lib/server/source-index-types';
 
 // Re-export for backward compatibility
 export { rebuildSourceSnapshotIndex } from '@/lib/server/source-index-builder';
-export { ensureSourceIndexBackfillScheduled, scheduleSourceSnapshotIndexBuild, __resetSourceIndexQueueState } from '@/lib/server/source-index-queue';
+export {
+  ensureSourceIndexBackfillScheduled,
+  scheduleSourceSnapshotIndexBuild,
+  startSourceIndexBackfillLoop,
+  __resetSourceIndexQueueState,
+} from '@/lib/server/source-index-queue';
 
 export type { McpAccessScope } from '@/lib/server/mcp-api-key-service';
 
