@@ -2,14 +2,15 @@
 
 import { useState } from 'react';
 import dayjs from 'dayjs';
-import { Copy, Plus, Trash2 } from 'lucide-react';
+import { CircleHelp, Copy, Plus, Trash2 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import ReactMarkdown from 'react-markdown';
 import { toast } from 'sonner';
 
 import { ConfirmDialog } from '@/components/confirm-dialog';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -28,10 +29,14 @@ type McpKeysSettingsProps = {
   description: string;
   initialKeys: McpApiKeyItem[];
   availableProducts: AvailableProduct[];
+  mcpEndpointUrl: string;
 };
 
 const EXPIRATION_OPTIONS = ['7d', '30d', '90d', '1y', 'permanent'] as const;
 type ExpirationOption = (typeof EXPIRATION_OPTIONS)[number];
+const MCP_SERVER_NAME = 'prototype-manage-tool';
+const MCP_TOKEN_PLACEHOLDER = '<YOUR_MCP_TOKEN>';
+const MCP_AUTHORIZATION_HEADER = `Authorization: Bearer ${MCP_TOKEN_PLACEHOLDER}`;
 
 function resolveExpiresAt(option: ExpirationOption) {
   if (option === 'permanent') {
@@ -53,17 +58,130 @@ function resolveExpiresAt(option: ExpirationOption) {
   }
 }
 
-export function McpKeysSettings({ title, description, initialKeys, availableProducts }: McpKeysSettingsProps) {
+function renderCodeBlock(language: string, value: string) {
+  return [`\`\`\`${language}`, value, '```'].join('\n');
+}
+
+function renderJsonBlock(value: object) {
+  return renderCodeBlock('json', JSON.stringify(value, null, 2));
+}
+
+function buildHelpMarkdown(t: ReturnType<typeof useTranslations<'mcp'>>, mcpEndpointUrl: string) {
+  const claudeConfig = {
+    type: 'http',
+    url: mcpEndpointUrl,
+    headers: {
+      Authorization: `Bearer ${MCP_TOKEN_PLACEHOLDER}`,
+    },
+  };
+
+  const cursorConfig = {
+    mcpServers: {
+      [MCP_SERVER_NAME]: {
+        url: mcpEndpointUrl,
+        headers: {
+          Authorization: `Bearer ${MCP_TOKEN_PLACEHOLDER}`,
+        },
+      },
+    },
+  };
+
+  const geminiConfig = {
+    mcpServers: {
+      [MCP_SERVER_NAME]: {
+        httpUrl: mcpEndpointUrl,
+        headers: {
+          Authorization: `Bearer ${MCP_TOKEN_PLACEHOLDER}`,
+        },
+      },
+    },
+  };
+
+  const opencodeConfig = {
+    $schema: 'https://opencode.ai/config.json',
+    mcp: {
+      [MCP_SERVER_NAME]: {
+        type: 'remote',
+        url: mcpEndpointUrl,
+        headers: {
+          Authorization: `Bearer ${MCP_TOKEN_PLACEHOLDER}`,
+        },
+      },
+    },
+  };
+
+  const genericConfig = {
+    mcpServers: {
+      [MCP_SERVER_NAME]: {
+        type: 'http',
+        url: mcpEndpointUrl,
+        headers: {
+          Authorization: `Bearer ${MCP_TOKEN_PLACEHOLDER}`,
+        },
+      },
+    },
+  };
+
+  const claudeJsonArgument = JSON.stringify(claudeConfig);
+
+  return [
+    `## ${t('helpSections.prerequisitesTitle')}`,
+    t('helpSections.prerequisitesBody'),
+    '',
+    `- ${t('helpSections.prerequisitesItems.createKey')}`,
+    `- ${t('helpSections.prerequisitesItems.endpoint')}`,
+    `- ${t('helpSections.prerequisitesItems.token')} \`${MCP_AUTHORIZATION_HEADER}\``,
+    '',
+    `## ${t('helpSections.endpointTitle')}`,
+    t('helpSections.endpointBody'),
+    '',
+    renderCodeBlock('text', mcpEndpointUrl),
+    '',
+    `## ${t('helpSections.clientsTitle')}`,
+    t('helpSections.clientsBody'),
+    '',
+    '### Claude Code',
+    t('helpAgents.claudeDescription'),
+    '',
+    renderCodeBlock('bash', `claude mcp add-json ${MCP_SERVER_NAME} '${claudeJsonArgument}'`),
+    '',
+    '### Cursor',
+    t('helpAgents.cursorDescription'),
+    '',
+    renderJsonBlock(cursorConfig),
+    '',
+    '### Gemini CLI',
+    t('helpAgents.geminiDescription'),
+    '',
+    renderJsonBlock(geminiConfig),
+    '',
+    '### OpenCode',
+    t('helpAgents.opencodeDescription'),
+    '',
+    renderJsonBlock(opencodeConfig),
+    '',
+    `## ${t('helpSections.genericTitle')}`,
+    t('helpSections.genericBody'),
+    '',
+    renderJsonBlock(genericConfig),
+    '',
+    t('helpSections.genericFooter'),
+  ].join('\n');
+}
+
+export function McpKeysSettings({ title, description, initialKeys, availableProducts, mcpEndpointUrl }: McpKeysSettingsProps) {
   const t = useTranslations('mcp');
   const tCommon = useTranslations('common');
   const [keys, setKeys] = useState(initialKeys);
-  const [dialogOpen, setDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [helpDialogOpen, setHelpDialogOpen] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<McpApiKeyItem | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [name, setName] = useState('');
   const [selectedProductIds, setSelectedProductIds] = useState<number[]>([]);
   const [expirationOption, setExpirationOption] = useState<ExpirationOption>('permanent');
+  const helpMarkdown = buildHelpMarkdown(t, mcpEndpointUrl);
 
   const allSelected = availableProducts.length > 0 && selectedProductIds.length === availableProducts.length;
 
@@ -119,7 +237,7 @@ export function McpKeysSettings({ title, description, initialKeys, availableProd
       });
 
       setKeys((current) => [created, ...current]);
-      setDialogOpen(false);
+      setCreateDialogOpen(false);
       resetCreateForm();
       toast.success(t('mcpCreateSuccess'));
     } catch (error) {
@@ -155,10 +273,22 @@ export function McpKeysSettings({ title, description, initialKeys, availableProd
           <h2 className="text-2xl font-bold tracking-tight">{title}</h2>
           <p className="text-muted-foreground">{description}</p>
         </div>
-        <Button type="button" onClick={() => setDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          {t('mcpCreate')}
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            aria-label={t('helpOpen')}
+            title={t('helpOpen')}
+            onClick={() => setHelpDialogOpen(true)}
+          >
+            <CircleHelp className="h-4 w-4" />
+          </Button>
+          <Button type="button" onClick={() => setCreateDialogOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" />
+            {t('mcpCreate')}
+          </Button>
+        </div>
       </div>
 
       <div className="rounded-md border">
@@ -224,9 +354,9 @@ export function McpKeysSettings({ title, description, initialKeys, availableProd
       </div>
 
       <Dialog
-        open={dialogOpen}
+        open={createDialogOpen}
         onOpenChange={(open) => {
-          setDialogOpen(open);
+          setCreateDialogOpen(open);
           if (!open) {
             resetCreateForm();
           }
@@ -286,7 +416,7 @@ export function McpKeysSettings({ title, description, initialKeys, availableProd
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => setDialogOpen(false)} disabled={submitting}>
+            <Button type="button" variant="outline" onClick={() => setCreateDialogOpen(false)} disabled={submitting}>
               {tCommon('cancel')}
             </Button>
             <Button
@@ -297,6 +427,45 @@ export function McpKeysSettings({ title, description, initialKeys, availableProd
               {t('mcpCreate')}
             </Button>
           </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={helpDialogOpen} onOpenChange={setHelpDialogOpen}>
+        <DialogContent className="flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden p-0 sm:max-w-3xl">
+          <DialogHeader className="shrink-0 border-b px-6 py-5 pr-12">
+            <DialogTitle>{t('helpTitle')}</DialogTitle>
+            <DialogDescription>{t('helpDescription')}</DialogDescription>
+          </DialogHeader>
+          <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">
+            <div className="rounded-lg border bg-muted/30 p-4">
+              <ReactMarkdown
+                components={{
+                  h2: ({ children }) => <h2 className="mt-5 first:mt-0 text-base font-semibold text-foreground">{children}</h2>,
+                  h3: ({ children }) => <h3 className="mt-4 text-sm font-semibold text-foreground">{children}</h3>,
+                  p: ({ children }) => <p className="mt-2 leading-6 text-muted-foreground">{children}</p>,
+                  ul: ({ children }) => <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">{children}</ul>,
+                  li: ({ children }) => <li>{children}</li>,
+                  pre: ({ children }) => <pre className="mt-3 overflow-x-auto rounded-md bg-background p-3 text-xs leading-6">{children}</pre>,
+                  code: ({ className, children }) => {
+                    const isBlock = Boolean(className);
+
+                    if (isBlock) {
+                      return <code className={className}>{children}</code>;
+                    }
+
+                    return <code className="rounded bg-background px-1.5 py-0.5 font-mono text-[0.85em] text-foreground">{children}</code>;
+                  },
+                }}
+              >
+                {helpMarkdown}
+              </ReactMarkdown>
+            </div>
+          </div>
+          <div className="flex shrink-0 justify-end border-t bg-muted/50 px-6 py-4">
+            <Button type="button" variant="outline" onClick={() => setHelpDialogOpen(false)}>
+              {t('helpClose')}
+            </Button>
+          </div>
         </DialogContent>
       </Dialog>
 

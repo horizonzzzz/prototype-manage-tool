@@ -89,6 +89,10 @@
     "title": "MCP API Keys",
     "description": "Create per-user MCP tokens and limit each token to the products it can access.",
     "mcpCreate": "Create key",
+    "helpOpen": "Setup help",
+    "helpTitle": "MCP setup guide",
+    "helpDescription": "Connect the current deployment to common agents. Create a key first, then replace the token placeholder in the examples below.",
+    "helpClose": "Close",
     "mcpNameLabel": "Key name",
     "mcpExpirationLabel": "Expiration",
     "mcpProductsLabel": "Authorized products",
@@ -123,6 +127,28 @@
       "90d": "90 days",
       "1y": "1 year",
       "permanent": "Permanent"
+    },
+    "helpSections": {
+      "prerequisitesTitle": "Before you start",
+      "prerequisitesBody": "This service exposes a remote HTTP MCP endpoint. Before configuring any client, make sure you have the following:",
+      "prerequisitesItems": {
+        "createKey": "Create an MCP key on this page and copy the full token.",
+        "endpoint": "Point the MCP endpoint to `/api/mcp` on this deployment.",
+        "token": "Send the token through the following request header in the client config:"
+      },
+      "endpointTitle": "Endpoint for this deployment",
+      "endpointBody": "The address below is generated dynamically from the current deployment host or IP and port:",
+      "clientsTitle": "Common client examples",
+      "clientsBody": "Each client stores MCP settings differently, but the core setup is the same: use the same endpoint and send the same Bearer token.",
+      "genericTitle": "Generic JSON reference",
+      "genericBody": "If your client supports remote HTTP MCP plus custom headers, it will usually accept a close variant of the structure below. Adjust the top-level field names to match that client.",
+      "genericFooter": "Other clients, such as Codex, Trae, or internal agents, can reuse the same endpoint and Bearer token pattern when they support remote HTTP MCP."
+    },
+    "helpAgents": {
+      "claudeDescription": "Anthropic documents `claude mcp add-json` for adding a remote MCP configuration directly.",
+      "cursorDescription": "Cursor documents remote MCP through `mcp.json` with `url` and `headers`.",
+      "geminiDescription": "Gemini CLI documents Streamable HTTP MCP in `settings.json` through `httpUrl`.",
+      "opencodeDescription": "OpenCode documents remote MCP configuration under `mcp` in `opencode.json`."
     }
   },
   "preview": {
