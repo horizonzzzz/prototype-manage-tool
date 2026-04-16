@@ -24,6 +24,20 @@ describe('mcp help dialog contract', () => {
     expect(mcpSettingsSource).toContain('mcpEndpointUrl');
   });
 
+  test('adds a copy action to fenced code blocks in the help dialog', () => {
+    expect(mcpSettingsSource).toContain('copyHelpCode');
+    expect(mcpSettingsSource).toContain("from '@/lib/ui/preview-link'");
+    expect(mcpSettingsSource).toContain("t('helpCopyCode')");
+    expect(mcpSettingsSource).toContain('absolute right-2 top-2');
+  });
+
+  test('renders single-line code blocks with an inline copy action while keeping multi-line blocks top-right', () => {
+    expect(mcpSettingsSource).toContain("const isSingleLineCodeBlock = !codeBlock.value.includes('\\n')");
+    expect(mcpSettingsSource).toContain('mt-3 flex items-center gap-2 rounded-md bg-background p-3 text-xs leading-6');
+    expect(mcpSettingsSource).toContain('block w-max whitespace-pre');
+    expect(mcpSettingsSource).toContain('overflow-x-auto rounded-md bg-background p-3 pr-12 pt-10 text-xs leading-6');
+  });
+
   test('keeps the help dialog shell fixed while the markdown body scrolls', () => {
     expect(mcpSettingsSource).toContain('flex max-h-[calc(100vh-2rem)] flex-col overflow-hidden');
     expect(mcpSettingsSource).toContain('min-h-0 flex-1 overflow-y-auto');

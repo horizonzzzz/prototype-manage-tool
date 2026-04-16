@@ -17,6 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import type { McpApiKeyItem } from '@/lib/types';
 import { fetchJson } from '@/lib/ui/api-client';
+import { copyText } from '@/lib/ui/preview-link';
 
 type AvailableProduct = {
   id: number;
@@ -37,6 +38,16 @@ type ExpirationOption = (typeof EXPIRATION_OPTIONS)[number];
 const MCP_SERVER_NAME = 'prototype-manage-tool';
 const MCP_TOKEN_PLACEHOLDER = '<YOUR_MCP_TOKEN>';
 const MCP_AUTHORIZATION_HEADER = `Authorization: Bearer ${MCP_TOKEN_PLACEHOLDER}`;
+
+type MarkdownNode = {
+  type?: string;
+  tagName?: string;
+  value?: string;
+  properties?: {
+    className?: string | string[];
+  };
+  children?: MarkdownNode[];
+};
 
 function resolveExpiresAt(option: ExpirationOption) {
   if (option === 'permanent') {
@@ -64,6 +75,39 @@ function renderCodeBlock(language: string, value: string) {
 
 function renderJsonBlock(value: object) {
   return renderCodeBlock('json', JSON.stringify(value, null, 2));
+}
+
+function extractMarkdownText(node: MarkdownNode | undefined): string {
+  if (!node) {
+    return '';
+  }
+
+  if (node.type === 'text' || node.type === 'raw') {
+    return node.value ?? '';
+  }
+
+  return node.children?.map((child) => extractMarkdownText(child)).join('') ?? '';
+}
+
+function normalizeClassName(value: string | string[] | undefined) {
+  if (Array.isArray(value)) {
+    return value.join(' ');
+  }
+
+  return value;
+}
+
+function resolveMarkdownCodeBlock(node: MarkdownNode | undefined) {
+  const codeNode = node?.children?.find((child) => child.tagName === 'code');
+
+  if (!codeNode) {
+    return null;
+  }
+
+  return {
+    className: normalizeClassName(codeNode.properties?.className),
+    value: extractMarkdownText(codeNode).replace(/\n$/, ''),
+  };
 }
 
 function buildHelpMarkdown(t: ReturnType<typeof useTranslations<'mcp'>>, mcpEndpointUrl: string) {
@@ -192,6 +236,11 @@ export function McpKeysSettings({ title, description, initialKeys, availableProd
     } catch {
       toast.error(t('mcpTokenCopyFailed'));
     }
+  }
+
+  async function copyHelpCode(value: string) {
+    const copied = await copyText(value);
+    copied ? toast.success(t('helpCodeCopied')) : toast.error(t('helpCodeCopyFailed'));
   }
 
   function resetCreateForm() {
@@ -445,7 +494,57 @@ export function McpKeysSettings({ title, description, initialKeys, availableProd
                   p: ({ children }) => <p className="mt-2 leading-6 text-muted-foreground">{children}</p>,
                   ul: ({ children }) => <ul className="mt-2 list-disc space-y-1 pl-5 text-muted-foreground">{children}</ul>,
                   li: ({ children }) => <li>{children}</li>,
-                  pre: ({ children }) => <pre className="mt-3 overflow-x-auto rounded-md bg-background p-3 text-xs leading-6">{children}</pre>,
+                  pre: ({ node, children }) => {
+                    const codeBlock = resolveMarkdownCodeBlock(node as MarkdownNode | undefined);
+
+                    if (!codeBlock) {
+                      return <pre className="mt-3 overflow-x-auto rounded-md bg-background p-3 text-xs leading-6">{children}</pre>;
+                    }
+
+                    const isSingleLineCodeBlock = !codeBlock.value.includes('\n');
+
+                    if (isSingleLineCodeBlock) {
+                      return (
+                        <div className="mt-3 flex items-center gap-2 rounded-md bg-background p-3 text-xs leading-6">
+                          <div className="min-w-0 flex-1 overflow-x-auto">
+                            <code className={`${codeBlock.className ?? ''} block w-max whitespace-pre`.trim()}>
+                              {codeBlock.value}
+                            </code>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="shrink-0"
+                            aria-label={t('helpCopyCode')}
+                            title={t('helpCopyCode')}
+                            onClick={() => void copyHelpCode(codeBlock.value)}
+                          >
+                            <Copy className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div className="relative mt-3">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-xs"
+                          className="absolute right-2 top-2 z-10"
+                          aria-label={t('helpCopyCode')}
+                          title={t('helpCopyCode')}
+                          onClick={() => void copyHelpCode(codeBlock.value)}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                        <pre className="overflow-x-auto rounded-md bg-background p-3 pr-12 pt-10 text-xs leading-6">
+                          <code className={codeBlock.className}>{codeBlock.value}</code>
+                        </pre>
+                      </div>
+                    );
+                  },
                   code: ({ className, children }) => {
                     const isBlock = Boolean(className);
 
