@@ -4,9 +4,34 @@ All notable release changes for `Prototype Manage Tool` are tracked here. GitHub
 
 ## Unreleased
 
+## 2.0.0
+
+### Breaking Changes
+
+- Switched the platform to Auth.js email/password authentication with account-owned isolation for admin, preview, product, version, build-job, and MCP data.
+- Moved locale-aware application routing to `next-intl`, with Chinese served on unprefixed routes and English served under `/en/*`.
+- Replaced the legacy MCP mock-data flow with source-index-backed tools and tighter snapshot path isolation, so MCP clients must handle source-index lifecycle states.
+
+### Features
+
+- Added per-user MCP API keys with product-scoped authorization, in-app setup guidance, and richer MCP tools for codebase summary, contextual search, component context, type definitions, and index status.
+- Added persisted semantic source indexing for published snapshots, including restart-safe background indexing and improved source understanding for MCP consumers.
+- Consolidated account settings management and rebuilt the admin and preview workspaces around prototype-aligned list/detail flows and updated UI fidelity.
+
 ### Fixes
 
-- Fixed Docker-deployed preview pages serving build-time empty-state snapshots so newly published products appear in `/preview` without rebuilding the image.
+- Fixed Docker-deployed preview pages so newly published products appear in `/preview` without rebuilding the image, while preview/share actions now resolve against the published entry URLs.
+- Fixed prototype upload and publish handling across Windows and production validation, including yauzl buffer fallback, relative asset normalization, and more stable build-log behavior.
+- Fixed auth configuration, preview ownership scoping, public published prototype access, MCP snapshot boundaries, lazy source-index semantics, and semantic source-index accuracy.
+
+### Operations
+
+- Upgraded the stack to Next.js 16, Prisma 7, ts-morph 28, and refreshed related tooling such as xterm packages and Vitest coverage workflows.
+- Hardened Docker deploy and upgrade behavior and normalized SQLite path resolution across Prisma CLI and runtime access.
+
+### Developer Experience
+
+- Simplified repository documentation and tightened agent guidance to match the current runtime, release, and source-index workflows.
 
 ## 1.4.0
 
