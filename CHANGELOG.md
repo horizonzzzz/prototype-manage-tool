@@ -2,6 +2,12 @@
 
 All notable release changes for `Prototype Manage Tool` are tracked here. GitHub Release pages should reuse the matching version section from this file.
 
+## 1.4.1
+
+### Fixes
+
+- Defaulted package-manager detection to `npm` when uploaded projects omit both the `packageManager` field and a lock file, so otherwise-valid npm builds still publish successfully.
+
 ## 1.4.0
 
 ### Features
