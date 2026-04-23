@@ -181,7 +181,7 @@ export async function detectPackageManager(projectDir: string): Promise<PackageM
     return 'npm';
   }
 
-  throw new Error('Unable to detect package manager from package.json or lock file');
+  return 'npm';
 }
 
 export async function getInstallCommand(

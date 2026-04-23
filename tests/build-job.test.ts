@@ -77,6 +77,17 @@ describe('build job domain helpers', () => {
     await expect(detectPackageManager(projectDir)).rejects.toThrow('Only pnpm and npm projects are supported');
   });
 
+  test('falls back to npm when no packageManager field and no lock file', async () => {
+    const projectDir = await createTempProject({
+      'package.json': JSON.stringify({
+        name: 'demo',
+        scripts: { build: 'vite build' },
+      }),
+    });
+
+    await expect(detectPackageManager(projectDir)).resolves.toBe('npm');
+  });
+
   test('installs devDependencies explicitly for npm and pnpm builds', async () => {
     const npmProjectDir = await createTempProject({
       'package.json': JSON.stringify({
